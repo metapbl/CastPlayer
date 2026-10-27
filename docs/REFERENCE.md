@@ -92,6 +92,7 @@
 | T14 | 61~90초 사이에 꽂아도 자동으로 다시 연결 안 됨 | 포기 뒤 30초 대기의 자동 연결은 기기 목록이 바뀔 때만 돈다. 목록을 유지(검색 재기동 안 함)하면 기기가 목록에 남아 있어 변화가 없음 | 마지막 IP 재시도 기한을 90초로 늘림 | D059, 2026-10-23 GUI 시험 3차 |
 | T15 | 재생 요청이 "start app CC1AD845 timed out after 10.0 s" | TV에 다른 Android 앱이 떠 있으면 기본 수신 앱 실행이 약 18초 걸림. 앱이 뜬 뒤에도 다시 요청하지 않음 | 보류. 시험 전 TV를 홈 화면에 둔다 | O105, 2026-10-23 droptest |
 | T16 | 리모컨으로 탐색한 직후 버퍼링이 판정에 셈됨 | TV 리모컨 탐색은 우리 프로그램을 거치지 않아 `탐색:` 로그가 없음 → `--count-buffering`이 10초 제외를 못 함 | 보류. 판정 로그를 볼 때 `HLS 생산 시작` 위치 점프로 구분 | O109, 2026-10-25 exe 시험 |
+| T17 | 배포 zip의 exe에 지운 줄 알았던 영상 이름이 남음 | zip을 공개 전 정리 커밋보다 먼저 빌드함. 주석은 exe에 안 들어가지만 docstring은 기본 빌드(최적화 없음)에서 들어감 | 릴리스 직전 마지막 코드 커밋 뒤 다시 빌드하고, exe 안 `core`·`ui` 모듈 문자열을 검색(`PyInstaller.archive.readers.CArchiveReader` → `PYZ.pyz`) | D041, 2026-10-27 릴리스 점검 |
 
 ## R§5 환경·도구
 - 개발 환경: Windows 11, PowerShell 7, Python 3.15.1 `.venv`(설계 기준 3.11+), PyChromecast 14.0.10, zeroconf 0.151.5, protobuf 7.36.2, PySide6 6.12.0, charset-normalizer 3.5.2 (2026-10-23 확인). PyInstaller 미설치

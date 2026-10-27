@@ -1,6 +1,6 @@
 # PRD — CastPlayer
 
-상태: approved (2026-10-24) | 단계: 5 확정 | 갱신: 2026-10-24
+상태: approved (2026-10-27) | 단계: 5 확정 | 갱신: 2026-10-27
 <!-- 상태가 approved (YYYY-MM-DD)가 되기 전에는 코드·뼈대·의존성 설치를 하지 않는다. -->
 <!-- 모든 항목 끝에 출처를 단다: [U] 사용자 · [X] 기존 코드·문서 · [AI] AI 기본값. 근거 결정은 (D###). -->
 <!-- [X] 출처 약칭: C = docs/legacy/claude.md, P = docs/legacy/progress.md -->
@@ -23,7 +23,8 @@
 - TV와 PC 양쪽 탐색 바가 처음부터 전체 길이를 보이고, TV 리모컨으로 전체 구간 탐색 [X] C §4 (D015)
 - 연결이 끊겼다 다시 연결되면 사용자 조작 없이 그 자리에서 이어 재생 (일시정지 상태 유지) [X] C §4 (D029, D033)
 - 버퍼링을 줄인다: 끊겨도 세션 유지(완료), 조각 전송 계측(완료). 영화 한 편(125.5분) 버퍼링 0회로 성공 기준 통과(2026-10-24), 비트레이트 상한은 하지 않음 [X] C §4 (D034) · [U] (D065)
-- GitHub 공개: README(한국어+영어), LICENSE(MIT, META PUBLIC), 의존성 라이선스 고지, Releases에 exe(onedir zip) [U] (D039~D044)
+- GitHub 공개: README(한국어+영어), LICENSE(MIT, META PUBLIC), 의존성 라이선스 고지, Releases에 exe(onedir zip). zip의 exe 옆에 LICENSE·THIRD_PARTY_NOTICES.md·README.md·README.en.md 동봉. 1.0.0 공개 (2026-10-27, Releases v1.0.0) [U] (D039~D044, D067)
+- 프로그램 아이콘 `assets/cast.ico`를 exe 파일과 창·작업표시줄에 쓴다 [U] (D066)
 - ffmpeg·ffprobe를 프로그램 옆 `bin/` → PATH 순서로 자동으로 찾는다 [U] (D042)
 ### 2.2 있으면 좋음
 - (없음. 비트레이트 상한 옵션은 §2.3으로 옮김, D065)
@@ -141,7 +142,7 @@
 - 확인 방법: 인수 기준의 표시대로. 자동은 `--selftest`, 실기기는 §6의 확인 결과 형식 (D062)
 - 근거: D030
 ### F8 테스트 도구
-- 정상 흐름: `python -m tools.cast_test "<파일>" [옵션]` 콘솔 시험, `--selftest`(TV 불필요), `--droptest`, `--log` [X] C §8 tools
+- 정상 흐름: `python -m tools.cast_test "<파일>" [옵션]` 콘솔 시험, `--selftest`(TV 불필요), `--droptest`, `--log` [X] C §8 tools. 버퍼링 판정 `--count-buffering [로그…]`: PLAYING→BUFFERING 횟수, 조작 뒤 10초 안은 뺌 [X] `tools/cast_test.py > count_buffering` (D050)
 - 인터페이스: 테스트 도구 코드는 `tools/cast_test.py` 한 파일만 둔다 (시험용 영상 파일과는 별개) [X]
 - 인수 기준 (D061, 확인: [자동] = `--selftest`, TV 없이 가짜 cast·기기 목록·로그 수집으로 모의 / [실기기] = 사용자 확인):
   - F8-1 [자동] Given TV 없음 / When `--selftest --log` / Then 마지막 줄 `[자가검사] N개 중 N개 통과`, 종료 코드 0, 결과가 `logs/cast_test_날짜_시각.txt`에도 남음 [X]
@@ -194,3 +195,4 @@
 | 2026-10-23 | §6 반목표 확인: 유튜브 유지는 캐스팅 전 연결·정지에 한정, 캐스팅 뒤 정지 → 홈은 정상 | D058 |
 | 2026-10-23 | §3 F1~F8 인수 기준 39개, F6 현재 상태·F7 로그 갱신. §6 확인 결과 형식, 전체 테스트, 편집 때 검사 | D061~D064 |
 | 2026-10-24 | §2 버퍼링 기준 통과 기록, 비트레이트 상한 옵션을 §2.2 → §2.3 | D065 |
+| 2026-10-27 | §2.1 아이콘·zip 동봉 문서·1.0.0 공개, F8 --count-buffering | D050, D066, D067 |

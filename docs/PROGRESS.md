@@ -1,14 +1,13 @@
 # PROGRESS — CastPlayer
 
 ## 상태
-- 단계: 7 계획 대기 · 계획: `docs/plans/2026-10-23-buffering-release.md` 완료 (버퍼링 판정·공개 준비 11/11)
-- 갱신: 2026-10-27 · 마지막 커밋: `64a605b docs: mark the buffering and release plan done`
+- 단계: 7 계획 대기 · 1.0.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.0.0)
+- 갱신: 2026-10-27 · 마지막 커밋: `cff6554 chore: initial public release (1.0.0)`
+- 히스토리를 새로 시작함(D041). 아래 완료 기록의 옛 커밋 해시는 저장소 밖 로컬 백업 `../CastPlayer-git-backup-2026-10-27`에만 있다
 
 ## 다음 할 일
-1. 공개 직전 단계 (계획 밖, 실행 전 확인): git 히스토리 새로 시작(D041, 기존 `.git`은 로컬 백업) → GitHub 저장소 만들기·push → Releases에 `dist/CastPlayer-1.0.0-win64.zip` 올리기 (D043). zip은 `CastPlayer.spec`으로 다시 빌드 가능
-2. 다음 계획 후보: O107 pyright 오류 71개 정리 → check 훅에 pyright 추가 / O108 PRD 미기재 예외를 코드에서 옮기기 / O109 리모컨 탐색 로그
-3. 보류 질문: O103·O105·O106·O107·O108·O109
-4. PRD 갱신 제안(/metarche discover): F8 정상 흐름에 `--count-buffering`, §2.1 공개 산출물에 앱 아이콘(D066)·zip 동봉 문서(D067)
+1. 다음 계획 후보: O107 pyright 오류 71개 정리 → check 훅에 pyright 추가 / O108 PRD 미기재 예외를 코드에서 옮기기 / O109 리모컨 탐색 로그
+2. 보류 질문: O103·O105·O106·O107·O108·O109
 
 ## 미해결
 - 남은 세션 위 LOAD 시 master.m3u8 요청까지 22초, PLAYING 뒤 약 8초 정지 — 원인 미확정. 끊김 보강 뒤 이번 시험에서는 재발 안 함 (OPEN O103, R§4 T12)
@@ -48,6 +47,7 @@
 - 2026-10-23 ffmpeg bin → PATH 찾기, 설치 안내창 (98dc429)
 - 2026-10-23 마지막 IP 자체 재연결 60초 → 90초 (926120b, 13cc8b0) — droptest 3/3
 - 2026-10-23 포기 뒤 30초 송출 유지, 목록 유지·[연결] 10초 대기 (125ce92, 522e88a)
+- 2026-10-27 1.0.0 공개: 히스토리 새로 시작 (cff6554), GitHub 공개 저장소·push, 정리 커밋 뒤 다시 빌드한 zip을 Releases v1.0.0에 올림. PRD 갱신 — §2.1 아이콘·동봉 문서·공개, F8 `--count-buffering` (Q053)
 - 2026-10-27 공개 준비: LICENSE·README 한/영 (b7c29ca), 1.0.0 exe·아이콘 (8914b5e), 의존성 고지 (96f037f), zip에 라이선스 동봉 (fc1adcc), 공개 전 점검 (3ca861a), 인수 확인 통과
 - 2026-10-23 스킬 변경 적용: 인수 기준 39개, ruff check 훅, 확인 결과 형식 (23232c8, ab8d5cf)
 - 2026-10-24 버퍼링 판정: 영화 한 편 125.5분 버퍼링 0회 → 성공 기준 통과, 비트레이트 상한 안 함 (D065)

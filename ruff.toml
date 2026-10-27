@@ -1,0 +1,10 @@
+# 편집 때 check 훅이 고친 파일마다 실행한다 (D063).
+[lint]
+select = ["E4", "E7", "E9", "F", "TID251"]
+
+[lint.flake8-tidy-imports.banned-api]
+"PySide6".msg = "core는 Qt에 의존하지 않는다. 상태는 CastCallbacks로 알린다 (D003)"
+
+[lint.per-file-ignores]
+# PySide6 금지는 core/에만
+"!core/**" = ["TID251"]

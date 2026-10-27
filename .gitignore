@@ -1,0 +1,37 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.ruff_cache/
+
+# PyInstaller 산출물
+build/
+dist/
+
+# 실행 중 생기는 것
+cache/
+logs/
+config.json
+cast_test_*.txt
+drop_*.txt
+
+# 사용자가 직접 넣는 외부 실행 파일
+bin/*.exe
+
+# 시험용 영상·자막 (저장소에 넣지 않음)
+*.mp4
+*.mkv
+*.avi
+*.ts
+*.mov
+*.m4v
+*.webm
+*.srt
+*.smi
+*.ass
+*.ssa
+*.vtt
+
+# Claude Code 개인 설정
+.claude/settings.local.json
+CLAUDE.local.md

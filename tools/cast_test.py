@@ -10,6 +10,8 @@
 
 로그 단계: (없음)=INFO  -v=DEBUG(pychromecast 중복·긴 메시지 압축)  -vv=DEBUG 원본 전부
 """
+# 자가검사는 가짜 객체(SimpleNamespace 등)를 진짜 타입 자리에 넣으므로 이 두 규칙은 끈다 (O107)
+# pyright: reportAttributeAccessIssue=false, reportArgumentType=false
 import argparse
 import logging
 import queue
@@ -243,6 +245,7 @@ def progress(stage: str, pct: int) -> None:
 
 
 def print_plan(ctrl: PlaybackController) -> None:
+    assert ctrl.plan is not None
     print("재생 방식:", ctrl.plan.summary)
     # DIRECT로 돌아온 뒤에도 남아 있는 timeline·encoder는 표시하지 않음 (남은 이슈 10)
     if ctrl.timeline and ctrl.plan.mode is not Mode.DIRECT:
@@ -457,6 +460,7 @@ def droptest(cm: CastManager, ctrl: PlaybackController, mon: Monitor) -> bool:
         n = next((i for i, t in enumerate(subs.tracks if subs else [], 1) if t.supported), 0)
         if n:
             t = ctrl.select_subtitle(n)
+            assert t is not None
             print(f"  자막 {n}번을 켰습니다: {t.display}")
     if ctrl.subtitle is None:
         report(name, "건너뜀", "고를 수 있는 자막이 없음")
@@ -630,7 +634,7 @@ def _sp_dead_pos():
     ctrl.recover()
     cm.answer(False)
     r = cm.loads[-1] if cm.loads else None
-    return len(cm.loads) == 1 and _start(r) == 1234.5 and r.autoplay, _desc(cm)
+    return len(cm.loads) == 1 and _start(r) == 1234.5 and r is not None and r.autoplay, _desc(cm)
 
 
 def _sp_dead_paused():
@@ -640,7 +644,7 @@ def _sp_dead_paused():
     ctrl.recover()
     cm.answer(False)
     r = cm.loads[-1] if cm.loads else None
-    return len(cm.loads) == 1 and _start(r) == 500.0 and not r.autoplay, _desc(cm)
+    return len(cm.loads) == 1 and _start(r) == 500.0 and r is not None and not r.autoplay, _desc(cm)
 
 
 def _sp_delay_held():
@@ -679,8 +683,9 @@ def _sp_audio_held():
     ctrl.recover()
     cm.answer(False)
     r = cm.loads[-1] if cm.loads else None
-    ok = (held and len(cm.loads) == 1 and _start(r) == 900.0 and not r.autoplay
-          and ctrl.plan.audio.order == 1)
+    audio = ctrl.plan.audio if ctrl.plan else None
+    ok = (held and len(cm.loads) == 1 and _start(r) == 900.0 and r is not None and not r.autoplay
+          and audio is not None and audio.order == 1)
     return ok, f"끊긴 동안 {'보류됨' if held else '실행됨'}, {_desc(cm)}"
 
 
@@ -753,6 +758,7 @@ def _sp_late_answer():
     first, cm.pending = cm.pending, None
     cm.drop(200.0, False)                    # 확인 중 다시 끊김
     ctrl.mark_lost()
+    assert first is not None
     first(False)                             # 첫 번째 확인 결과가 늦게 도착
     ignored = not cm.loads
     ctrl.recover()
@@ -1336,6 +1342,7 @@ def run(args: argparse.Namespace, ap: argparse.ArgumentParser) -> int:
         if flags["lost"]:                 # GUI _on_connected: 끊긴 기기에 다시 연결됨
             flags["lost"] = False
             mon.add("reconnected")
+            assert ctrl is not None
             ui.post(ctrl.recover)
 
     def on_lost(d) -> None:
@@ -1344,6 +1351,7 @@ def run(args: argparse.Namespace, ap: argparse.ArgumentParser) -> int:
         mon.add("lost")
 
         def job() -> None:                # GUI _on_lost
+            assert ctrl is not None
             ctrl.mark_lost()
             mon.add("marked")
             hook, mon.lost_hook = mon.lost_hook, None
@@ -1355,6 +1363,7 @@ def run(args: argparse.Namespace, ap: argparse.ArgumentParser) -> int:
         print("[연결 해제]")
         if flags["lost"] and not flags["closing"]:
             print("[재연결 포기] 송출을 정리합니다 (GUI는 30초 동안 다시 찾아 이어 갑니다)")
+            assert ctrl is not None
             ui.post(ctrl.shutdown)
 
     def on_load_failed(c, n) -> None:

@@ -107,6 +107,7 @@ class FFmpegProcess:
     def read_exact(self, n: int) -> bytes:
         parts: list[bytes] = []
         left = n
+        assert self._proc.stdout is not None   # PIPE로 열었음
         while left > 0:
             try:
                 chunk = self._proc.stdout.read(left)
@@ -133,6 +134,7 @@ class FFmpegProcess:
 
     def _watch(self) -> None:
         tail: deque[str] = deque(maxlen=20)
+        assert self._proc.stderr is not None
         for raw in iter(self._proc.stderr.readline, b""):
             line = raw.decode("utf-8", "replace").rstrip()
             if line:

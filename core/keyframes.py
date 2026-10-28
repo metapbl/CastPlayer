@@ -89,6 +89,7 @@ def keyframes(path: Path, duration: float,
     except OSError as err:
         raise KeyframeError(f"ffprobe 실행 실패: {err}") from err
     bind_to_job(proc)
+    assert proc.stdout is not None   # PIPE로 열었음
     tail: deque[str] = deque(maxlen=5)
     drain = threading.Thread(target=_drain, args=(proc.stderr, tail),
                              name="kf-stderr", daemon=True)

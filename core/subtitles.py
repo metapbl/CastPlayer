@@ -370,6 +370,7 @@ def _run_with_progress(cmd: list[str], duration: float,
     except OSError as err:
         raise SubtitleError(f"ffmpeg 실행 실패: {err}") from err
     bind_to_job(proc)
+    assert proc.stdout is not None   # PIPE로 열었음
     tail: deque[str] = deque(maxlen=5)
     drain = threading.Thread(target=_drain, args=(proc.stderr, tail),
                              name="sub-stderr", daemon=True)

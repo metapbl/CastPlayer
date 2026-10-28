@@ -168,6 +168,7 @@ class PlaybackController:
                 route = self.server.register(FileResource(info.path, "video/mp4"))
                 url, mime = self.server.url_for(route, ip), "video/mp4"
             else:
+                assert self.timeline is not None     # 위에서 확인함
                 session = HlsSession(ffmpeg_path(), info, plan, self.timeline,
                                      self.encoder, start, on_error=self._error)
                 route = self.server.register(HlsResource(session.get), prefix="hls")
@@ -187,8 +188,9 @@ class PlaybackController:
             self._route, self._sub_route, self._session = route, sub_route, session
             _LOGGER.info("재생: %s @%.1f%s → %s", plan.mode.value, start,
                          "" if autoplay else " (일시정지 유지)", req.url)
-            if self._sub_id:
-                _LOGGER.info("자막: 트랙 %d (%s)", self._sub_id, self.subtitle.label)
+            sub = self.subtitle
+            if self._sub_id and sub:
+                _LOGGER.info("자막: 트랙 %d (%s)", self._sub_id, sub.label)
             self.cm.play_media(req)
 
     def seek(self, position: float) -> None:

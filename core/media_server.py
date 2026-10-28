@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import BinaryIO, Callable
+from typing import BinaryIO, Callable, Literal
 from urllib.parse import parse_qs, urlsplit
 
 _LOGGER = logging.getLogger(__name__)
@@ -69,7 +69,7 @@ class _Server(ThreadingHTTPServer):
         super().handle_error(request, client_address)
 
 
-def _parse_range(header: str, size: int) -> tuple[int, int] | None | bool:
+def _parse_range(header: str, size: int) -> tuple[int, int] | None | Literal[False]:
     """(start, end) | None(만족 불가→416) | False(형식 불일치→Range 무시)."""
     m = _RANGE_RE.match(header.strip())
     if not m:
@@ -148,8 +148,8 @@ def _make_handler(server: MediaServer):
         protocol_version = "HTTP/1.1"
         server_version = "CastPlayer/0.1"
 
-        def log_message(self, fmt, *args):
-            _LOGGER.debug("%s %s", self.address_string(), fmt % args)
+        def log_message(self, format, *args):    # 이름은 부모와 같아야 함
+            _LOGGER.debug("%s %s", self.address_string(), format % args)
 
         def _cors(self) -> None:
             self.send_header("Access-Control-Allow-Origin", "*")

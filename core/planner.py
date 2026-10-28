@@ -97,7 +97,7 @@ def make_plan(info: MediaInfo, audio_order: int | None = None) -> Plan:
         reasons.append("컨테이너 변환")
     if v.codec == "hevc" and v.tag != "hvc1":
         reasons.append(f"HEVC 태그 {v.tag or '?'}→hvc1")
-    if not audio_copy:
+    if audio is not None and not audio_copy:
         reasons.append(f"{audio.codec} → AAC")
     if audio is not None and audio.order != 0:
         reasons.append("기본 외 음성 트랙 선택")

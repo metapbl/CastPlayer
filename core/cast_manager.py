@@ -32,6 +32,7 @@ from pychromecast.controllers.media import (
     MediaStatusListener,
 )
 from pychromecast.controllers.receiver import CastStatus, CastStatusListener
+from pychromecast.discovery import CastBrowser, SimpleCastListener
 from pychromecast.error import (
     ControllerNotRegistered,
     NotConnected,
@@ -159,7 +160,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
         self.cb = callbacks
         self._known_hosts = list(known_hosts or [])
         self._zconf: zeroconf.Zeroconf | None = None
-        self._browser: pychromecast.CastBrowser | None = None
+        self._browser: CastBrowser | None = None
         self._cast: pychromecast.Chromecast | None = None
         self._device: DeviceInfo | None = None
         self._req: MediaRequest | None = None
@@ -189,12 +190,12 @@ class CastManager(MediaStatusListener, CastStatusListener):
         if self._browser:
             return
         self._zconf = zeroconf.Zeroconf()
-        listener = pychromecast.SimpleCastListener(
+        listener = SimpleCastListener(
             add_callback=self._emit_devices,
             remove_callback=self._emit_devices,
             update_callback=self._emit_devices,
         )
-        self._browser = pychromecast.CastBrowser(
+        self._browser = CastBrowser(
             listener, self._zconf, self._known_hosts or None)
         self._browser.start_discovery()
 
@@ -316,7 +317,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
                 return
             if self._lost is lost:
                 self._lost = None
-            if alive and lost is not None:
+            if alive and lost is not None and cast is not None:
                 req, pend = lost
                 self._req, self._pending_sub = req, pend
                 self._expect_app, self._finished_fired = True, False
@@ -550,6 +551,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
 
     def _open_cast(self, dev: DeviceInfo) -> pychromecast.Chromecast:
         """마지막 IP로 직접 연결 (mDNS는 끊긴 뒤 한동안 기기를 못 찾음). 실패하면 예외."""
+        assert dev.host is not None
         cast = pychromecast.get_chromecast_from_host(
             (dev.host, 8009, dev.uuid, dev.model, dev.name), tries=1, timeout=self.RETRY_WAIT)
         try:
@@ -568,6 +570,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
         if self._cast is not old or self._closed:
             return
         dev = self._device
+        assert dev is not None       # 연결된 적이 있어야 다시 연결을 시도함
         try:
             cast = self._open_cast(dev)
         except (PyChromecastError, OSError) as err:
@@ -684,8 +687,8 @@ class CastManager(MediaStatusListener, CastStatusListener):
             if time.monotonic() - t0 >= limit:
                 _LOGGER.warning("불러오기 응답 없음 (%.0f초) — 그대로 진행", limit)
                 return
-        r = box.get("r")
-        kind = r.get("type") if r else None
+        r = box.get("r") or {}
+        kind = r.get("type")
         if kind not in (None, "MEDIA_STATUS"):
             _LOGGER.warning("불러오기 응답: %s %s", kind,
                             r.get("reason") or r.get("detailedErrorCode") or "")
@@ -890,9 +893,10 @@ class CastManager(MediaStatusListener, CastStatusListener):
                 and status.player_state in _SUB_READY_STATES
                 and status.media_session_id is not None):
             self._pending_sub = None
-            if pend[1]:
-                _LOGGER.debug("자막 켜기: 트랙 %d", pend[1])
-                self._submit(lambda: self._do_edit_tracks([pend[1]], None))
+            track = pend[1]
+            if track:
+                _LOGGER.debug("자막 켜기: 트랙 %d", track)
+                self._submit(lambda: self._do_edit_tracks([track], None))
         # 교체된 이전 세션의 FINISHED는 무시
         if (status.player_state == "IDLE" and status.idle_reason == "FINISHED"
                 and self._expect_app and not self._finished_fired

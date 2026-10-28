@@ -5,8 +5,8 @@
     python -m tools.cast_test "D:\\video\\movie.mkv" --audio 2 --sub 1 --start 600 --host 192.0.2.10 -v
     python -m tools.cast_test --selftest                            # TV 없이 끊김·복구 자가검사
     python -m tools.cast_test "D:\\video\\movie.mkv" --droptest -v  # 실기기 끊김 시험 3장면 자동
-    python -m tools.cast_test "D:\\video\\movie.mkv" -v --log       # logs/cast_test_날짜_시각.txt 에도 기록
-    python -m tools.cast_test "D:\\video\\movie.mkv" -v --log a     # a.txt에 이어 쓰기 (확장자 생략 시 .txt)
+    python -m tools.cast_test "D:\\video\\movie.mkv" -v --log       # logs/cast_test_날짜_시각.log 에도 기록
+    python -m tools.cast_test "D:\\video\\movie.mkv" -v --log a     # a.log에 이어 쓰기 (확장자 생략 시 .log)
 
 로그 단계: (없음)=INFO  -v=DEBUG(pychromecast 중복·긴 메시지 압축)  -vv=DEBUG 원본 전부
 """
@@ -59,7 +59,7 @@ HELP = """명령: p=일시정지  r=재개  s=정지(앱 종료)  o=처음부터
 _INVISIBLE = dict.fromkeys(map(ord, "\u200b\u200e\u200f\u202a\u202b\u202c\u202d\u202e\ufeff"))
 
 LOG_DIR = app_dir() / "logs"   # --log 파일명 생략 시 (paths 기준, GUI와 같은 폴더)
-LOG_EXT = ".txt"               # 첨부하기 쉽도록 로그는 .txt
+LOG_EXT = ".log"               # GUI 로그와 같은 확장자 (D070)
 RAW_LIMIT = 600     # -v에서 TV가 보낸 메시지(Received:)를 남길 최대 글자 수
 
 
@@ -164,8 +164,8 @@ class _CompactFilter(logging.Filter):
 
 
 def open_log(name: str) -> _LogSink:
-    """name=''이면 logs/cast_test_날짜_시각.txt, 아니면 지정 경로(현재 폴더 기준).
-    확장자를 생략하면 .txt를 붙이고, 직접 쓴 확장자는 그대로 둔다. 항상 이어 쓰기."""
+    """name=''이면 logs/cast_test_날짜_시각.log, 아니면 지정 경로(현재 폴더 기준).
+    확장자를 생략하면 .log를 붙이고, 직접 쓴 확장자는 그대로 둔다. 항상 이어 쓰기."""
     if not name:
         path = LOG_DIR / f"cast_test_{datetime.now():%Y%m%d_%H%M%S}{LOG_EXT}"
     else:
@@ -1162,6 +1162,12 @@ def _buffering_cases(check: Callable[[str, bool, str], None]) -> None:
     except Exception as err:  # pylint: disable=broad-except
         ok, detail = False, f"예외: {err!r}"
     check("버퍼링 판정: 조작 뒤 10초 안은 빼고 셈", ok, detail)
+    with tempfile.TemporaryDirectory() as tmp:
+        for n in ("castplayer.1.log", "castplayer.log", "castplayer.txt"):
+            Path(tmp, n).write_text("", encoding="utf-8")
+        names = [Path(p).name for p in gui_log_paths(Path(tmp))]
+    check("버퍼링 판정: 기본 입력은 castplayer*.log를 오래된 것부터",
+          names == ["castplayer.1.log", "castplayer.log"], f"{names}")
 
 
 def _paths_cases(check: Callable[[str, bool, str], None]) -> None:
@@ -1272,11 +1278,15 @@ def count_buffering_lines(lines) -> tuple[list[tuple[str, str]], list[tuple[str,
     return counted, excluded, span
 
 
+def gui_log_paths(logs: Path) -> list[str]:
+    """회전된 GUI 로그를 오래된 것부터 (castplayer.3.log … castplayer.log)."""
+    return [str(p) for p in (logs / f"castplayer.{n}.log" for n in (3, 2, 1))
+            if p.is_file()] + [str(logs / "castplayer.log")]
+
+
 def count_buffering(paths: list[str]) -> int:
-    if not paths:                             # 회전된 GUI 로그를 오래된 것부터
-        logs = app_dir() / "logs"
-        paths = [str(p) for p in (logs / f"castplayer.{n}.txt" for n in (3, 2, 1))
-                 if p.is_file()] + [str(logs / "castplayer.txt")]
+    if not paths:
+        paths = gui_log_paths(app_dir() / "logs")
     lines: list[str] = []
     for p in paths:
         lines += Path(p).read_text(encoding="utf-8", errors="replace").splitlines()
@@ -1304,11 +1314,11 @@ def main() -> int:   # 인자 해석·로그 준비만 하고 본 실행은 run(
     ap.add_argument("--droptest", action="store_true", help="실기기 연결 끊김 시험 (3장면 자동)")
     ap.add_argument("--count-buffering", nargs="*", metavar="로그",
                     help="GUI 로그에서 PLAYING→BUFFERING 횟수 판정 (D050). "
-                         "생략 시 logs/castplayer*.txt")
+                         "생략 시 logs/castplayer*.log")
     ap.add_argument("--log", nargs="?", const="", metavar="파일",
                     help="화면 출력·로그·입력 명령을 UTF-8 파일에도 기록 (이어 쓰기). "
-                         "파일 생략 시 logs/cast_test_날짜_시각.txt, "
-                         "확장자 생략 시 .txt")
+                         "파일 생략 시 logs/cast_test_날짜_시각.log, "
+                         "확장자 생략 시 .log")
     ap.add_argument("-v", "--verbose", action="count", default=0,
                     help="-v=DEBUG(압축)  -vv=DEBUG 원본 전부")
     args = ap.parse_args()

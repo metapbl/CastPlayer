@@ -19,7 +19,7 @@
 ## 작업
 - [x] 1. 자가검사: D069 [자동] 인수 기준 — F2-6(3840×2160 60fps XviD → TRANSCODE, fps 30), F5-6(`text_style` 투명 배경·흰 글자·검은 테두리, 배율 0.5~2.0으로 맞춤). 지금 코드 동작을 고정하는 시험이라 처음부터 통과해야 함 — `tools/cast_test.py > _plan_style_cases`(새)
   - 확인: `.venv\Scripts\python -m tools.cast_test --selftest --log` → 새 항목 포함 전부 통과
-- [ ] 2. tools 로그 확장자 `.log` — `LOG_EXT`, `open_log`·`count_buffering` 기본 경로(`castplayer.{n}.log`, `castplayer.log`), 도움말·docstring, `.gitignore`의 `cast_test_*.txt`·`drop_*.txt` → `.log`. 버퍼링 판정 기본 경로 자가검사 1개 추가 (임시 폴더의 `castplayer.1.log`·`castplayer.log`를 오래된 순으로 읽음)
+- [x] 2. tools 로그 확장자 `.log` — `LOG_EXT`, `open_log`·`count_buffering` 기본 경로(`castplayer.{n}.log`, `castplayer.log`), 도움말·docstring, `.gitignore`의 `cast_test_*.txt`·`drop_*.txt` → `.log`. 버퍼링 판정 기본 경로 자가검사 1개 추가 (임시 폴더의 `castplayer.1.log`·`castplayer.log`를 오래된 순으로 읽음)
   - 확인: `--selftest --log` 통과, 출력의 "로그 파일:"이 `logs\cast_test_날짜_시각.log`
 - [ ] 3. GUI 로그 옵션 — 먼저 실패하는 자가검사 F7-5~F7-8(임시 폴더 대상: 꺼짐이면 파일 없음 / 켜면 지난 내용 없이 새로 / `-v`면 꺼짐이어도 DEBUG 줄 / 쓸 수 없는 경로면 "로그 파일을 만들 수 없습니다" 문구 반환)를 쓰고, `main.py`·`core/config.py`·`ui/menus.py`·`ui/main_window.py`를 고침. 실행 중 켜기·끄기는 핸들러 추가·제거
   - 확인: 고치기 전 새 항목 실패 → 고친 뒤 `--selftest --log` 전부 통과, `pyright` 0개

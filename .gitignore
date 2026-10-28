@@ -12,8 +12,8 @@ dist/
 cache/
 logs/
 config.json
-cast_test_*.txt
-drop_*.txt
+cast_test_*.log
+drop_*.log
 
 # 사용자가 직접 넣는 외부 실행 파일
 bin/*.exe

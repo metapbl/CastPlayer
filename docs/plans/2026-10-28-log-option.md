@@ -1,5 +1,5 @@
 # 로그 기록 옵션과 새 인수 기준 (D069, D070)
-상태: active | 시작: 2026-10-28 | 근거: PRD F2, F5, F7, F8, §5, §6 (D069, D070)
+상태: done (2026-10-29) | 시작: 2026-10-28 | 근거: PRD F2, F5, F7, F8, §5, §6 (D069, D070)
 
 목표: GUI 로그가 기본 꺼짐이 되고, 옵션 메뉴 "로그 기록"으로 켜며, 실행마다 새로 쓰고, DEBUG는 터미널 `-v`로만 켠다. 로그 확장자는 GUI·tools 모두 `.log`. PRD에 새로 넣은 [자동] 인수 기준을 자가검사로 옮긴다.
 구조:
@@ -25,7 +25,7 @@
   - 확인: 고치기 전 새 항목 실패 → 고친 뒤 `--selftest --log` 전부 통과, `pyright` 0개
 - [x] 4. 문서 — README 한/영 로그 줄("옵션 → 로그 기록을 켜면 `logs\castplayer.log`, 실행할 때마다 새로 씀, 터미널 `-v`는 DEBUG"), `CLAUDE.md` 규칙(`.txt` → `.log`, 실기기 시험은 로그 기록을 켜고 끝나면 다시 켜기 전에 알림), `docs/REFERENCE.md` 로그 줄, `main.py` 머리 주석
   - 확인: `git grep -n "castplayer\.txt\|cast_test_.*\.txt\|확장자는 \`.txt\`"` → docs/discovery·docs/plans 옛 기록 말고 0건
-- [ ] 5. 인수 확인 — 전체 테스트와 이번 계획의 실기기 기준
+- [x] 5. 인수 확인 (실기기 F3-7은 `2026-10-29-gui-autotest.md` 작업 5로 옮김) — 전체 테스트와 이번 계획의 실기기 기준
   - 확인: 전체 테스트 `.venv\Scripts\python -m tools.cast_test --selftest --log` 통과
   - 실기기 (사용자, `main.py` 실행 전 확인):
     1. F3-7: REMUX 파일 재생 직후 TV 리모컨으로 끝부분 근처까지 탐색 → 그 위치에서 재생

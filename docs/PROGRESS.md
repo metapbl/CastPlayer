@@ -1,13 +1,14 @@
 # PROGRESS — CastPlayer
 
 ## 상태
-- 단계: 7 계획 대기 · 1.0.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.0.0)
-- 갱신: 2026-10-27 · 마지막 커밋: `93f5414 docs: record the 1.0.0 release and update the PRD`
+- 단계: pyright 정리 계획(`docs/plans/2026-10-28-pyright.md`) 작업 6 중 · 1.0.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.0.0)
+- 갱신: 2026-10-28 · pyright 오류 0개, check 훅에 pyright 추가 (D068)
 - 히스토리를 새로 시작함(D041). 아래 완료 기록의 옛 커밋 해시는 저장소 밖 로컬 백업 `../CastPlayer-git-backup-2026-10-27`에만 있다
 
 ## 다음 할 일
-1. 다음 계획 후보: O107 pyright 오류 71개 정리 → check 훅에 pyright 추가 / O108 PRD 미기재 예외를 코드에서 옮기기 / O109 리모컨 탐색 로그
-2. 보류 질문: O103·O105·O106·O107·O108·O109
+1. PRD §6 "pyright는 기존 오류 정리 뒤 (OPEN O107)" 한 줄 갱신 — `/metarche discover` 절차
+2. 다음 계획 후보: O108 PRD 미기재 예외를 코드에서 옮기기 / O109 리모컨 탐색 로그
+3. 보류 질문: O103·O105·O106·O108·O109
 
 ## 미해결
 - 남은 세션 위 LOAD 시 master.m3u8 요청까지 22초, PLAYING 뒤 약 8초 정지 — 원인 미확정. 끊김 보강 뒤 이번 시험에서는 재발 안 함 (OPEN O103, R§4 T12)

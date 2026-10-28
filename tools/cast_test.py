@@ -10,7 +10,7 @@
 
 로그 단계: (없음)=INFO  -v=DEBUG(pychromecast 중복·긴 메시지 압축)  -vv=DEBUG 원본 전부
 """
-# 자가검사는 가짜 객체(SimpleNamespace 등)를 진짜 타입 자리에 넣으므로 이 두 규칙은 끈다 (O107)
+# 자가검사는 가짜 객체(SimpleNamespace 등)를 진짜 타입 자리에 넣으므로 이 두 규칙은 끈다 (D068)
 # pyright: reportAttributeAccessIssue=false, reportArgumentType=false
 import argparse
 import logging

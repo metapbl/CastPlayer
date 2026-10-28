@@ -74,6 +74,7 @@
 | D065 | 2026-10-24 | 8 구현 | 버퍼링 성공 기준 통과(영화 한 편 125.5분, PLAYING→BUFFERING 0회, 느린 조각·재요청 0). 비트레이트 상한 옵션(4.4)은 만들지 않고 PRD §2.3으로 옮긴다. 다시 잦아지면 O101부터 | [U] | Q048, Q049 | 상한 옵션 구현 (필요가 확인되지 않음) | 확정 |
 | D066 | 2026-10-25 | 8 구현 | 프로그램 아이콘: 사용자가 준 `assets/cast.ico`(16~256px 9종, 공개 허락)를 exe 파일 아이콘(spec `icon`)과 창·작업표시줄 아이콘(`QApplication.setWindowIcon`, `core.paths.asset_path`)에 쓴다 | [U] | Q050 | exe 파일 아이콘만 (실행 중 창·작업표시줄은 기본 아이콘) | 확정 |
 | D067 | 2026-10-27 | 8 구현 | 배포 zip의 exe 옆에 `LICENSE`·`THIRD_PARTY_NOTICES.md`·`README.md`·`README.en.md`를 넣는다(MIT·LGPL 고지). `CastPlayer.spec`이 빌드 끝에 복사 | [U] | Q051 | - | 확정 |
+| D068 | 2026-10-28 | 구현 | pyright 오류 71개를 정리하고 check 훅 `.py` 검사에 ruff 다음으로 `pyright`(전역 npm 설치본, 설정 `pyrightconfig.json`)를 넣는다. 좁히기는 이미 보장된 곳에만(지역 변수·`assert`), `tools/cast_test.py`는 가짜 객체 때문에 `reportAttributeAccessIssue`·`reportArgumentType`를 파일 머리에서 끈다 | [U] | Q054 | 가짜 객체마다 `cast(Any, …)` (약 20곳) / venv에 pyright 설치 (`pip install` 필요) | 확정 |
 
 ## 재논의 금지 규칙
 상태가 '확정'이고 버린 안이 적힌 결정은, 새로운 사실이 없으면 다시 제안하지 않는다.

@@ -5,7 +5,7 @@ $ErrorActionPreference = 'SilentlyContinue'
 # docs 단계에서 PRD §6 "편집 때 자동 검사"대로 채운다. 예: '.py' = @('ruff check', 'pyright')
 # shortcut: 명령은 공백으로만 나누므로 공백이 든 인자는 못 쓴다. 필요해지면 배열 형식으로 바꾼다.
 $checks = @{
-    '.py' = @('.venv\Scripts\ruff.exe check')   # PRD §6 (D063). pyright는 O107 뒤
+    '.py' = @('.venv\Scripts\ruff.exe check', 'pyright')   # PRD §6 (D063). pyright는 전역 npm 설치본, 설정은 pyrightconfig.json (D068)
 }
 $data = [Console]::In.ReadToEnd() | ConvertFrom-Json
 $root = if ($env:CLAUDE_PROJECT_DIR) { $env:CLAUDE_PROJECT_DIR } else { $data.cwd }

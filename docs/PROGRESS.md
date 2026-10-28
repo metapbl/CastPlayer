@@ -1,13 +1,13 @@
 # PROGRESS — CastPlayer
 
 ## 상태
-- 단계: 다음 계획 대기 · pyright 정리 계획 완료(`docs/plans/2026-10-28-pyright.md`) · 1.0.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.0.0)
-- 갱신: 2026-10-28 · 마지막 커밋: `eb987e4 docs: add pyright to the PRD edit check` (push 완료) · GitHub About(설명 한/영·Releases 링크·토픽 8개) 입력
+- 단계: 다음 계획 대기 · PRD 변경 승인(2026-10-28, O108 → D069 예외 동작 옮김, D070 로그 방식 변경) · 1.0.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.0.0)
+- 갱신: 2026-10-28 · 마지막 커밋: `docs: record exception behavior and new log scheme in PRD` (push 안 함)
 - 히스토리를 새로 시작함(D041). 아래 완료 기록의 옛 커밋 해시는 저장소 밖 로컬 백업 `../CastPlayer-git-backup-2026-10-27`에만 있다
 
 ## 다음 할 일
-1. 다음 계획 후보: O108 PRD 미기재 예외를 코드에서 옮기기 / O109 리모컨 탐색 로그
-2. 보류 질문: O103·O105·O106·O108·O109
+1. 다음 계획: D070 로그 방식 구현(main.py·메뉴·config·tools `.log`·README 한/영·CLAUDE.md 규칙·.gitignore) + 새 [자동] 인수 기준 자가검사(F2-6·F5-6·F7-5~8, D069 예외 중 자동 확인 가능한 것)
+2. 보류 질문: O103·O105·O106·O109
 
 ## 미해결
 - 남은 세션 위 LOAD 시 master.m3u8 요청까지 22초, PLAYING 뒤 약 8초 정지 — 원인 미확정. 끊김 보강 뒤 이번 시험에서는 재발 안 함 (OPEN O103, R§4 T12)

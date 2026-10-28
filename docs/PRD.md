@@ -17,7 +17,7 @@
 - 재생, 일시정지, 정지, 볼륨, 탐색 바. 일시정지하면 수신기도 일시정지 [X] C §4
 - 정지하면 수신기의 기본 미디어 수신 앱을 종료. 프로그램을 끌 때도 정지 후 앱 종료 [X] C §4 (D005)
 - 대상 형식 mp4, mkv, avi, ts, mov 등 (H.264, HEVC, XviD 등) [X] C §4
-- 4K 해상도 유지: 축소(다운스케일)하지 않는다. 재인코딩 때만 4K·31fps 초과면 fps 절반 [X] C §4 (D009)
+- 4K 해상도 유지: 축소(다운스케일)하지 않는다. 재인코딩 때만 FHD(1920×1080)보다 픽셀이 많고 31fps 초과면 fps 절반 (1440p 등도 해당) [X] C §4 · 코드 `planner.make_plan` (D009, D069)
 - 음성: AAC·MP3는 그대로 보내고(HLS 경로에서는 AAC만), 그 밖의 코덱은 AAC 2ch로 변환. 음성 트랙 선택 [X] C §4·코드 `planner.COPY_AUDIO` (D008)
 - 자막: srt, smi, 내장 텍스트 → WebVTT. 투명 배경 + 검은 테두리, 크기·싱크 조절 [X] C §4 (D019~D023)
 - TV와 PC 양쪽 탐색 바가 처음부터 전체 길이를 보이고, TV 리모컨으로 전체 구간 탐색 [X] C §4 (D015)
@@ -53,7 +53,8 @@
 ## 3. 기능
 ### F1 기기 검색·연결
 - 정상 흐름: 시작 시 mDNS 검색 → 저장 UUID가 보이면 자동 연결. 8초 뒤에도 연결 전이면 저장 IP를 known host로 추가 → 8초 뒤에도 없으면 포기 안내. 메뉴에서 IP로 기기 추가 [X] C §8 main_window
-- 예외: TV가 꺼져 있으면 자동 연결 실패가 정상 동작 [X] P 4단계 1차
+- 예외: TV가 꺼져 있으면 자동 연결 실패가 정상 동작 [X] P 4단계 1차. IP로 기기 추가에 IPv4가 아닌 값을 넣으면 "올바른 IP 주소가 아닙니다: …" 경고 뒤 입력한 글자를 둔 채 입력창이 다시 뜸 [X] `ui/dialogs.ask_ip` (D069)
+- 다른 기기 연결: 재생 중 다른 기기의 [연결]을 누르면 지금 기기의 재생을 정지(수신 앱 종료)하고 연결을 끊은 뒤 새 기기에 연결, 끊김 기억은 지움. 끊긴 같은 기기에 다시 연결할 때만 이어 감 [X] `ui/main_window._connect`, `cast_manager._do_connect` (D069)
 - 상태별 동작: 연결 전에는 파일 열기·끌어다 놓기 잠김. 연결 표시 회색 미연결 / 노랑 연결 중 / 초록 연결됨 / 빨강 다시 연결 중. 포기 안내 뒤에는 기기 목록에서 [연결]을 직접 누름 [X] C §8 main_window
 - 인터페이스: `CastManager.start_discovery/add_known_host/rescan/connect/disconnect`, `CastCallbacks`, `config.json`(`last_device_uuid`, `last_device_host`, `known_hosts`, `auto_connect`) [X] C §8
 - 인수 기준 (D061, 확인: [자동] = `--selftest`, TV 없이 가짜 cast·기기 목록·로그 수집으로 모의 / [실기기] = 사용자 확인):
@@ -67,7 +68,7 @@
 ### F2 불러오기·송출 방식 결정
 - 송출 방식 규칙: 영상이 수신기 미지원(H.264 High 5.1 초과·10bit, HEVC Main/Main10 5.1 초과, 그 밖 코덱, 표시 시각 결함)이면 TRANSCODE. 아니면 mp4가 아님·HEVC 태그가 hvc1 아님·음성 변환 필요·첫 번째가 아닌 음성 트랙 중 하나라도 있으면 REMUX, 없으면 DIRECT [X] 코드 `planner.make_plan` (D010, D015, D024, D046)
 - 정상 흐름: probe → 계획(DIRECT / REMUX / TRANSCODE) → 키프레임 분석(REMUX, 캐시) → 자막 준비 → 송출. DIRECT는 mp4 파일 그대로, 나머지는 HLS VOD(fMP4) [X] C §8 player·planner·hls
-- 예외: ffmpeg/ffprobe를 `bin/`·PATH 어디서도 못 찾음 → 경고창(찾아본 곳, 복사 가능한 `winget install Gyan.FFmpeg`, 설치 후 다시 실행) 뒤 종료 코드 2 [U] (D042, D045). 포트 충돌 → 안내창 후 종료 코드 2. probe 실패 → ProbeError. 키프레임 98% 이상 읽었으면 경고 후 사용 [X] C §8
+- 예외: ffmpeg/ffprobe를 `bin/`·PATH 어디서도 못 찾음 → 경고창(찾아본 곳, 복사 가능한 `winget install Gyan.FFmpeg`, 설치 후 다시 실행) 뒤 종료 코드 2 [U] (D042, D045). 포트 충돌 → 안내창 후 종료 코드 2. probe 실패 → 상태줄 "불러오기 실패: <ffprobe 메시지>", 예상 못 한 오류는 "불러오기 실패: 내부 오류: …" [X] `ui/tasks` (D069). 키프레임 98% 이상 읽었으면 경고 로그 후 사용, 98% 미만에서 멈추거나 0개면 "키프레임 분석 실패 …"로 불러오기 실패 [X] C §8 · `core/keyframes` (D069). 인코더(nvenc → qsv → amf → libx264)가 모두 실패하면 재인코딩이 필요한 파일만 "불러오기 실패: 사용 가능한 H.264 인코더가 없습니다.", DIRECT·REMUX는 영향 없음 [X] `core/player._prepare` (D069)
 - 상태별 동작: 새 파일로 바꾸기 전 확인·취소 창. 불러오기는 TaskRunner에서 한 번에 하나 [X] C §9 4단계
 - 인터페이스: `PlaybackController.load/play`, `MediaServer.register` 경로 `/media/<token>`, `/hls/<token>/`, `/sub/<token>/` [X] C §8
 - 인수 기준 (D061, 확인: [자동] = `--selftest`, TV 없이 가짜 cast·기기 목록·로그 수집으로 모의 / [실기기] = 사용자 확인):
@@ -76,11 +77,12 @@
   - F2-3 [자동] Given XviD 또는 H.264 10bit 영상 / When 파일을 엶 / Then TRANSCODE [X]
   - F2-4 [자동] Given ffmpeg가 `bin/`·PATH 어디에도 없음 / When 프로그램을 시작 / Then 안내창(찾아본 곳, `winget install Gyan.FFmpeg`) 뒤 종료 코드 2 [U] (D045)
   - F2-5 [실기기] Given 재생 중 / When 다른 파일을 엶 / Then 확인 창이 뜨고, 취소하면 기존 재생이 이어짐 [X]
+  - F2-6 [자동] Given 3840×2160 60fps XviD / When 계획을 세움 / Then TRANSCODE, 출력 fps 30 [AI] (D009, D069)
 - 확인 방법: 인수 기준의 표시대로. 자동은 `--selftest`, 실기기는 §6의 확인 결과 형식 (D062)
 - 근거: D001, D042, D008~D018, D024
 ### F3 재생 제어
 - 정상 흐름: 재생/일시정지(Space), 정지(S, 수신 앱 종료), 탐색 바·←/→ 5초(300ms 모음), 볼륨 ↑/↓ 5%, 음소거 M [X] C §9 4단계
-- 예외: 끊겨 있는 동안의 탐색은 버림 [X] C §8 main_window
+- 예외: 끊겨 있는 동안의 탐색은 버림 [X] C §8 main_window. 볼륨 명령 실패 → 상태줄 "볼륨 설정 실패: …", 연결 복구 중이면 "연결 복구 중이라 볼륨 설정 명령을 보내지 못했습니다. 잠시 후 다시 시도하세요." [X] `cast_manager._cmd_error` (D069)
 - 상태별 동작: 끝났거나 정지한 뒤 탐색·재생하면 그 위치부터 다시 불러옴 [X] C §9 B안 (D017)
 - 인터페이스: `PlaybackController.seek/stop`, `CastManager.pause/resume/seek/set_volume/set_muted` [X]
 - 인수 기준 (D061, 확인: [자동] = `--selftest`, TV 없이 가짜 cast·기기 목록·로그 수집으로 모의 / [실기기] = 사용자 확인):
@@ -90,11 +92,12 @@
   - F3-4 [실기기] Given TV 볼륨을 임의 값으로 둠 / When 연결 / Then TV 볼륨이 그대로이고 슬라이더가 그 값을 따름 [X] (D032)
   - F3-5 [실기기] Given 유튜브 재생 중, 파일을 열지 않음 / When 연결한 뒤 정지를 시도 / Then 정지 버튼이 비활성이고 유튜브가 그대로 유지됨 [U] (D058)
   - F3-6 [실기기] Given REMUX·TRANSCODE로 재생 중 / When 창을 닫음 / Then TV 플레이어가 꺼지고, `Get-Process ffmpeg, ffprobe` 결과 없음 [X] (2.4 반목표, D013)
+  - F3-7 [실기기] Given REMUX로 재생을 막 시작함 / When TV 리모컨으로 끝부분 근처까지 탐색 / Then 그 위치에서 재생됨 [AI] (D015, D069)
 - 확인 방법: 인수 기준의 표시대로. 자동은 `--selftest`, 실기기는 §6의 확인 결과 형식 (D062)
 - 근거: D002, D005, D017, D026, D032
 ### F4 음성 트랙
 - 정상 흐름: 트랙 선택 → 다시 계획 → 재생 중이면 현재 위치에서 다시 불러옴 [X] C §8 player
-- 예외: 끊긴 동안·확인 중이면 보류했다가 복구 뒤 한 번 반영 [X]
+- 예외: 끊긴 동안·확인 중이면 보류했다가 복구 뒤 한 번 반영 [X]. 다시 불러오기 준비가 실패하면 "음성 변경 실패: …" 뒤 음성 목록이 원래 트랙으로 돌아감. 송출 중 오류(기기 없음 등)는 상태줄 오류 알림 [X] `ui/main_window._on_task_fail`, `core/player.play` (D069)
 - 상태별 동작: 일시정지 중 변경하면 일시정지 유지. mp4에서 첫 번째가 아닌 트랙은 REMUX, 첫 트랙이면 DIRECT [X] C §9 음성 변경. default 플래그가 2번 이후 트랙에 있는 mp4도 REMUX (의도된 동작) [U] (D046)
 - 인수 기준 (D061, 확인: [자동] = `--selftest`, TV 없이 가짜 cast·기기 목록·로그 수집으로 모의 / [실기기] = 사용자 확인):
   - F4-1 [실기기] Given 음성 트랙이 2개인 mp4를 1번으로 재생 중 / When 2번 트랙을 고름 / Then 현재 위치에서 REMUX로 다시 불러옴 [X]
@@ -105,7 +108,9 @@
 - 근거: D008, D025, D046
 ### F5 자막
 - 정상 흐름: 외부(같은 폴더·같은 이름)·내장 텍스트 자막을 WebVTT로 변환. 자동 선택은 외부 한국어 → 내장 한국어 → 첫 외부 → 끄기. 크기 0.5~2.0배(±0.1), 싱크 ±0.5초(Shift ±0.1초), 기본 0초 [X] C §9 3단계 (D021~D023)
-- 예외: 이미지 자막은 회색 "지원 안 함". 인코딩 판별 실패 시 CP949(replace) [X] C §8 subtitles
+- 예외: 이미지 자막은 회색 "지원 안 함". 인코딩 판별 실패 시 CP949(replace) [X] C §8 subtitles. 내장 자막 추출이 실패하면 그 트랙만 회색 "추출 실패", 내용이 없으면 "비어 있음", 외부 자막을 못 읽으면 "읽기 실패". 영상 재생은 계속됨 [X] `core/subtitles.load_subtitles` (D069)
+- 같은 이름의 외부 자막 여러 개: 이름이 영상과 같거나 "영상이름."으로 시작하는 자막을 모두 목록에 올림(이름순). 언어는 파일 이름 뒤쪽 조각(`영화.kor.srt` → ko)으로 판단, 자동 선택 순서는 위와 같음 [X] `core/subtitles.find_external` (D069)
+- 스타일: 투명 배경, 흰 글자, 검은 테두리(OUTLINE), 크기 배율 0.5~2.0으로 맞춤 [X] `core/subtitles.text_style` (D069)
 - 상태별 동작: 처음 켤 자막은 PLAYING/PAUSED 뒤에 켬. 싱크 변경은 다시 불러오기(GUI 1.5초 디바운스), 일시정지 유지 [X]
 - 인수 기준 (D061, 확인: [자동] = `--selftest`, TV 없이 가짜 cast·기기 목록·로그 수집으로 모의 / [실기기] = 사용자 확인):
   - F5-1 [자동] Given 영상과 같은 폴더·같은 이름의 한국어 srt가 있음 / When 파일을 엶 / Then 그 자막이 자동으로 켜짐 [X] (D021)
@@ -113,6 +118,7 @@
   - F5-3 [실기기] Given 재생 중 / When 싱크 +0.5를 3번 연타 / Then 마지막 입력 1.5초 뒤 한 번만(+1.5초) 다시 불러옴 (로그 `자막 싱크 반영` 1줄) [X]
   - F5-4 [자동] Given 일시정지 중 / When 싱크를 바꿈 / Then 다시 불러온 뒤에도 일시정지 [X]
   - F5-5 [자동] Given UTF-8도 CP949도 아닌 자막 / When 파일을 엶 / Then 오류 없이 열림 (판별 실패면 CP949로 읽고 깨진 글자는 대체) [X]
+  - F5-6 [자동] Given 자막을 켬 / When 송출 / Then 스타일이 투명 배경·흰 글자·검은 테두리, 크기 배율은 0.5~2.0 안으로 맞춰짐 [AI] (D069)
 - 확인 방법: 인수 기준의 표시대로. 자동은 `--selftest`, 실기기는 §6의 확인 결과 형식 (D062)
 - 근거: D019~D023
 ### F6 연결 끊김 복구
@@ -130,22 +136,28 @@
 - 확인 방법: 인수 기준의 표시대로. 자동은 `--selftest`, 실기기는 §6의 확인 결과 형식 (D062)
 - 근거: D029, D033
 ### F7 로그·진단
-- 정상 흐름: GUI `logs/castplayer.txt`(1MB×3, INFO), `-v` 또는 메뉴 디버그 로그로 DEBUG. 전송 계측(조각별 준비·전송 시간, 느림 표시) [X] C §8 main·media_server
+- 정상 흐름: GUI 로그는 기본 꺼짐. 옵션 메뉴 "로그 기록"(디버그 로그 메뉴 자리, 상태는 `config.json`에 저장)을 켜면 `logs/castplayer.log`에 INFO. 실행할 때마다 지난 `castplayer*.log`를 지우고 새로 씀(직전 실행분 보관 안 함), 한 실행 안에서는 1MB×최대 4개 순환. 실행 중에 켜면 그 순간부터 기록, 끄면 그 순간 멈춤. DEBUG는 GUI에서 켤 수 없고 터미널 `-v`로만: 옵션이 꺼져 있어도 이번 실행만 DEBUG로 파일에 기록 [U] (D070) · 순환·실행 중 전환 [AI] (D070). 전송 계측(조각별 준비·전송 시간, 느림 표시) [X] C §8 main·media_server
+- 유지보수 범위: 다른 사용자의 문제 대응을 위한 로그 안내(첨부 요청 등)는 두지 않는다 [U] (D070)
 - 추가: 재생 상태가 바뀔 때마다 INFO 한 줄 `재생 상태: A → B, N초` (버퍼링 횟수 판정용), 탐색할 때 `탐색: N초`, 판정은 `tools.cast_test --count-buffering` [U] (D050)
-- 인터페이스: 로그 확장자 `.txt`, 로그 폴더 열기 메뉴. 조각 전송이 5초(`SLOW_SEND`) 넘으면 "← 느림" [X]
+- 예외: 로그 기록을 켠 상태(또는 `-v`)에서 `logs/` 폴더나 로그 파일을 만들 수 없으면 시작할 때 상태줄에 "로그 파일을 만들 수 없습니다: … (원인)" 알림, 프로그램은 파일 로그 없이 그대로 동작 [U] (D070)
+- 인터페이스: 로그 확장자 `.log` (GUI `castplayer.log`·순환 `castplayer.1.log`~, tools `cast_test_날짜_시각.log`, `--log a` → `a.log`), 로그 폴더 열기 메뉴. 조각 전송이 5초(`SLOW_SEND`) 넘으면 "← 느림" [X]
 - 인수 기준 (D061, 확인: [자동] = `--selftest`, TV 없이 가짜 cast·기기 목록·로그 수집으로 모의 / [실기기] = 사용자 확인):
   - F7-1 [자동] Given GUI로 재생 중 / When 재생 상태가 바뀜 / Then INFO `재생 상태: A → B, N초` 한 줄, 같은 상태 반복은 줄 없음 [U] (D050)
   - F7-2 [자동] Given 재생 중 / When 탐색함 / Then INFO `탐색: N초` 한 줄 [AI]
   - F7-3 [자동]+[실기기] Given 영화 한 편을 본 GUI 로그 / When `--count-buffering`을 실행 / Then 조작 뒤 10초 안을 뺀 PLAYING→BUFFERING 횟수. 2회 이하면 통과 [U] (D050)
   - F7-4 [실기기] Given `-v` 없이 실행 중 / When 장시간 시청 중 5초를 넘는 조각 전송이 생김 / Then 그 조각마다 "← 느림" 줄이 남음 (없으면 이 기준은 해당 없음으로 기록) [X]
-  - F7-5 [실기기] Given 재생 중 / When 메뉴에서 디버그 로그를 켬 / Then 다시 시작하지 않아도 DEBUG 줄이 기록됨 [X]
+  - F7-5 [자동] Given 로그 기록 꺼짐, `-v` 없음 / When 실행 / Then `logs/`에 `castplayer*.log`가 생기지 않음 [U] (D070)
+  - F7-6 [자동] Given 로그 기록 켬, 지난 `castplayer.log`가 있음 / When 실행 / Then 지난 내용 없이 새로 씀 [U] (D070)
+  - F7-7 [자동] Given 로그 기록 꺼짐 / When `-v`로 실행 / Then `castplayer.log`에 DEBUG 줄이 기록됨 [U] (D070)
+  - F7-8 [자동] Given 로그 기록 켬, `logs/`에 쓸 수 없음 / When 실행 / Then 상태줄에 "로그 파일을 만들 수 없습니다" 알림 [U] (D070)
+  - F7-9 [실기기] Given 실행 중, 로그 기록 꺼짐 / When 옵션에서 켬 / Then 다시 시작하지 않아도 이후 INFO 줄이 기록됨 [AI] (D070)
 - 확인 방법: 인수 기준의 표시대로. 자동은 `--selftest`, 실기기는 §6의 확인 결과 형식 (D062)
-- 근거: D030
+- 근거: D030 → D070
 ### F8 테스트 도구
 - 정상 흐름: `python -m tools.cast_test "<파일>" [옵션]` 콘솔 시험, `--selftest`(TV 불필요), `--droptest`, `--log` [X] C §8 tools. 버퍼링 판정 `--count-buffering [로그…]`: PLAYING→BUFFERING 횟수, 조작 뒤 10초 안은 뺌 [X] `tools/cast_test.py > count_buffering` (D050)
 - 인터페이스: 테스트 도구 코드는 `tools/cast_test.py` 한 파일만 둔다 (시험용 영상 파일과는 별개) [X]
 - 인수 기준 (D061, 확인: [자동] = `--selftest`, TV 없이 가짜 cast·기기 목록·로그 수집으로 모의 / [실기기] = 사용자 확인):
-  - F8-1 [자동] Given TV 없음 / When `--selftest --log` / Then 마지막 줄 `[자가검사] N개 중 N개 통과`, 종료 코드 0, 결과가 `logs/cast_test_날짜_시각.txt`에도 남음 [X]
+  - F8-1 [자동] Given TV 없음 / When `--selftest --log` / Then 마지막 줄 `[자가검사] N개 중 N개 통과`, 종료 코드 0, 결과가 `logs/cast_test_날짜_시각.log`에도 남음 [X] (확장자 D070)
   - F8-2 [자동] Given 자가검사 항목 하나가 실패 / When `--selftest` / Then 그 줄이 `[실패]`로 나오고 종료 코드 1 [X]
   - F8-3 [실기기] Given 실기기 연결, 긴 영상 / When `--droptest` / Then 마지막에 `[끊김 시험] 결과: 통과, 통과, 통과`, 종료 코드 0 [X]
 - 확인 방법: 인수 기준의 표시대로. 자동은 `--selftest`, 실기기는 §6의 확인 결과 형식 (D062)
@@ -169,11 +181,11 @@
 - 실행 환경: Windows 11 (공식, D040), Python 3.11 이상(개발 환경 3.15.1 .venv). PC와 Chromecast가 같은 서브넷 (개발 환경: PC 유선, TV 5GHz 무선, 같은 사설 서브넷) [X] C §3 (D041 예시값)
 - 성능: 가볍고 반응이 빨라야 함, 수치 기준 없음 [X] C §4 · [U] (D052)
 - 배포 형태: PyInstaller onedir exe(콘솔 없음)를 zip으로 GitHub Releases에, 소스는 저장소에 [X] C §3 (D014) · [U] (D043). 개발 환경에 PyInstaller는 아직 설치 전이며, Python 3.15 대응 여부는 빌드 작업에서 설치하며 확인 [X] 2026-10-23 pip list
-- 로그: `logs/castplayer.txt` 1MB×3, `-v` DEBUG, tools는 `--log` [X] (D030)
+- 로그: 기본 꺼짐, 옵션 "로그 기록"으로 `logs/castplayer.log`(실행마다 새로, 한 실행 안 1MB×최대 4개), `-v`는 이번 실행 DEBUG, tools는 `--log`(`.log`) [U] (D070)
 
 ## 6. 검증과 운영
 - 자동 테스트 대상: `tools/cast_test.py --selftest`의 항목 (인수 기준의 [자동]과 그 안쪽 단위 검사). Claude가 직접 실행 [X] · [U] (D031, D048)
-- 실기기 확인 대상과 결과 전달 방식: 인수 기준의 [실기기] 항목(TV 송출 필요). Claude가 기대 결과를 번호 항목으로 주고, 사용자는 항목마다 "예/아니요와 본 것"으로 답한다. 로그로 알 수 있는 것은 Claude가 `logs/`의 `.txt`를 읽어 함께 판정. 모든 항목이 "예"일 때만 통과, 애매한 답은 그 항목만 다시 묻는다 [U] (D062, D047 대체)
+- 실기기 확인 대상과 결과 전달 방식: 인수 기준의 [실기기] 항목(TV 송출 필요). Claude가 기대 결과를 번호 항목으로 주고, 사용자는 항목마다 "예/아니요와 본 것"으로 답한다. 로그로 알 수 있는 것은 Claude가 `logs/`의 `.log`를 읽어 함께 판정. GUI 실기기 시험은 "로그 기록"을 켠 상태에서 하고, 시험이 끝나면 프로그램을 다시 켜기 전에 알린다(다시 켜면 로그가 지워짐) [U] (D070). 모든 항목이 "예"일 때만 통과, 애매한 답은 그 항목만 다시 묻는다 [U] (D062, D047 대체)
 - 전체 테스트 명령과 걸리는 시간: `.venv\Scripts\python -m tools.cast_test --selftest --log` (TV 불필요, 약 6초). 작업마다 실행, 하나라도 실패하면 다음 작업으로 가지 않음 [U] (D064)
 - 편집 때 자동 검사: `.py` → `.venv\Scripts\ruff.exe check` (ruff 기본 규칙 + `core/`에서 PySide6 import 금지 `TID251`, D003) → `pyright` (전역 npm 설치본, 설정 `pyrightconfig.json`, 오류 0개 유지). `.claude/hooks/check.ps1`이 실행 [U] (D063, D068)
 - 반목표 확인: 유튜브 재생 중 캐스팅 전 연결·정지 → 유튜브 유지 (캐스팅한 뒤 정지하면 우리 수신 앱이 끝나 TV는 홈으로 감. Chromecast는 앱을 하나만 띄우므로 정상) / 연결 직후 TV 볼륨 그대로 / 끊김 뒤 다른 파일 열기 → 처음부터 재생 / 종료 뒤 `Get-Process ffmpeg, ffprobe` 없음 [U] (D058)
@@ -197,3 +209,5 @@
 | 2026-10-24 | §2 버퍼링 기준 통과 기록, 비트레이트 상한 옵션을 §2.2 → §2.3 | D065 |
 | 2026-10-27 | §2.1 아이콘·zip 동봉 문서·1.0.0 공개, F8 --count-buffering | D050, D066, D067 |
 | 2026-10-28 | §6 편집 때 검사에 pyright 추가 (기존 오류 71개 정리) | D068 |
+| 2026-10-28 | §2.1 fps 절반 조건 정정, §3 F1~F7 미기재 예외 동작을 코드에서 옮김, 인수 기준 F2-6·F3-7·F5-6 추가 (O108) | D069 |
+| 2026-10-28 | F7·§5·§6 로그 방식: 기본 꺼짐·옵션 "로그 기록"·실행마다 새로·DEBUG는 `-v`만·못 쓰면 알림·확장자 `.log`, F7-5 대체·F7-6~9 추가 | D070 |

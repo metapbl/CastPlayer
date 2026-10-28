@@ -70,10 +70,11 @@ class MainWindow(QMainWindow):
         self.acts = build_menus(self, cfg.auto_connect, debug_on)
         self._wire()
 
-        self._poll = QTimer(self, interval=500, timeout=self._on_poll)
+        self._poll = QTimer(self, interval=500)
+        self._poll.timeout.connect(self._on_poll)
         self._poll.start()
-        self._seek_timer = QTimer(self, singleShot=True, interval=SEEK_COALESCE_MS,
-                                  timeout=self._flush_seek)
+        self._seek_timer = QTimer(self, singleShot=True, interval=SEEK_COALESCE_MS)
+        self._seek_timer.timeout.connect(self._flush_seek)
         self._update_ui()
         cm.start_discovery()
         if cfg.auto_connect and cfg.last_device_uuid and cfg.last_device_host:
@@ -203,7 +204,7 @@ class MainWindow(QMainWindow):
                         ("Down", lambda: self._vol_step(-VOL_STEP)),
                         ("M", lambda: self._connected and self.btn_mute.toggle()),
                         ("S", lambda: self._connected and self._stop())):
-            QShortcut(QKeySequence(key), self, activated=fn)
+            QShortcut(QKeySequence(key), self).activated.connect(fn)
 
     # ================= 상태 반영 =================
     def _msg(self, text: str, error: bool = False) -> None:
@@ -254,7 +255,7 @@ class MainWindow(QMainWindow):
         for n, t in enumerate(subs.tracks if subs else [], 1):
             self.sub_combo.addItem(t.display, n)
             if not t.supported:                     # 회색 비활성, 자리만 남김
-                self.sub_combo.model().item(n).setEnabled(False)
+                self.sub_combo.model().item(n).setEnabled(False)  # pyright: ignore[reportAttributeAccessIssue]  # 기본 모델은 QStandardItemModel
             if cur is t:
                 self.sub_combo.setCurrentIndex(n)
         self._show_sync()
@@ -282,12 +283,13 @@ class MainWindow(QMainWindow):
             return
         uuids = {d.uuid for d in devs}
         # 끊긴 뒤 자동 재연결
-        if self._reconnect_uuid in uuids and time.monotonic() < self._reconnect_until:
+        if (self._reconnect_uuid is not None and self._reconnect_uuid in uuids
+                and time.monotonic() < self._reconnect_until):
             self._connect(self._reconnect_uuid)
             return
         # 시작 시 자동 연결 (UUID로 찾음 → 발견된 최신 IP로 연결)
         saved = self._saved_uuid()
-        if self.cfg.auto_connect and not self._auto_tried and saved in uuids:
+        if self.cfg.auto_connect and not self._auto_tried and saved is not None and saved in uuids:
             self._auto_tried = True
             self._connect(saved)
 
@@ -300,9 +302,9 @@ class MainWindow(QMainWindow):
     def _auto_host_fallback(self) -> None:
         """mDNS로 못 찾으면 저장된 IP로 검색. 그 IP의 기기 UUID가 같아야 연결된다
         (공유기가 IP를 다른 장비에 줬을 수 있음)."""
-        if self._auto_tried or self.cm.device is not None:
-            return
         host = self.cfg.last_device_host
+        if self._auto_tried or self.cm.device is not None or not host:
+            return
         self._msg(f"{self.cfg.last_device_name or '마지막 기기'}을(를) mDNS로 찾지 못해 "
                   f"{host}로 확인합니다…")
         self.cm.add_known_host(host)

@@ -46,11 +46,11 @@ ST_NONE, ST_BUSY, ST_OK, ST_LOST = ("미연결", "gray"), ("연결 중", "#d4a01
 
 class MainWindow(QMainWindow):
     def __init__(self, cfg: AppConfig, cm: CastManager, ctrl: PlaybackController,
-                 bridge: CastBridge, set_debug: Callable[[bool], None],
-                 debug_on: bool) -> None:
+                 bridge: CastBridge, set_log: Callable[[bool], str | None],
+                 log_error: str | None) -> None:
         super().__init__()
         self.cfg, self.cm, self.ctrl, self.bridge = cfg, cm, ctrl, bridge
-        self._set_debug = set_debug
+        self._set_log = set_log
         self.tasks = TaskRunner(self)
         self.playlist = Playlist()
         self._conn = ST_NONE
@@ -67,7 +67,7 @@ class MainWindow(QMainWindow):
         self.setAcceptDrops(True)
         self.resize(640, 0)
         self._build_ui()
-        self.acts = build_menus(self, cfg.auto_connect, debug_on)
+        self.acts = build_menus(self, cfg.auto_connect, cfg.log_file)
         self._wire()
 
         self._poll = QTimer(self, interval=500)
@@ -76,6 +76,8 @@ class MainWindow(QMainWindow):
         self._seek_timer = QTimer(self, singleShot=True, interval=SEEK_COALESCE_MS)
         self._seek_timer.timeout.connect(self._flush_seek)
         self._update_ui()
+        if log_error:
+            self._msg(log_error, error=True)
         cm.start_discovery()
         if cfg.auto_connect and cfg.last_device_uuid and cfg.last_device_host:
             QTimer.singleShot(AUTO_HOST_FALLBACK_MS, self._auto_host_fallback)
@@ -190,7 +192,7 @@ class MainWindow(QMainWindow):
         a.disconnect.triggered.connect(self._user_disconnect)
         a.quit.triggered.connect(self.close)
         a.auto_connect.toggled.connect(self._set_auto)
-        a.debug_log.toggled.connect(self._toggle_debug)
+        a.log_file.toggled.connect(self._toggle_log)
         a.open_logs.triggered.connect(self._open_logs)
         a.clear_cache.triggered.connect(self._clear_cache)
         a.shortcuts.triggered.connect(lambda: show_shortcuts(self))
@@ -587,11 +589,14 @@ class MainWindow(QMainWindow):
         self.cfg.auto_connect = on
         self.cfg.save()
 
-    def _toggle_debug(self, on: bool) -> None:
-        self._set_debug(on)
-        self.cfg.debug_log = on
+    def _toggle_log(self, on: bool) -> None:
+        err = self._set_log(on)
+        self.cfg.log_file = on
         self.cfg.save()
-        self._msg("디버그 로그 " + ("켬" if on else "끔"))
+        if err:
+            self._msg(err, error=True)
+        else:
+            self._msg("로그 기록 " + ("켬" if on else "끔"))
 
     def _open_logs(self) -> None:
         d = app_dir() / "logs"

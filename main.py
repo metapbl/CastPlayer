@@ -1,9 +1,11 @@
 """CastPlayer GUI 실행 진입점.
 
     python main.py        (castplayer 폴더에서)
-    python main.py -v     이번 실행만 DEBUG 로그 (config.json의 debug_log는 바꾸지 않음)
+    python main.py -v     이번 실행만 DEBUG 로그를 파일에 기록 (옵션 "로그 기록"과 무관)
 
-로그: logs/castplayer.txt (1MB씩, 지난 것은 castplayer.1~3.txt). 소스로 실행하면 콘솔에도 출력.
+로그 (D070): 기본 꺼짐. 옵션 "로그 기록"을 켜면 logs/castplayer.log.
+실행할 때마다 지난 castplayer*.log를 지우고 새로 씀 (한 실행 안에서는 1MB씩, castplayer.1~3.log).
+소스로 실행하면 콘솔에도 출력.
 """
 from __future__ import annotations
 
@@ -11,6 +13,7 @@ import argparse
 import logging
 import sys
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
@@ -28,50 +31,78 @@ from ui.main_window import MainWindow
 
 _LOGGER = logging.getLogger("castplayer")
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
-LOG_NAME = "castplayer.txt"   # 붙여넣기 편하도록 .txt
+LOG_NAME = "castplayer.log"
 
 
 def _rotated_name(default: str) -> str:
-    """'castplayer.txt.1' → 'castplayer.1.txt' (Windows에서 바로 열리도록)."""
+    """'castplayer.log.1' → 'castplayer.1.log' (Windows에서 바로 열리도록)."""
     base, _, num = default.rpartition(".")
-    if base.endswith(".txt") and num.isdigit():
-        return f"{base[:-4]}.{num}.txt"
+    if base.endswith(".log") and num.isdigit():
+        return f"{base[:-4]}.{num}.log"
     return default
 
 
-def set_debug(on: bool) -> None:
-    """실행 중에도 바로 적용 (_StoppedNoiseFilter도 기록 시점의 수준을 봄)."""
-    logging.getLogger().setLevel(logging.DEBUG if on else logging.INFO)
+class FileLog:
+    """GUI 로그 파일 켜기·끄기 (D070). 지난 castplayer*.log는 이 실행에서 처음 열 때만 지운다
+    (한 실행 안에서 껐다 켜면 이어 씀)."""
 
+    def __init__(self, log_dir: Path) -> None:
+        self.dir = log_dir
+        self._handler: RotatingFileHandler | None = None
+        self._cleared = False
 
-def setup_logging(debug: bool) -> None:
-    root = logging.getLogger()
-    fmt = logging.Formatter(LOG_FORMAT)
-    try:
-        log_dir = app_dir() / "logs"
-        log_dir.mkdir(exist_ok=True)
-        fh = RotatingFileHandler(log_dir / LOG_NAME, maxBytes=1_000_000,
-                                 backupCount=3, encoding="utf-8")
+    def set(self, on: bool) -> str | None:
+        """파일을 못 열면 알림 문구를 돌려준다."""
+        root = logging.getLogger()
+        if not on:
+            if self._handler:
+                root.removeHandler(self._handler)
+                self._handler.close()
+                self._handler = None
+            return None
+        if self._handler:
+            return None
+        path = self.dir / LOG_NAME
+        try:
+            self.dir.mkdir(exist_ok=True)
+            if not self._cleared:
+                for old in self.dir.glob("castplayer*.log"):
+                    old.unlink()
+            fh = RotatingFileHandler(path, maxBytes=1_000_000, backupCount=3, encoding="utf-8")
+        except OSError as err:
+            return f"로그 파일을 만들 수 없습니다: {path} ({err.strerror or err})"
+        self._cleared = True
         fh.namer = _rotated_name
-        fh.setFormatter(fmt)
+        fh.setFormatter(logging.Formatter(LOG_FORMAT))
         root.addHandler(fh)
-    except OSError:
-        pass
-    if not getattr(sys, "frozen", False) and sys.stderr:   # exe(--windowed)는 콘솔 없음
+        self._handler = fh
+        return None
+
+
+def setup_logging(verbose: bool, log_on: bool, log_dir: Path,
+                  console: bool = True) -> tuple[FileLog, str | None]:
+    """verbose(-v): 옵션과 무관하게 이번 실행만 파일 기록 + DEBUG. 반환: (파일 로그, 알림 문구)."""
+    root = logging.getLogger()
+    file_log = FileLog(log_dir)
+    err = file_log.set(verbose or log_on)
+    # exe(--windowed)는 콘솔 없음
+    if console and not getattr(sys, "frozen", False) and sys.stderr:
         sh = logging.StreamHandler()
-        sh.setFormatter(fmt)
+        sh.setFormatter(logging.Formatter(LOG_FORMAT))
         root.addHandler(sh)
-    set_debug(debug)
+    # _StoppedNoiseFilter는 기록 시점의 수준을 본다
+    root.setLevel(logging.DEBUG if verbose else logging.INFO)
+    return file_log, err
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("-v", "--verbose", action="store_true", help="이번 실행만 DEBUG 로그")
+    ap.add_argument("-v", "--verbose", action="store_true",
+                    help="이번 실행만 DEBUG 로그를 파일에 기록")
     args = ap.parse_args()
 
     cfg = AppConfig.load()
-    debug = args.verbose or cfg.debug_log
-    setup_logging(debug)
+    file_log, log_error = setup_logging(args.verbose, cfg.log_file, app_dir() / "logs")
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setWindowIcon(QIcon(str(asset_path("cast.ico"))))   # 창·작업표시줄 (exe 파일 아이콘은 spec)
@@ -104,7 +135,7 @@ def main() -> int:
     cm = CastManager(bridge.callbacks, known_hosts=cfg.known_hosts)
     ctrl = PlaybackController(cm, server, detector, bridge.callbacks,
                               subtitle_scale=cfg.subtitle_scale)
-    win = MainWindow(cfg, cm, ctrl, bridge, set_debug=set_debug, debug_on=debug)
+    win = MainWindow(cfg, cm, ctrl, bridge, set_log=file_log.set, log_error=log_error)
     win.show()
     try:
         return app.exec()

@@ -15,7 +15,7 @@ class MenuActions:
     disconnect: QAction
     quit: QAction
     auto_connect: QAction
-    debug_log: QAction
+    log_file: QAction
     open_logs: QAction
     clear_cache: QAction
     shortcuts: QAction
@@ -35,7 +35,7 @@ def _add(win: QMainWindow, menu: QMenu, text: str, shortcut: str | None = None,
     return act
 
 
-def build_menus(win: QMainWindow, auto_connect: bool, debug_log: bool) -> MenuActions:
+def build_menus(win: QMainWindow, auto_connect: bool, log_file: bool) -> MenuActions:
     bar = win.menuBar()
 
     m = bar.addMenu("메뉴")
@@ -50,7 +50,7 @@ def build_menus(win: QMainWindow, auto_connect: bool, debug_log: bool) -> MenuAc
     o = bar.addMenu("옵션")
     auto = _add(win, o, "시작 시 마지막 기기 자동 연결", checked=auto_connect)
     o.addSeparator()
-    debug = _add(win, o, "디버그 로그", checked=debug_log)
+    log = _add(win, o, "로그 기록", checked=log_file)
     logs = _add(win, o, "로그 폴더 열기")
     o.addSeparator()
     cache = _add(win, o, "캐시 비우기…")
@@ -61,5 +61,5 @@ def build_menus(win: QMainWindow, auto_connect: bool, debug_log: bool) -> MenuAc
     i.addSeparator()
     about = _add(win, i, "CastPlayer 정보")
 
-    return MenuActions(open_file, rescan, add_ip, disconnect, quit_, auto, debug,
+    return MenuActions(open_file, rescan, add_ip, disconnect, quit_, auto, log,
                        logs, cache, shortcuts, formats, about)

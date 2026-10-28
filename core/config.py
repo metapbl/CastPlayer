@@ -20,7 +20,7 @@ class AppConfig:
     last_device_name: str | None = None   # 4단계: 안내 문구용
     last_device_host: str | None = None   # 4단계: mDNS로 못 찾을 때 시도할 IP (힌트)
     auto_connect: bool = True             # 4단계: 시작 시 마지막 기기 자동 연결
-    debug_log: bool = False               # 4단계: DEBUG 로그 (-v는 이 값을 바꾸지 않음)
+    log_file: bool = False                # 옵션 "로그 기록" (D070, -v는 이 값을 바꾸지 않음)
 
     @classmethod
     def load(cls) -> "AppConfig":

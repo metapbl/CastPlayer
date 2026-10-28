@@ -34,6 +34,7 @@ from pychromecast.socket_client import (CONNECTION_STATUS_DISCONNECTED, CONNECTI
                                         ConnectionStatus)
 
 import core.cast_manager as cm_mod  # 자가검사에서 pychromecast 연결 함수 대역 교체
+import main as main_mod             # 자가검사: GUI 로그 파일 (D070)
 import core.paths as paths_mod     # 자가검사에서 bin_dir 대역 교체
 import core.planner as planner_mod  # player_mod.make_plan을 바꿔도 진짜 make_plan을 부르기 위해
 import core.player as player_mod   # 자가검사에서 local_ip_for·make_plan 대역 교체
@@ -1194,6 +1195,55 @@ def _paths_cases(check: Callable[[str, bool, str], None]) -> None:
     check("배포 파일: 아이콘 경로 (소스 실행)", icon.is_file(), f"{icon.relative_to(app_dir())}")
 
 
+def _log_cases(check: Callable[[str, bool, str], None]) -> None:
+    """PRD F7-5~F7-8 (D070): GUI 로그 파일. 루트 로거의 수준·핸들러는 끝나면 되돌린다."""
+    root = logging.getLogger()
+    level = root.level
+    log = logging.getLogger("cast_test.gui_log")
+
+    def run(tmp: Path, verbose: bool, on: bool) -> str | None:
+        file_log, err = main_mod.setup_logging(verbose, on, tmp / "logs", console=False)
+        log.debug("DEBUG 줄")
+        log.info("새 줄")
+        file_log.set(False)
+        return err
+
+    try:
+        with tempfile.TemporaryDirectory() as t:
+            tmp = Path(t)
+            run(tmp, False, False)
+            found = sorted(p.name for p in tmp.rglob("castplayer*"))
+            check("F7-5 로그 기록 꺼짐 → castplayer*.log 없음", not found, f"{found}")
+        with tempfile.TemporaryDirectory() as t:
+            tmp = Path(t)
+            (tmp / "logs").mkdir()
+            (tmp / "logs" / "castplayer.log").write_text("지난 줄\n", encoding="utf-8")
+            (tmp / "logs" / "castplayer.1.log").write_text("지난 줄\n", encoding="utf-8")
+            run(tmp, False, True)
+            text = (tmp / "logs" / "castplayer.log").read_text(encoding="utf-8")
+            left = sorted(p.name for p in (tmp / "logs").iterdir())
+            check("F7-6 로그 기록 켬 → 지난 로그 지우고 새로 씀",
+                  "새 줄" in text and "지난 줄" not in text and "DEBUG 줄" not in text
+                  and left == ["castplayer.log"], f"{left}")
+        with tempfile.TemporaryDirectory() as t:
+            tmp = Path(t)
+            run(tmp, True, False)
+            path = tmp / "logs" / "castplayer.log"
+            text = path.read_text(encoding="utf-8") if path.is_file() else ""
+            check("F7-7 -v → 옵션이 꺼져 있어도 DEBUG 줄 기록", "DEBUG 줄" in text,
+                  f"{len(text.splitlines())}줄")
+        with tempfile.TemporaryDirectory() as t:
+            tmp = Path(t)
+            (tmp / "logs").write_text("", encoding="utf-8")   # 폴더 자리에 파일 → 만들 수 없음
+            err = run(tmp, False, True)
+            check("F7-8 쓸 수 없으면 알림 문구",
+                  bool(err) and str(err).startswith("로그 파일을 만들 수 없습니다"), f"{err}")
+    except Exception as err:  # pylint: disable=broad-except
+        check("GUI 로그 파일", False, f"예외: {err!r}")
+    finally:
+        root.setLevel(level)
+
+
 def _plan_style_cases(check: Callable[[str, bool, str], None]) -> None:
     """PRD F2-6·F5-6 (D069): 지금 동작을 고정."""
     v = VideoStream(0, "mpeg4", "Advanced Simple Profile", 5, 3840, 2160, "yuv420p",
@@ -1241,6 +1291,8 @@ def selftest() -> int:
         _paths_cases(check)
         print("[자가검사] planner.py·subtitles.py — 4K fps 절반, 자막 스타일 (D069)")
         _plan_style_cases(check)
+        print("[자가검사] main.py — GUI 로그 기록 옵션 (D070)")
+        _log_cases(check)
     finally:
         player_mod.local_ip_for, player_mod.make_plan = saved
     print(f"[자가검사] {len(oks)}개 중 {sum(oks)}개 통과")

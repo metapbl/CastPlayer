@@ -75,7 +75,7 @@ class MainWindow(QMainWindow):
         self._poll.start()
         self._seek_timer = QTimer(self, singleShot=True, interval=SEEK_COALESCE_MS)
         self._seek_timer.timeout.connect(self._flush_seek)
-        self._update_ui()
+        self._set_conn(ST_NONE)            # 연결 표시를 처음부터 보임 (F1-3)
         if log_error:
             self._msg(log_error, error=True)
         cm.start_discovery()

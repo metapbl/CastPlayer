@@ -90,7 +90,7 @@ Audio is sent as is when it is AAC; anything else is converted to 2-channel AAC.
 These are created next to the executable (or the source folder):
 
 - `config.json` — last device, volume, subtitle size and other settings (change the port with `server_port`)
-- `logs\castplayer.txt` — log (1 MB each, up to 4 files)
+- `logs\castplayer.log` — log. Off by default; turn it on with **옵션 → 로그 기록** (Options → Log to file). It starts fresh on every run (1 MB each, up to 4 files). Running from a terminal with `-v` writes a detailed (DEBUG) log for that run only
 - `cache\` — keyframe analysis and subtitle cache (cleared with **옵션 → 캐시 비우기**, Options → Clear cache)
 
 ## Issues and contributions

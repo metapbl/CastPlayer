@@ -101,4 +101,4 @@
 - 실기기 끊김 시험: PC 랜선을 뽑았다가 다시 꽂는다 (droptest와 달리 실제 끊김). 성공 기준은 D051
 - droptest 원리: `sc._force_recon = True; sc.socketpair[1].send(b"x")` — 실제 원격 끊김과 같은 경로. pychromecast 내부 속성이 없으면 "이 버전에서는 끊김 시험 불가"
 - 음성 2개 시험 파일 만들기: `ffmpeg -i <mp4> -t 600 -map 0:v -map 0:a -map 0:a -c:v copy -c:a:0 copy -c:a:1 aac -b:a:1 128k -filter:a:1 "volume=0.2" <음성 2개>.mp4`
-- 로그: GUI `logs/castplayer.txt`(1MB×3, `castplayer.1.txt` 형식), tools `logs/cast_test_YYYYMMDD_HHMMSS.txt`
+- 로그 (D070): GUI `logs/castplayer.log`는 옵션 "로그 기록"을 켰을 때만, 실행마다 새로(1MB×3 순환, `castplayer.1.log` 형식), `-v`는 옵션과 무관하게 DEBUG 기록. tools `logs/cast_test_YYYYMMDD_HHMMSS.log`

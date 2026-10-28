@@ -23,7 +23,7 @@
   - 확인: `--selftest --log` 통과, 출력의 "로그 파일:"이 `logs\cast_test_날짜_시각.log`
 - [x] 3. GUI 로그 옵션 — 먼저 실패하는 자가검사 F7-5~F7-8(임시 폴더 대상: 꺼짐이면 파일 없음 / 켜면 지난 내용 없이 새로 / `-v`면 꺼짐이어도 DEBUG 줄 / 쓸 수 없는 경로면 "로그 파일을 만들 수 없습니다" 문구 반환)를 쓰고, `main.py`·`core/config.py`·`ui/menus.py`·`ui/main_window.py`를 고침. 실행 중 켜기·끄기는 핸들러 추가·제거
   - 확인: 고치기 전 새 항목 실패 → 고친 뒤 `--selftest --log` 전부 통과, `pyright` 0개
-- [ ] 4. 문서 — README 한/영 로그 줄("옵션 → 로그 기록을 켜면 `logs\castplayer.log`, 실행할 때마다 새로 씀, 터미널 `-v`는 DEBUG"), `CLAUDE.md` 규칙(`.txt` → `.log`, 실기기 시험은 로그 기록을 켜고 끝나면 다시 켜기 전에 알림), `docs/REFERENCE.md` 로그 줄, `main.py` 머리 주석
+- [x] 4. 문서 — README 한/영 로그 줄("옵션 → 로그 기록을 켜면 `logs\castplayer.log`, 실행할 때마다 새로 씀, 터미널 `-v`는 DEBUG"), `CLAUDE.md` 규칙(`.txt` → `.log`, 실기기 시험은 로그 기록을 켜고 끝나면 다시 켜기 전에 알림), `docs/REFERENCE.md` 로그 줄, `main.py` 머리 주석
   - 확인: `git grep -n "castplayer\.txt\|cast_test_.*\.txt\|확장자는 \`.txt\`"` → docs/discovery·docs/plans 옛 기록 말고 0건
 - [ ] 5. 인수 확인 — 전체 테스트와 이번 계획의 실기기 기준
   - 확인: 전체 테스트 `.venv\Scripts\python -m tools.cast_test --selftest --log` 통과

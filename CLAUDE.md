@@ -12,7 +12,7 @@ Windows PC의 로컬 동영상을 Chromecast with Google TV로 보내는 PySide6
 
 ## 명령
 - 실행: `.venv\Scripts\python main.py -v` (TV 송출 → 실행 전 확인)
-- 전체 테스트 (작업마다, TV 불필요, 약 6초): `.venv\Scripts\python -m tools.cast_test --selftest --log` (D064)
+- 전체 테스트 (작업마다, TV 불필요, 15초 이내): `.venv\Scripts\python -m tools.cast_test --selftest --log` (D064, D071)
 - 편집 때 자동 검사: `.claude/hooks/check.ps1`이 실행 (`.venv\Scripts\ruff.exe check` → `pyright`(전역 npm), 설정 `ruff.toml`·`pyrightconfig.json`, D063·D068)
 - 콘솔 시험: `.venv\Scripts\python -m tools.cast_test "<파일>" -v --log` (TV 송출 → 실행 전 확인)
 - 빌드 (실행 전 확인): `.venv\Scripts\pyinstaller.exe --noconfirm CastPlayer.spec` → `Compress-Archive dist\CastPlayer dist\CastPlayer-<버전>-win64.zip`. zip 전에 `dist\CastPlayer`의 시험 흔적(`bin`·`logs`·`cache`·`config.json`)이 없어야 한다 (D014·D043·D067)
@@ -25,6 +25,7 @@ Windows PC의 로컬 동영상을 Chromecast with Google TV로 보내는 PySide6
 - ffmpeg는 세션당 1개. 먼저 죽이지 말고 교체한다 (D018)
 - 정지할 때는 기본 수신 앱(CC1AD845)만 종료한다 (D005)
 - 테스트 코드는 `tools/cast_test.py`에만 추가한다. 로그 파일 확장자는 `.log` (D031, D070)
+- TV 없이 재현할 수 있는 확인은 자동 시험으로 만든다(GUI는 화면 없는 Qt + 가짜 TV 연결). 실기기 시험에는 TV 실제 동작·실제 네트워크·장시간 시청만 남긴다. 새 인수 기준도 같다 (D071)
 - 실기기 시험은 사용자가 한다. 기대 결과를 번호 항목으로 주고 항목마다 "예/아니요와 본 것"을 받는다. 로그는 `logs/`의 최신 `.log`를 읽어 함께 판정한다. GUI 시험은 옵션 "로그 기록"을 켜고 하며, 끝나면 프로그램을 다시 켜기 전에 알려 달라고 한다(다시 켜면 로그가 지워짐) (D062, D070)
 - TV 송출 시험, `pip install`, `git push`, `cache/`·`logs/` 삭제는 실행 전에 묻는다 (D048)
 - 커밋: 작업 하나당 1개, `feat:`/`fix:`/`docs:`/`chore:`, main 직접 (D049)

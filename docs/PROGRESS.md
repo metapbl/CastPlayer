@@ -1,12 +1,12 @@
 # PROGRESS — CastPlayer
 
 ## 상태
-- 단계: 8 구현 · 계획 `docs/plans/2026-10-28-log-option.md` (active) · PRD 변경 승인(2026-10-28, O108 → D069 예외 동작 옮김, D070 로그 방식 변경) · 1.0.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.0.0)
-- 갱신: 2026-10-28 · 마지막 커밋: `docs: record exception behavior and new log scheme in PRD` (push 안 함)
+- 단계: 8 구현 · 계획 `docs/plans/2026-10-28-log-option.md` (active) · PRD 변경 승인(2026-10-29, D071 자동·실기기 원칙·인수 기준 재분류) · 1.0.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.0.0)
+- 갱신: 2026-10-29 · 마지막 커밋: `docs: record the auto vs real-device test rule` (push 안 함)
 - 히스토리를 새로 시작함(D041). 아래 완료 기록의 옛 커밋 해시는 저장소 밖 로컬 백업 `../CastPlayer-git-backup-2026-10-27`에만 있다
 
 ## 다음 할 일
-1. 다음 계획: D070 로그 방식 구현(main.py·메뉴·config·tools `.log`·README 한/영·CLAUDE.md 규칙·.gitignore) + 새 [자동] 인수 기준 자가검사(F2-6·F5-6·F7-5~8, D069 예외 중 자동 확인 가능한 것)
+1. 다음 계획: D071 GUI 자동 시험 틀(화면 없는 Qt + 가짜 TV) + 재분류한 인수 기준 18개와 확인 대기 항목의 자동 부분. 지금 계획 작업 5는 F3-7 실기기만 남김
 2. 보류 질문: O103·O105·O106·O109
 
 ## 미해결

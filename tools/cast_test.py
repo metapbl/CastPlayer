@@ -28,6 +28,10 @@ from types import SimpleNamespace
 from uuid import uuid4
 from typing import Any, Callable, TextIO
 
+from PySide6.QtCore import QMimeData, QPoint, Qt, QUrl
+from PySide6.QtGui import QDragEnterEvent
+from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QApplication
 from pychromecast.controllers.media import MediaStatus
 from pychromecast.error import NotConnected, PyChromecastError
 from pychromecast.socket_client import (CONNECTION_STATUS_DISCONNECTED, CONNECTION_STATUS_LOST,
@@ -48,6 +52,8 @@ from core.player import PlaybackController
 from core.playlist import PlaylistItem
 from core.probe import MediaInfo, ProbeError, VideoStream
 from core.subtitles import text_style
+import ui.main_window as mw_mod     # 자가검사: 화면 없는 창 (D071), 대기 시간·대화창 대역 교체
+from ui.bridge import CastBridge
 
 _LOGGER = logging.getLogger("cast_test")
 
@@ -599,8 +605,8 @@ def _fake_plan(order: int) -> Any:
                            audio=SimpleNamespace(order=order, label=f"음성 {order + 1}"))
 
 
-def _fresh() -> tuple[_FakeCM, PlaybackController, _FakeServer]:
-    cm, server = _FakeCM(), _FakeServer()
+def _fresh(cm: _FakeCM | None = None) -> tuple[_FakeCM, PlaybackController, _FakeServer]:
+    cm, server = cm or _FakeCM(), _FakeServer()
     ctrl = PlaybackController(cm, server, None, CastCallbacks())  # type: ignore[arg-type]
     ctrl.item = SimpleNamespace(title="시험", audio_stream=None, subtitle_key=None)
     ctrl.info = SimpleNamespace(path=Path("selftest.mp4"), duration=6000.0)
@@ -1262,6 +1268,138 @@ def _plan_style_cases(check: Callable[[str, bool, str], None]) -> None:
           f"5.0→{text_style(5.0)['fontScale']}, 0.1→{text_style(0.1)['fontScale']}")
 
 
+# ===================== GUI 자가검사 (화면 없는 Qt, D071) =====================
+GREEN, GRAY = mw_mod.ST_OK[1], mw_mod.ST_NONE[1]
+
+
+class _GuiCM(_FakeCM):
+    """_FakeCM + 창이 부르는 나머지 명령(start_discovery·pause·connect 등)을 기록만 한다."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.device = None
+        self.calls: list[tuple[str, tuple]] = []
+
+    def __getattr__(self, name: str) -> Callable[..., None]:
+        return lambda *a, **_k: self.calls.append((name, a))
+
+    def stop(self, then: Callable[[], None] | None = None) -> None:
+        self.calls.append(("stop", ()))
+        super().stop(then)
+
+    def names(self) -> list[str]:
+        return [c[0] for c in self.calls]
+
+
+def _dev(host: str = "10.0.0.9") -> DeviceInfo:
+    return DeviceInfo(uuid=uuid4(), name="시험 TV", model="시험", host=host)
+
+
+def _gui(loaded: bool = False, log_error: str | None = None,
+         cfg: AppConfig | None = None) -> tuple[Any, _GuiCM, PlaybackController, CastBridge]:
+    """가짜 TV 연결을 붙인 실제 메인 창. loaded면 파일을 열어 재생 중인 상태로 연결까지 한다."""
+    cm = _GuiCM()
+    if loaded:
+        _cm, ctrl, _ = _fresh(cm)
+    else:
+        ctrl = PlaybackController(cm, _FakeServer(), None, CastCallbacks())
+    cfg = cfg or AppConfig(auto_connect=False)
+    cfg.save = lambda: None                    # config.json을 건드리지 않음
+    bridge = CastBridge()
+    w = mw_mod.MainWindow(cfg, cm, ctrl, bridge, set_log=lambda _on: None, log_error=log_error)
+    w.show()
+    if loaded:
+        _connect(w, cm, bridge)
+    cm.calls.clear()
+    return w, cm, ctrl, bridge
+
+
+def _connect(w: Any, cm: _GuiCM, bridge: CastBridge, dev: DeviceInfo | None = None) -> None:
+    cm.device = dev or _dev()
+    bridge.connected.emit(cm.device)
+    QApplication.processEvents()
+
+
+def _close(w: Any) -> None:
+    w.close()
+    w.deleteLater()
+    QApplication.processEvents()
+
+
+def _conn_cases(check: Callable[[str, bool, str], None]) -> None:
+    """PRD F7-8 표시·F1-1·F1-2·F1-3·F1-5 (D071): 지금 동작을 고정."""
+    msg = "로그 파일을 만들 수 없습니다: logs\\castplayer.log (시험)"
+    w, *_ = _gui(log_error=msg)
+    check("F7-8 시작 때 상태줄에 로그 오류 알림", w.statusBar().currentMessage() == msg,
+          w.statusBar().currentMessage())
+    _close(w)
+
+    w, *_ = _gui()
+    mime = QMimeData()
+    mime.setUrls([QUrl.fromLocalFile(str(Path(tempfile.gettempdir()) / "movie.mp4"))])
+    ev = QDragEnterEvent(QPoint(1, 1), Qt.DropAction.CopyAction, mime,
+                         Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier)
+    w.dragEnterEvent(ev)
+    check("F1-2 연결 전 끌어다 놓기 → 안 열리고 안내",
+          not ev.isAccepted() and w.statusBar().currentMessage() == "먼저 기기를 연결하세요.",
+          w.statusBar().currentMessage())
+    _close(w)
+
+    dev = _dev()
+    cfg = AppConfig(last_device_uuid=str(dev.uuid), last_device_name=dev.name,
+                    last_device_host=dev.host)
+    w, cm, _ctrl, bridge = _gui(cfg=cfg)
+    bridge.devices_changed.emit([dev])
+    QApplication.processEvents()
+    asked = ("connect", (dev.uuid,)) in cm.calls
+    _connect(w, cm, bridge, dev)
+    check("F1-1 저장된 기기가 보이면 자동 연결 → ● 초록",
+          asked and GREEN in w.conn_label.text(), f"연결 요청 {asked}, {w.conn_label.text()}")
+    _close(w)
+
+    saved = mw_mod.AUTO_HOST_FALLBACK_MS
+    mw_mod.AUTO_HOST_FALLBACK_MS = 20          # 8초 + 8초 → 시험에서는 줄임
+    try:
+        w, cm, _ctrl, _bridge = _gui(cfg=AppConfig(
+            last_device_uuid=str(dev.uuid), last_device_name=dev.name, last_device_host=dev.host))
+        QTest.qWait(150)
+        text = w.statusBar().currentMessage()
+        check("F1-3 저장된 기기를 못 찾음 → 안내, ● 회색",
+              text == "시험 TV을(를) 찾지 못했습니다." and GRAY in w.conn_label.text()
+              and ("add_known_host", (dev.host,)) in cm.calls, f"{text}, {cm.names()}")
+        _close(w)
+    finally:
+        mw_mod.AUTO_HOST_FALLBACK_MS = saved
+
+    saved_ask = mw_mod.ask_ip
+    mw_mod.ask_ip = lambda _parent: "192.0.2.10"
+    try:
+        w, cm, _ctrl, bridge = _gui()
+        w.acts.add_ip.trigger()
+        dev = _dev("192.0.2.10")
+        bridge.devices_changed.emit([dev])
+        QApplication.processEvents()
+        listed = w.dev_combo.findData(dev.uuid) >= 0
+        w.btn_connect.click()
+        check("F1-5 IP로 기기 추가 → 저장·검색, 목록에 나타나 연결",
+              w.cfg.known_hosts == ["192.0.2.10"] and ("add_known_host", ("192.0.2.10",)) in cm.calls
+              and listed and ("connect", (dev.uuid,)) in cm.calls,
+              f"저장 {w.cfg.known_hosts}, 목록 {listed}, {cm.names()}")
+        _close(w)
+    finally:
+        mw_mod.ask_ip = saved_ask
+
+
+def _gui_cases(check: Callable[[str, bool, str], None]) -> None:
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")   # 창을 화면에 띄우지 않음
+    _app = QApplication.instance() or QApplication([])
+    for fn in (_conn_cases,):
+        try:
+            fn(check)
+        except Exception as err:  # pylint: disable=broad-except
+            check(f"GUI {fn.__name__}", False, f"예외: {err!r}")
+
+
 def selftest() -> int:
     oks: list[bool] = []
 
@@ -1293,6 +1431,8 @@ def selftest() -> int:
         _plan_style_cases(check)
         print("[자가검사] main.py — GUI 로그 기록 옵션 (D070)")
         _log_cases(check)
+        print("[자가검사] main_window.py — 화면 없는 창 + 가짜 TV (D071)")
+        _gui_cases(check)
     finally:
         player_mod.local_ip_for, player_mod.make_plan = saved
     print(f"[자가검사] {len(oks)}개 중 {sum(oks)}개 통과")

@@ -42,7 +42,8 @@ import main as main_mod             # 자가검사: GUI 로그 파일 (D070)
 import core.paths as paths_mod     # 자가검사에서 bin_dir 대역 교체
 import core.planner as planner_mod  # player_mod.make_plan을 바꿔도 진짜 make_plan을 부르기 위해
 import core.player as player_mod   # 자가검사에서 local_ip_for·make_plan 대역 교체
-from core.cast_manager import CastCallbacks, CastManager, DeviceInfo, MediaRequest
+from core.cast_manager import (CastCallbacks, CastManager, DeviceInfo, MediaRequest,
+                               PlaybackState)
 from core.config import AppConfig
 from core.encoders import EncoderDetector
 from core.media_server import MediaServer
@@ -605,9 +606,10 @@ def _fake_plan(order: int) -> Any:
                            audio=SimpleNamespace(order=order, label=f"음성 {order + 1}"))
 
 
-def _fresh(cm: _FakeCM | None = None) -> tuple[_FakeCM, PlaybackController, _FakeServer]:
+def _fresh(cm: _FakeCM | None = None, callbacks: CastCallbacks | None = None
+           ) -> tuple[_FakeCM, PlaybackController, _FakeServer]:
     cm, server = cm or _FakeCM(), _FakeServer()
-    ctrl = PlaybackController(cm, server, None, CastCallbacks())  # type: ignore[arg-type]
+    ctrl = PlaybackController(cm, server, None, callbacks or CastCallbacks())  # type: ignore[arg-type]
     ctrl.item = SimpleNamespace(title="시험", audio_stream=None, subtitle_key=None)
     ctrl.info = SimpleNamespace(path=Path("selftest.mp4"), duration=6000.0)
     ctrl.plan = _fake_plan(0)
@@ -1298,18 +1300,21 @@ def _dev(host: str = "10.0.0.9") -> DeviceInfo:
 def _gui(loaded: bool = False, log_error: str | None = None,
          cfg: AppConfig | None = None) -> tuple[Any, _GuiCM, PlaybackController, CastBridge]:
     """가짜 TV 연결을 붙인 실제 메인 창. loaded면 파일을 열어 재생 중인 상태로 연결까지 한다."""
-    cm = _GuiCM()
+    cm, bridge = _GuiCM(), CastBridge()
     if loaded:
-        _cm, ctrl, _ = _fresh(cm)
+        cm.device = _dev()                     # 재생 요청에 기기 주소가 필요
+        _cm, ctrl, _ = _fresh(cm, bridge.callbacks)
     else:
-        ctrl = PlaybackController(cm, _FakeServer(), None, CastCallbacks())
+        ctrl = PlaybackController(cm, _FakeServer(), None, bridge.callbacks)
     cfg = cfg or AppConfig(auto_connect=False)
     cfg.save = lambda: None                    # config.json을 건드리지 않음
-    bridge = CastBridge()
     w = mw_mod.MainWindow(cfg, cm, ctrl, bridge, set_log=lambda _on: None, log_error=log_error)
     w.show()
+    w.activateWindow()
+    QTest.qWaitForWindowActive(w)              # 단축키는 활성 창에서만 동작
     if loaded:
-        _connect(w, cm, bridge)
+        w.seek.set_duration(ctrl.info.duration if ctrl.info else 0.0)   # _on_task_ok가 하는 일
+        _connect(w, cm, bridge, cm.device)
     cm.calls.clear()
     return w, cm, ctrl, bridge
 
@@ -1390,10 +1395,154 @@ def _conn_cases(check: Callable[[str, bool, str], None]) -> None:
         mw_mod.ask_ip = saved_ask
 
 
+class _Grab(logging.Handler):
+    """with 안에서 한 로거의 INFO 메시지를 모은다 (자가검사는 ERROR만 보이므로 잠시 낮춤)."""
+
+    def __init__(self, name: str) -> None:
+        super().__init__()
+        self.lines: list[str] = []
+        self.log = logging.getLogger(name)
+        self.saved = (self.log.level, self.log.propagate)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.lines.append(record.getMessage())
+
+    def __enter__(self) -> list[str]:
+        self.log.addHandler(self)
+        self.log.setLevel(logging.INFO)
+        self.log.propagate = False
+        return self.lines
+
+    def __exit__(self, *_exc: object) -> None:
+        self.log.removeHandler(self)
+        self.log.level, self.log.propagate = self.saved
+
+
+def _key(w: Any, *keys: Qt.Key) -> None:
+    for k in keys:
+        QTest.keyClick(w, k)
+    QApplication.processEvents()
+
+
+def _seeks(lines: list[str]) -> list[str]:
+    return [x for x in lines if x.startswith("탐색:")]
+
+
+def _play_cases(check: Callable[[str, bool, str], None]) -> None:
+    """PRD F3-1·F3-2·F3-4·F3-5·F2-5와 pyright 정리 뒤 확인 대기 항목 (D071): 지금 동작을 고정."""
+    K = Qt.Key
+    wait = mw_mod.SEEK_COALESCE_MS + 150
+
+    def status(state: str, pos: float) -> None:
+        bridge.media_status.emit(PlaybackState(state, pos, 6000.0, None))
+
+    w, cm, ctrl, bridge = _gui(loaded=True)
+    status("PLAYING", 100.0)
+    _key(w, K.Key_Space)
+    status("PAUSED", 100.0)
+    _key(w, K.Key_Space)
+    check("F3-1 Space → 일시정지, 다시 Space → 재생", cm.names() == ["pause", "resume"],
+          f"{cm.names()}")
+
+    status("PLAYING", 100.0)
+    cm.pos = 100.0
+    with _Grab("core.player") as lines:
+        _key(w, K.Key_Right, K.Key_Right, K.Key_Right)
+        QTest.qWait(wait)
+    check("F3-2 → 3번(0.3초 안) → 탐색 1번 +15초, 로그 `탐색:` 1줄",
+          _seeks(lines) == ["탐색: 115.0초"], f"{lines}")
+    cm.pos = 100.0
+    with _Grab("core.player") as lines:
+        _key(w, K.Key_Left)
+        QTest.qWait(wait)
+    check("← → 5초 뒤로 탐색", _seeks(lines) == ["탐색: 95.0초"], f"{lines}")
+
+    cm.calls.clear()
+    _key(w, K.Key_Up)
+    up = w.vol.value()
+    _key(w, K.Key_Down)
+    check("↑/↓ → 볼륨 ±5%", up == 55 and cm.calls == [("set_volume", (0.55,)),
+                                                      ("set_volume", (0.5,))], f"{cm.calls}")
+    cm.calls.clear()
+    _key(w, K.Key_M)
+    check("M → 음소거", cm.calls == [("set_muted", (True,))] and w.btn_mute.isChecked(),
+          f"{cm.calls}")
+
+    cm.pos = 321.0
+    QTest.qWait(700)
+    check("재생 중 0.5초마다 위치 표시 갱신", w.pos_label.text() == "05:21", w.pos_label.text())
+
+    with _Grab("core.player") as lines:
+        w.seek.setSliderDown(True)
+        w.seek.setSliderPosition(200 * w.seek.SCALE)
+        dragging = w.pos_label.text()
+        w.seek.setSliderDown(False)
+        QApplication.processEvents()
+    check("탐색 바 끌어 놓기 → 그 위치로 탐색 1번",
+          _seeks(lines) == ["탐색: 200.0초"] and dragging == "03:20", f"끄는 중 {dragging}, {lines}")
+    with _Grab("core.player") as lines:
+        QTest.mouseClick(w.seek, Qt.MouseButton.LeftButton, pos=QPoint(w.seek.width() * 3 // 4,
+                                                                      w.seek.height() // 2))
+    sec = float(_seeks(lines)[0][4:-1]) if len(_seeks(lines)) == 1 else -1.0
+    check("탐색 바 클릭 → 그 자리로 바로 탐색", 3000.0 < sec < 6000.0, f"{lines}")
+
+    step = player_mod._stage(w.tasks.report, "키프레임 분석")   # pylint: disable=protected-access
+    assert step is not None
+    step(40)
+    QApplication.processEvents()
+    check("상태줄 \"키프레임 분석 N%\"", w.statusBar().currentMessage() == "키프레임 분석 40%…",
+          w.statusBar().currentMessage())
+
+    with tempfile.TemporaryDirectory() as t:
+        path = Path(t) / "other.mp4"
+        path.write_bytes(b"")
+        asked: list[str] = []
+        saved = mw_mod.confirm
+        mw_mod.confirm = lambda _parent, text: asked.append(text) or False   # 취소
+        try:
+            cm.calls.clear()
+            w._open(path)   # pylint: disable=protected-access
+        finally:
+            mw_mod.confirm = saved
+    check("F2-5 재생 중 새 파일 → 확인 창, 취소하면 그대로",
+          len(asked) == 1 and ctrl.active and "stop" not in cm.names()
+          and w.file_label.text() == "파일: -" and w.tasks.busy is None,
+          f"확인 {len(asked)}번, {cm.names()}, {w.file_label.text()}")
+
+    _key(w, K.Key_S)
+    check("S → 정지", "stop" in cm.names() and not ctrl.active
+          and w.statusBar().currentMessage() == "정지 (TV 플레이어 종료)", f"{cm.names()}")
+    _close(w)
+
+    w, cm, ctrl, bridge = _gui(loaded=True)
+    status("PLAYING", 5990.0)
+    finished = bridge.callbacks.on_finished      # 수신기 IDLE/FINISHED → ctrl 정리 → 창
+    assert finished is not None
+    finished()
+    QApplication.processEvents()
+    ended = w.statusBar().currentMessage()
+    w.btn_play.click()
+    starts = [_start(r) for r in cm.loads]
+    check("재생 완료 뒤 재생 버튼 → 처음부터 다시 불러옴",
+          ended == "재생 완료" and starts == [0.0], f"{ended}, {_desc(cm)}")
+    _close(w)
+
+    w, cm, ctrl, bridge = _gui()
+    _connect(w, cm, bridge)
+    bridge.volume.emit(0.37, False)
+    QApplication.processEvents()
+    check("F3-4 연결 때 볼륨 명령 없음, 슬라이더가 TV 볼륨을 따름",
+          w.vol.value() == 37 and "set_volume" not in cm.names(), f"{w.vol.value()}, {cm.names()}")
+    _key(w, K.Key_S)
+    check("F3-5 파일을 열지 않은 연결 → 정지 버튼 비활성, S → 정지 명령 없음",
+          not w.btn_stop.isEnabled() and "stop" not in cm.names(), f"{cm.names()}")
+    _close(w)
+
+
 def _gui_cases(check: Callable[[str, bool, str], None]) -> None:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")   # 창을 화면에 띄우지 않음
     _app = QApplication.instance() or QApplication([])
-    for fn in (_conn_cases,):
+    for fn in (_conn_cases, _play_cases):
         try:
             fn(check)
         except Exception as err:  # pylint: disable=broad-except

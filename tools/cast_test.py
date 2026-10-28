@@ -22,6 +22,7 @@ import tempfile
 import threading
 import time
 from datetime import datetime, timezone
+from fractions import Fraction
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -34,6 +35,7 @@ from pychromecast.socket_client import (CONNECTION_STATUS_DISCONNECTED, CONNECTI
 
 import core.cast_manager as cm_mod  # 자가검사에서 pychromecast 연결 함수 대역 교체
 import core.paths as paths_mod     # 자가검사에서 bin_dir 대역 교체
+import core.planner as planner_mod  # player_mod.make_plan을 바꿔도 진짜 make_plan을 부르기 위해
 import core.player as player_mod   # 자가검사에서 local_ip_for·make_plan 대역 교체
 from core.cast_manager import CastCallbacks, CastManager, DeviceInfo, MediaRequest
 from core.config import AppConfig
@@ -43,7 +45,8 @@ from core.paths import app_dir, ffmpeg_path, ffprobe_path   # app_dir 추가
 from core.planner import Mode, PlanError
 from core.player import PlaybackController
 from core.playlist import PlaylistItem
-from core.probe import MediaInfo, ProbeError
+from core.probe import MediaInfo, ProbeError, VideoStream
+from core.subtitles import text_style
 
 _LOGGER = logging.getLogger("cast_test")
 
@@ -1185,6 +1188,24 @@ def _paths_cases(check: Callable[[str, bool, str], None]) -> None:
     check("배포 파일: 아이콘 경로 (소스 실행)", icon.is_file(), f"{icon.relative_to(app_dir())}")
 
 
+def _plan_style_cases(check: Callable[[str, bool, str], None]) -> None:
+    """PRD F2-6·F5-6 (D069): 지금 동작을 고정."""
+    v = VideoStream(0, "mpeg4", "Advanced Simple Profile", 5, 3840, 2160, "yuv420p",
+                    Fraction(60), "XVID")
+    info = MediaInfo(Path("movie.avi"), "avi", 600.0, v, (), ())
+    plan = planner_mod.make_plan(info)
+    check("F2-6 4K 60fps XviD → TRANSCODE, 30fps",
+          plan.mode is Mode.TRANSCODE and plan.fps_cap == 30, f"{plan.summary}")
+    st = text_style(5.0)
+    want = {"backgroundColor": "#FFFFFF00", "foregroundColor": "#FFFFFFFF",
+            "edgeType": "OUTLINE", "edgeColor": "#000000FF"}
+    check("F5-6 자막 스타일: 투명 배경·흰 글자·검은 테두리",
+          all(st.get(k) == x for k, x in want.items()), f"{st}")
+    check("F5-6 자막 크기 배율 0.5~2.0으로 맞춤",
+          (text_style(5.0)["fontScale"], text_style(0.1)["fontScale"]) == (2.0, 0.5),
+          f"5.0→{text_style(5.0)['fontScale']}, 0.1→{text_style(0.1)['fontScale']}")
+
+
 def selftest() -> int:
     oks: list[bool] = []
 
@@ -1212,6 +1233,8 @@ def selftest() -> int:
         _buffering_cases(check)
         print("[자가검사] paths.py — ffmpeg·ffprobe 찾기 (bin → PATH)")
         _paths_cases(check)
+        print("[자가검사] planner.py·subtitles.py — 4K fps 절반, 자막 스타일 (D069)")
+        _plan_style_cases(check)
     finally:
         player_mod.local_ip_for, player_mod.make_plan = saved
     print(f"[자가검사] {len(oks)}개 중 {sum(oks)}개 통과")

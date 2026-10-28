@@ -1,6 +1,6 @@
 # PRD — CastPlayer
 
-상태: approved (2026-10-27) | 단계: 5 확정 | 갱신: 2026-10-27
+상태: approved (2026-10-28) | 단계: 5 확정 | 갱신: 2026-10-28
 <!-- 상태가 approved (YYYY-MM-DD)가 되기 전에는 코드·뼈대·의존성 설치를 하지 않는다. -->
 <!-- 모든 항목 끝에 출처를 단다: [U] 사용자 · [X] 기존 코드·문서 · [AI] AI 기본값. 근거 결정은 (D###). -->
 <!-- [X] 출처 약칭: C = docs/legacy/claude.md, P = docs/legacy/progress.md -->
@@ -175,7 +175,7 @@
 - 자동 테스트 대상: `tools/cast_test.py --selftest`의 항목 (인수 기준의 [자동]과 그 안쪽 단위 검사). Claude가 직접 실행 [X] · [U] (D031, D048)
 - 실기기 확인 대상과 결과 전달 방식: 인수 기준의 [실기기] 항목(TV 송출 필요). Claude가 기대 결과를 번호 항목으로 주고, 사용자는 항목마다 "예/아니요와 본 것"으로 답한다. 로그로 알 수 있는 것은 Claude가 `logs/`의 `.txt`를 읽어 함께 판정. 모든 항목이 "예"일 때만 통과, 애매한 답은 그 항목만 다시 묻는다 [U] (D062, D047 대체)
 - 전체 테스트 명령과 걸리는 시간: `.venv\Scripts\python -m tools.cast_test --selftest --log` (TV 불필요, 약 6초). 작업마다 실행, 하나라도 실패하면 다음 작업으로 가지 않음 [U] (D064)
-- 편집 때 자동 검사: `.py` → `.venv\Scripts\ruff.exe check` (ruff 기본 규칙 + `core/`에서 PySide6 import 금지 `TID251`, D003). `.claude/hooks/check.ps1`이 실행. pyright는 기존 오류 정리 뒤 (OPEN O107) [U] (D063)
+- 편집 때 자동 검사: `.py` → `.venv\Scripts\ruff.exe check` (ruff 기본 규칙 + `core/`에서 PySide6 import 금지 `TID251`, D003) → `pyright` (전역 npm 설치본, 설정 `pyrightconfig.json`, 오류 0개 유지). `.claude/hooks/check.ps1`이 실행 [U] (D063, D068)
 - 반목표 확인: 유튜브 재생 중 캐스팅 전 연결·정지 → 유튜브 유지 (캐스팅한 뒤 정지하면 우리 수신 앱이 끝나 TV는 홈으로 감. Chromecast는 앱을 하나만 띄우므로 정상) / 연결 직후 TV 볼륨 그대로 / 끊김 뒤 다른 파일 열기 → 처음부터 재생 / 종료 뒤 `Get-Process ffmpeg, ffprobe` 없음 [U] (D058)
 - 공개 전 점검: 저장소 전체(`git grep`)에서 사설 IP 패턴(`192.168.`·`172.16~31.`·`10.`, 문서용 예시 `10.0.0.x`·`192.0.2.x` 제외)·사용자 경로(`C:\Users\`)·시험 영상 파일 이름(작업 폴더의 영상 파일 이름에서 확장자를 뺀 문자열) 검색 0건 [U] (D054) · 패턴 [AI]
 - 위험한 명령 (실행 전 확인 대상): TV 송출 시험(`tools.cast_test <파일>`, `main.py`), `pip install`, `git push`, `cache/`·`logs/` 삭제, 공개 직전 git 히스토리 재시작(D041) [U] (D048)
@@ -196,3 +196,4 @@
 | 2026-10-23 | §3 F1~F8 인수 기준 39개, F6 현재 상태·F7 로그 갱신. §6 확인 결과 형식, 전체 테스트, 편집 때 검사 | D061~D064 |
 | 2026-10-24 | §2 버퍼링 기준 통과 기록, 비트레이트 상한 옵션을 §2.2 → §2.3 | D065 |
 | 2026-10-27 | §2.1 아이콘·zip 동봉 문서·1.0.0 공개, F8 --count-buffering | D050, D066, D067 |
+| 2026-10-28 | §6 편집 때 검사에 pyright 추가 (기존 오류 71개 정리) | D068 |

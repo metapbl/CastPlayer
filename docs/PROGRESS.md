@@ -1,15 +1,16 @@
 # PROGRESS — CastPlayer
 
 ## 상태
-- 단계: 8 구현 · 계획 `docs/plans/2026-10-29-gui-autotest.md` (active) · PRD 변경 승인(2026-10-29, D071 자동·실기기 원칙·인수 기준 재분류) · 1.0.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.0.0)
-- 갱신: 2026-10-29 · 마지막 커밋: `chore: selftest reconnect, log toggle, slow send and shutdown` (push 안 함)
+- 단계: 8 구현 · 계획 없음 (직전 `docs/plans/2026-10-29-gui-autotest.md` done) · PRD 변경 승인(2026-10-29, D071 자동·실기기 원칙·인수 기준 재분류) · 1.0.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.0.0)
+- 갱신: 2026-10-29 · 마지막 커밋: `docs: close the GUI automated test plan` (push 안 함)
 - 히스토리를 새로 시작함(D041). 아래 완료 기록의 옛 커밋 해시는 저장소 밖 로컬 백업 `../CastPlayer-git-backup-2026-10-27`에만 있다
 
 ## 다음 할 일
-1. 계획 `2026-10-29-gui-autotest.md` 작업 5 실기기 확인 (F3-7 리모컨 탐색, F3-6 창 닫기 정리, 시작 때 ● 미연결 회색)
-2. 보류 질문: O103·O105·O106·O109
+1. O111 강제 종료(빠른 연속 탐색 → SSL 쓰기 오류 → traceback 없이 꺼짐) 조사 여부 결정
+2. 보류 질문: O103·O105·O106·O109·O111
 
 ## 미해결
+- 빠른 연속 탐색 중 SSL 쓰기 오류 뒤 프로그램이 traceback 없이 꺼짐 1회 (OPEN O111, 2026-10-29)
 - 남은 세션 위 LOAD 시 master.m3u8 요청까지 22초, PLAYING 뒤 약 8초 정지 — 원인 미확정. 끊김 보강 뒤 이번 시험에서는 재발 안 함 (OPEN O103, R§4 T12)
 - 다른 Android 앱이 떠 있으면 수신 앱 실행이 약 18초 걸려 10초 제한에 걸림 (OPEN O105)
 - 첫 재생 직후 SSL BAD_LENGTH로 끊겼다 붙고 잘못된 "재생 실패" 알림 1회 (OPEN O106)
@@ -52,3 +53,4 @@
 - 2026-10-23 GUI 실기기 시험 4회: 재생·일시정지 중 21~77초 분리 → 조작 없이 이어짐, 항목 1~6·9, 반목표(D058), ffmpeg 잔류 없음
 - 2026-10-28 pyright 오류 71 → 0, check 훅에 pyright, PRD §6 갱신 (065dc38, fa10e7b, 6eb3b7a, 9751493, eb987e4; D068, Q054·Q055) — selftest 35/35
 - 2026-10-28 GitHub About 입력: 설명 한/영, Releases 최신 링크, 토픽 8개 (저장소 파일 변경 없음)
+- 2026-10-29 GUI 자동 시험(D071): 화면 없는 창 + 가짜 TV로 인수 기준 18개 자동 부분, 시작 때 ● 미연결 버그 수정 — 실기기 검증 (28b0130~3d4a01c)

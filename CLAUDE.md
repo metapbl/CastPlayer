@@ -40,6 +40,7 @@ Windows PC의 로컬 동영상을 Chromecast with Google TV로 보내는 PySide6
 
 ## 작업 기록
 - 작업을 끝내면 계획 파일의 체크박스를 갱신한다. 세션을 마칠 때 docs/PROGRESS.md 머리 부분을 갱신하고 /metarche wrap을 제안한다.
+- wrap 때 남은 변경을 `docs:`로 커밋하고, push는 할지 묻는다 (D048)
 - 관련 없는 작업으로 넘어갈 때는 /clear를 제안한다.
 - 새 결정은 `docs/discovery/DECISIONS.md`에, 반복된 실수의 원인은 REFERENCE 함정 대장에 적는다.
 - PRD 변경 중(`상태: changing`)에는 docs/ 밖을 수정하지 않는다 (훅이 막는다).

@@ -10,4 +10,7 @@ $head = foreach ($line in Get-Content $file -Encoding utf8 -TotalCount 60) {
 }
 '[metarche] docs/PROGRESS.md 머리 (자동 주입)'
 @($head) | Select-Object -First 40
+# 마지막 커밋은 파일에 적으면 wrap 커밋 때마다 어긋나므로 git에서 바로 읽는다.
+$last = git -C $root log -1 --format='%h %s' 2>$null
+if ($LASTEXITCODE -eq 0 -and $last) { "- 마지막 커밋 (git): $last" }
 exit 0

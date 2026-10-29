@@ -2,7 +2,7 @@
 
 ## 상태
 - 단계: 8 구현 · 계획 없음 (직전 `docs/plans/2026-10-29-gui-autotest.md` done) · PRD 변경 승인(2026-10-29, D071 자동·실기기 원칙·인수 기준 재분류) · 1.0.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.0.0)
-- 갱신: 2026-10-29 · 마지막 커밋: `docs: close the GUI automated test plan` (push 안 함)
+- 갱신: 2026-10-29
 - 히스토리를 새로 시작함(D041). 아래 완료 기록의 옛 커밋 해시는 저장소 밖 로컬 백업 `../CastPlayer-git-backup-2026-10-27`에만 있다
 
 ## 다음 할 일

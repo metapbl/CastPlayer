@@ -140,10 +140,15 @@ def main() -> int:
     try:
         return app.exec()
     finally:
-        _LOGGER.info("종료 처리 중... (정지 → 수신 앱 종료 → ffmpeg 정리 → 연결 해제)")
-        cm.shutdown()
-        ctrl.shutdown()
-        server.stop()
+        cleanup(cm, ctrl, server)
+
+
+def cleanup(cm: CastManager, ctrl: PlaybackController, server: MediaServer) -> None:
+    """창을 닫은 뒤 정리 (F3-6, 자가검사가 직접 부름)."""
+    _LOGGER.info("종료 처리 중... (정지 → 수신 앱 종료 → ffmpeg 정리 → 연결 해제)")
+    cm.shutdown()
+    ctrl.shutdown()
+    server.stop()
 
 
 if __name__ == "__main__":

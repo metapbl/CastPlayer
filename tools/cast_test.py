@@ -21,6 +21,7 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.request
 from datetime import datetime, timezone
 from fractions import Fraction
 from pathlib import Path
@@ -38,6 +39,7 @@ from pychromecast.socket_client import (CONNECTION_STATUS_DISCONNECTED, CONNECTI
                                         ConnectionStatus)
 
 import core.cast_manager as cm_mod  # 자가검사에서 pychromecast 연결 함수 대역 교체
+import core.media_server as ms_mod  # 자가검사에서 SLOW_SEND 대역 교체
 import main as main_mod             # 자가검사: GUI 로그 파일 (D070)
 import core.paths as paths_mod     # 자가검사에서 bin_dir 대역 교체
 import core.planner as planner_mod  # player_mod.make_plan을 바꿔도 진짜 make_plan을 부르기 위해
@@ -46,7 +48,7 @@ from core.cast_manager import (CastCallbacks, CastManager, DeviceInfo, MediaRequ
                                PlaybackState)
 from core.config import AppConfig
 from core.encoders import EncoderDetector
-from core.media_server import MediaServer
+from core.media_server import HlsResource, MediaServer
 from core.paths import app_dir, ffmpeg_path, ffprobe_path   # app_dir 추가
 from core.planner import Mode, PlanError
 from core.player import PlaybackController
@@ -1297,8 +1299,9 @@ def _dev(host: str = "10.0.0.9") -> DeviceInfo:
     return DeviceInfo(uuid=uuid4(), name="시험 TV", model="시험", host=host)
 
 
-def _gui(loaded: bool = False, log_error: str | None = None,
-         cfg: AppConfig | None = None) -> tuple[Any, _GuiCM, PlaybackController, CastBridge]:
+def _gui(loaded: bool = False, log_error: str | None = None, cfg: AppConfig | None = None,
+         set_log: Callable[[bool], str | None] = lambda _on: None
+         ) -> tuple[Any, _GuiCM, PlaybackController, CastBridge]:
     """가짜 TV 연결을 붙인 실제 메인 창. loaded면 파일을 열어 재생 중인 상태로 연결까지 한다."""
     cm, bridge = _GuiCM(), CastBridge()
     if loaded:
@@ -1308,7 +1311,7 @@ def _gui(loaded: bool = False, log_error: str | None = None,
         ctrl = PlaybackController(cm, _FakeServer(), None, bridge.callbacks)
     cfg = cfg or AppConfig(auto_connect=False)
     cfg.save = lambda: None                    # config.json을 건드리지 않음
-    w = mw_mod.MainWindow(cfg, cm, ctrl, bridge, set_log=lambda _on: None, log_error=log_error)
+    w = mw_mod.MainWindow(cfg, cm, ctrl, bridge, set_log=set_log, log_error=log_error)
     w.show()
     w.activateWindow()
     QTest.qWaitForWindowActive(w)              # 단축키는 활성 창에서만 동작
@@ -1607,8 +1610,8 @@ def _media_cases(check: Callable[[str, bool, str], None]) -> None:
         cm.pos = 1234.0
         w.audio_combo.setCurrentIndex(1)
         w.audio_combo.activated.emit(1)
-        _wait_for(lambda: w.tasks.busy is None)
-        QApplication.processEvents()
+        # busy가 풀린 뒤에 완료 신호가 UI 스레드에 도착하므로 알림까지 기다림
+        _wait_for(lambda: w.statusBar().currentMessage() != "")
         r = cm.loads[-1] if cm.loads else None
         check("F4-1 음성 2개 mp4를 1번으로 재생 중 2번 → 현재 위치에서 REMUX로 다시 불러옴",
               before is Mode.DIRECT and ctrl.plan is not None and ctrl.plan.mode is Mode.REMUX
@@ -1622,10 +1625,125 @@ def _media_cases(check: Callable[[str, bool, str], None]) -> None:
         player_mod.make_plan, player_mod.HlsSession = saved
 
 
+def _lost_cases(check: Callable[[str, bool, str], None]) -> None:
+    """PRD F6-1·F6-2·F6-4 창 경로 (D071): 지금 동작을 고정."""
+    w, cm, ctrl, bridge = _gui(loaded=True)
+    dev = cm.device
+    bridge.media_status.emit(PlaybackState("PLAYING", 1000.0, 6000.0, None))
+    cm.drop(1000.0, False)
+    bridge.connection_lost.emit(dev)           # pychromecast가 스스로 다시 붙는 끊김
+    QApplication.processEvents()
+    lost = mw_mod.ST_LOST[1] in w.conn_label.text()
+    _connect(w, cm, bridge, dev)
+    cm.answer(False)                           # 수신기 세션 없음
+    r = cm.loads[-1] if cm.loads else None
+    check("F6-1 재생 중 끊겼다 다시 연결 → 끊긴 위치·재생 상태로 다시 불러옴",
+          lost and len(cm.loads) == 1 and r is not None and _start(r) == 1000.0 and r.autoplay
+          and w.statusBar().currentMessage() == "다시 연결됨. 끊긴 위치부터 이어 갑니다.",
+          f"끊김 표시 {lost}, {_desc(cm)}, {w.statusBar().currentMessage()}")
+    _close(w)
+
+    w, cm, ctrl, bridge = _gui(loaded=True)
+    dev = cm.device
+    w.cfg.last_device_uuid = str(dev.uuid)
+    bridge.media_status.emit(PlaybackState("PAUSED", 500.0, 6000.0, None))
+    cm.drop(500.0, True)
+    bridge.connection_lost.emit(dev)
+    cm.device = None
+    bridge.disconnected.emit()                 # 다시 붙지 못해 연결 해제됨 → 창이 다시 찾음
+    bridge.devices_changed.emit([dev])
+    QApplication.processEvents()
+    asked = ("connect", (dev.uuid,)) in cm.calls and ctrl.active
+    _connect(w, cm, bridge, dev)
+    cm.answer(False)
+    r = cm.loads[-1] if cm.loads else None
+    check("F6-2 일시정지 중 끊김 → 목록에 다시 나타나면 연결, 일시정지로 다시 불러옴",
+          asked and len(cm.loads) == 1 and r is not None and _start(r) == 500.0 and not r.autoplay,
+          f"송출 유지·연결 요청 {asked}, {_desc(cm)}")
+    _close(w)
+
+    saved = mw_mod.RECONNECT_WINDOW
+    mw_mod.RECONNECT_WINDOW = 0.05             # 30초 → 시험에서는 줄임
+    try:
+        w, cm, ctrl, bridge = _gui(loaded=True)
+        route = ctrl._route   # pylint: disable=protected-access
+        cm.device = None
+        bridge.disconnected.emit()
+        QTest.qWait(250)
+        text = w.statusBar().currentMessage()
+        check("F6-4 재연결 시간이 지나면 안내 뒤 송출 정리",
+              text == "기기에 다시 연결하지 못했습니다. [연결]을 눌러 주세요." and not ctrl.active
+              and route in ctrl.server.unregistered and GRAY in w.conn_label.text(),
+              f"{text}, 송출 {'유지' if ctrl.active else '정리'}")
+        _close(w)
+    finally:
+        mw_mod.RECONNECT_WINDOW = saved
+
+
+def _log_slow_close_cases(check: Callable[[str, bool, str], None]) -> None:
+    """PRD F7-9·F7-4·F3-6 (D071): 지금 동작을 고정."""
+    root = logging.getLogger()
+    level = root.level
+    try:
+        with tempfile.TemporaryDirectory() as t:
+            logs = Path(t) / "logs"
+            file_log, _err = main_mod.setup_logging(False, False, logs, console=False)
+            w, *_ = _gui(set_log=file_log.set)
+            before = (logs / "castplayer.log").exists()
+            w.acts.log_file.trigger()          # 옵션 메뉴 "로그 기록" 켬
+            logging.getLogger("cast_test.gui_log").info("켠 뒤 줄")
+            file_log.set(False)
+            path = logs / "castplayer.log"
+            text = path.read_text(encoding="utf-8") if path.is_file() else ""
+            check("F7-9 실행 중 \"로그 기록\"을 켜면 다시 시작하지 않아도 INFO 줄 기록",
+                  not before and "켠 뒤 줄" in text and w.cfg.log_file
+                  and w.statusBar().currentMessage() == "로그 기록 켬",
+                  f"켜기 전 파일 {before}, {len(text.splitlines())}줄")
+            _close(w)
+    finally:
+        root.setLevel(level)
+
+    server = MediaServer(port=0, bind="127.0.0.1")
+    saved = ms_mod.SLOW_SEND
+    try:
+        server.start()
+        httpd = server._httpd                  # pylint: disable=protected-access
+        assert httpd is not None
+        server.port = httpd.server_address[1]  # 0번으로 열어 빈 포트를 받음
+        route = server.register(HlsResource(lambda name: (b"x" * 1000, "video/mp4")), prefix="hls")
+        url = server.url_for(route, "127.0.0.1")
+        result = []
+        for slow in (0.0, 5.0):               # 0초 기준이면 어떤 조각도 느림
+            ms_mod.SLOW_SEND = slow
+            with _Grab("core.media_server") as lines:
+                for name in ("seg_1.m4s", "master.m3u8"):
+                    with urllib.request.urlopen(f"{url}/{name}", timeout=5) as resp:
+                        resp.read()
+                _wait_for(lambda: any(x.startswith("전송:") for x in lines), 1.0)
+            result.append([x for x in lines if "← 느림" in x])
+        check("F7-4 조각 전송이 기준 시간을 넘으면 \"← 느림\" 줄 (조각만, 넘지 않으면 없음)",
+              len(result[0]) == 1 and "seg_1.m4s" in result[0][0] and not result[1], f"{result}")
+    finally:
+        ms_mod.SLOW_SEND = saved
+        server.stop()
+
+    gcm = _GuiCM()
+    gcm.device = _dev()
+    cm, ctrl, srv = _fresh(gcm)
+    session, route = _FakeSession(), ctrl._route   # pylint: disable=protected-access
+    ctrl._session = session                        # pylint: disable=protected-access
+    stopped: list[bool] = []
+    main_mod.cleanup(cm, ctrl, SimpleNamespace(stop=lambda: stopped.append(True)))
+    check("F3-6 창을 닫은 뒤 정리 → 수신 앱 종료·HLS 세션 닫기·경로 해제·서버 종료",
+          cm.names() == ["shutdown"] and session.closed and route in srv.unregistered
+          and not ctrl.active and stopped == [True],
+          f"{cm.names()}, 세션 {'닫힘' if session.closed else '열림'}, 서버 {stopped}")
+
+
 def _gui_cases(check: Callable[[str, bool, str], None]) -> None:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")   # 창을 화면에 띄우지 않음
     _app = QApplication.instance() or QApplication([])
-    for fn in (_conn_cases, _play_cases, _media_cases):
+    for fn in (_conn_cases, _play_cases, _media_cases, _lost_cases, _log_slow_close_cases):
         try:
             fn(check)
         except Exception as err:  # pylint: disable=broad-except

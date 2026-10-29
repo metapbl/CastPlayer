@@ -22,7 +22,7 @@
   - 확인: `--selftest --log` 통과
 - [x] 3. 음성·자막 — F5-2 지원 안 되는 자막 항목이 콤보에서 비활성(회색) · F5-3 싱크 +0.5 버튼 3번 → 1.5초 뒤 한 번만 +1.5초로 다시 불러옴, 로그 `자막 싱크 반영` 1줄 · F4-1 음성 2개 mp4(가짜 probe 정보, 진짜 `make_plan`)를 1번으로 재생 중 2번 고름 → 현재 위치에서 REMUX로 다시 불러옴 — `tools/cast_test.py > _gui_cases`
   - 확인: `--selftest --log` 통과
-- [ ] 4. 끊김·로그·종료 — F6-1·F6-2 창 경로: 연결 끊김 신호 → 같은 기기가 목록에 다시 나타남 → 자동 연결(끊김 기억 유지) → 세션 없음 응답 → 끊긴 위치에서 재생/일시정지로 다시 불러옴, "다시 연결됨…" 안내 · F6-4 재연결 시간(줄임)이 지나면 "기기에 다시 연결하지 못했습니다" 안내, 송출 정리(HLS 경로 해제) · F7-9 실행 중 옵션 "로그 기록"을 켜면 그 뒤 INFO 줄이 임시 폴더의 `castplayer.log`에 기록 (`main.setup_logging`의 진짜 `FileLog`) · F7-4 `SLOW_SEND`를 줄이고 진짜 `MediaServer`에서 `.m4s` 조각을 받으면 "← 느림" 줄 · F3-6 종료 정리 함수 → 정지·HLS 세션 닫기·경로 해제 (가짜 세션) — `tools/cast_test.py > _gui_cases`, `main.py > main`(종료 정리 함수로 뺌)
+- [x] 4. 끊김·로그·종료 — F6-1·F6-2 창 경로: 연결 끊김 신호 → 같은 기기가 목록에 다시 나타남 → 자동 연결(끊김 기억 유지) → 세션 없음 응답 → 끊긴 위치에서 재생/일시정지로 다시 불러옴, "다시 연결됨…" 안내 · F6-4 재연결 시간(줄임)이 지나면 "기기에 다시 연결하지 못했습니다" 안내, 송출 정리(HLS 경로 해제) · F7-9 실행 중 옵션 "로그 기록"을 켜면 그 뒤 INFO 줄이 임시 폴더의 `castplayer.log`에 기록 (`main.setup_logging`의 진짜 `FileLog`) · F7-4 `SLOW_SEND`를 줄이고 진짜 `MediaServer`에서 `.m4s` 조각을 받으면 "← 느림" 줄 · F3-6 종료 정리 함수 → 정지·HLS 세션 닫기·경로 해제 (가짜 세션) — `tools/cast_test.py > _gui_cases`, `main.py > main`(종료 정리 함수로 뺌)
   - 확인: `--selftest --log` 통과, `pyright` 0개
 - [ ] 5. 인수 확인 — 전체 테스트와 이번 계획의 실기기 기준
   - 확인: 전체 테스트 `.venv\Scripts\python -m tools.cast_test --selftest --log` 통과, 15초 이내, `pyright` 0개. PROGRESS "확인 대기"에서 자동으로 옮긴 항목 정리

@@ -51,8 +51,8 @@ from core.paths import app_dir, ffmpeg_path, ffprobe_path   # app_dir 추가
 from core.planner import Mode, PlanError
 from core.player import PlaybackController
 from core.playlist import PlaylistItem
-from core.probe import MediaInfo, ProbeError, VideoStream
-from core.subtitles import text_style
+from core.probe import AudioStream, MediaInfo, ProbeError, VideoStream
+from core.subtitles import Cue, SubtitleSet, SubtitleTrack, text_style
 import ui.main_window as mw_mod     # 자가검사: 화면 없는 창 (D071), 대기 시간·대화창 대역 교체
 from ui.bridge import CastBridge
 
@@ -1424,6 +1424,14 @@ def _key(w: Any, *keys: Qt.Key) -> None:
     QApplication.processEvents()
 
 
+def _wait_for(cond: Callable[[], bool], sec: float = 3.0) -> bool:
+    """Qt 이벤트를 돌리며 cond가 참이 될 때까지 (PySide6에는 QTest.qWaitFor가 없음)."""
+    end = time.monotonic() + sec
+    while not cond() and time.monotonic() < end:
+        QTest.qWait(20)
+    return cond()
+
+
 def _seeks(lines: list[str]) -> list[str]:
     return [x for x in lines if x.startswith("탐색:")]
 
@@ -1539,10 +1547,85 @@ def _play_cases(check: Callable[[str, bool, str], None]) -> None:
     _close(w)
 
 
+class _FakeSession:
+    """HlsSession 대역: ffmpeg를 띄우지 않고 시작 위치·닫힘만 기록."""
+
+    def __init__(self, *_a: Any, **_k: Any) -> None:
+        self.closed = False
+
+    def get(self, _name: str) -> None:
+        return None
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def _media_cases(check: Callable[[str, bool, str], None]) -> None:
+    """PRD F5-2·F5-3·F4-1 (D071): 지금 동작을 고정."""
+    w, cm, ctrl, _bridge = _gui(loaded=True)
+    ctrl.info = SimpleNamespace(path=Path("selftest.mkv"), duration=6000.0, audio=())
+    ctrl.subs = SubtitleSet([
+        SubtitleTrack("ext:selftest.srt", "selftest.srt", "ko", True, (Cue(1.0, 2.0, "시험"),),
+                      track_id=1, external=True),
+        SubtitleTrack("emb:3", "#1 PGS", "ko", False, note="지원 안 함")])
+    ctrl._sub_id = 1   # pylint: disable=protected-access
+    w._fill_tracks()   # pylint: disable=protected-access
+    w._update_ui()     # pylint: disable=protected-access
+    model = w.sub_combo.model()
+    check("F5-2 이미지 자막(PGS) → 목록에 회색 \"지원 안 함\"",
+          w.sub_combo.count() == 3 and not model.item(2).isEnabled() and model.item(1).isEnabled()
+          and "지원 안 함" in w.sub_combo.itemText(2),
+          f"{[w.sub_combo.itemText(i) for i in range(w.sub_combo.count())]}")
+
+    cm.pos = 300.0
+    with _Grab("core.player") as lines:
+        for _ in range(3):
+            w.btn_sync_up.click()
+        QTest.qWait(1000)
+        early = len(cm.loads)
+        QTest.qWait(800)                       # 마지막 입력 1.5초 뒤
+    synced = [x for x in lines if x.startswith("자막 싱크 반영")]
+    check("F5-3 싱크 +0.5 3번 → 1.5초 뒤 한 번만 +1.5초로 다시 불러옴, 로그 1줄",
+          early == 0 and len(cm.loads) == 1 and _start(cm.loads[0]) == 300.0 and len(synced) == 1
+          and ctrl.subs.delay(1) == 1.5 and w.sync_label.text() == "+1.5초",
+          f"1초 때 {early}번, {_desc(cm)}, {w.sync_label.text()}, {synced}")
+    _close(w)
+
+    v = VideoStream(0, "h264", "High", 41, 1920, 1080, "yuv420p", Fraction(24), "avc1")
+    audio = tuple(AudioStream(i + 1, i, "aac", 2, lang, "", i == 0)
+                  for i, lang in enumerate(("ko", "en")))
+    info = MediaInfo(Path("selftest.mp4"), "mov,mp4,m4a,3gp,3g2,mj2", 6000.0, v, audio, ())
+    saved = (player_mod.make_plan, player_mod.HlsSession)
+    player_mod.make_plan, player_mod.HlsSession = planner_mod.make_plan, _FakeSession
+    try:
+        w, cm, ctrl, _bridge = _gui(loaded=True)
+        ctrl.info, ctrl.plan = info, planner_mod.make_plan(info, 0)
+        ctrl.timeline = player_mod.fixed_timeline(info.duration)   # 키프레임 분석 건너뜀
+        ctrl.subs, ctrl._sub_id = None, None   # pylint: disable=protected-access
+        w._fill_tracks()   # pylint: disable=protected-access
+        before = ctrl.plan.mode
+        cm.pos = 1234.0
+        w.audio_combo.setCurrentIndex(1)
+        w.audio_combo.activated.emit(1)
+        _wait_for(lambda: w.tasks.busy is None)
+        QApplication.processEvents()
+        r = cm.loads[-1] if cm.loads else None
+        check("F4-1 음성 2개 mp4를 1번으로 재생 중 2번 → 현재 위치에서 REMUX로 다시 불러옴",
+              before is Mode.DIRECT and ctrl.plan is not None and ctrl.plan.mode is Mode.REMUX
+              and len(cm.loads) == 1 and r is not None and _start(r) == 1234.0
+              and r.url.endswith("/master.m3u8")
+              and w.statusBar().currentMessage() == "음성 트랙을 바꿨습니다.",
+              f"{before.value} → {ctrl.plan.mode.value if ctrl.plan else '-'}, {_desc(cm)}, "
+              f"{w.statusBar().currentMessage()}")
+        _close(w)
+    finally:
+        player_mod.make_plan, player_mod.HlsSession = saved
+
+
 def _gui_cases(check: Callable[[str, bool, str], None]) -> None:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")   # 창을 화면에 띄우지 않음
     _app = QApplication.instance() or QApplication([])
-    for fn in (_conn_cases, _play_cases):
+    for fn in (_conn_cases, _play_cases, _media_cases):
         try:
             fn(check)
         except Exception as err:  # pylint: disable=broad-except

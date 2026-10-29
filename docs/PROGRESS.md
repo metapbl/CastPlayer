@@ -1,13 +1,14 @@
 # PROGRESS — CastPlayer
 
 ## 상태
-- 단계: 8 구현 · 계획 없음 (직전 `docs/plans/2026-10-29-gui-autotest.md` done) · PRD 변경 승인(2026-10-29, D071 자동·실기기 원칙·인수 기준 재분류) · 1.0.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.0.0)
+- 단계: 8 구현 · 계획 없음 (직전 `docs/plans/2026-10-29-gui-autotest.md` done) · PRD 변경 승인(2026-10-29, D071 자동·실기기 원칙, D072 보안 정책 기본 수준) · 1.0.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.0.0)
 - 갱신: 2026-10-29
 - 히스토리를 새로 시작함(D041). 아래 완료 기록의 옛 커밋 해시는 저장소 밖 로컬 백업 `../CastPlayer-git-backup-2026-10-27`에만 있다
 
 ## 다음 할 일
 1. O111 강제 종료 조사 (빠른 연속 탐색 → seek 5초 초과 → SSL 쓰기 오류 → traceback 없이 꺼짐). execute.md §디버그 순서: 재현 방법(GUI에서 → 연타·탐색 바 클릭을 다시 불러오는 중에 반복, `-v`) → 단서 남기기 후보 `main.py > main`에 faulthandler(코드 변경이라 계획 필요 여부 판단) → 가설은 `core/cast_manager.py`의 seek 명령 경로와 pychromecast 소켓 스레드가 같은 SSL 소켓에 겹쳐 씀(R§4 T6, O106)
-2. 보류 질문: O103·O105·O106·O109·O111
+2. 보안 정책 D072 후속: `requirements.lock.txt`(pip freeze) 커밋 + `pip-audit` 첫 실행 (설치는 실행 전 확인) — 작은 계획으로
+3. 보류 질문: O103·O105·O106·O109·O111
 
 ## 미해결
 - 빠른 연속 탐색 중 SSL 쓰기 오류 뒤 프로그램이 traceback 없이 꺼짐 1회 (OPEN O111, 2026-10-29)

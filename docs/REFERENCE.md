@@ -94,6 +94,7 @@
 | T16 | 리모컨으로 탐색한 직후 버퍼링이 판정에 셈됨 | TV 리모컨 탐색은 우리 프로그램을 거치지 않아 `탐색:` 로그가 없음 → `--count-buffering`이 10초 제외를 못 함 | 보류. 판정 로그를 볼 때 `HLS 생산 시작` 위치 점프로 구분 | O109, 2026-10-25 exe 시험 |
 | T17 | 배포 zip의 exe에 지운 줄 알았던 영상 이름이 남음 | zip을 공개 전 정리 커밋보다 먼저 빌드함. 주석은 exe에 안 들어가지만 docstring은 기본 빌드(최적화 없음)에서 들어감 | 릴리스 직전 마지막 코드 커밋 뒤 다시 빌드하고, exe 안 `core`·`ui` 모듈 문자열을 검색(`PyInstaller.archive.readers.CArchiveReader` → `PYZ.pyz`) | D041, 2026-10-27 릴리스 점검 |
 | T18 | GUI 자가검사에서 첫 Space가 일시정지 대신 "재생"으로 가거나, 종료 정리 시험에 HLS 경로가 없음 | 가짜 TV(`_GuiCM`)의 `device`가 None인 채로 `_fresh()`가 `ctrl.play`를 불러 "연결된 기기가 없습니다"로 조용히 실패 (`_route` 없음, `active` 거짓) | 재생 중 상태가 필요한 시험은 `cm.device = _dev()`를 먼저 넣고 `_fresh(cm)` (`_gui(loaded=True)`가 그렇게 함). 결과가 이상하면 출력에 "연결된 기기가 없습니다"가 있는지 본다 | D071, 2026-10-29 작업 2·4 |
+| T19 | 빠른 연속 탐색 중 `Error writing to socket: [SSL] internal error` 뒤 traceback 없이 꺼짐 | pychromecast `SocketClient.send_message`가 잠금 없이 `sendall`. cast-worker와 소켓 스레드(ping·GET_STATUS)가 한 SSL 객체에 동시에 쓰면 OpenSSL 메모리가 깨져 access violation (로컬 TLS로 쓰기 2개 → 5번 중 3번 꺼짐) | `core/cast_manager.py`가 불러올 때 `send_message`를 공용 RLock으로 감쌈. 읽기·쓰기 겹침(통신 깨짐, O106)은 남음 | D073, O111, 2026-11-02 |
 
 ## R§5 환경·도구
 - 개발 환경: Windows 11, PowerShell 7, Python 3.15.1 `.venv`(설계 기준 3.11+), PyChromecast 14.0.10, zeroconf 0.151.5, protobuf 7.36.2, PySide6 6.12.0, charset-normalizer 3.5.2 (2026-10-23 확인). PyInstaller 미설치
@@ -101,5 +102,7 @@
 - 인코더 실측: `h264_amf` (nvenc·qsv 실패)
 - 실기기 끊김 시험: PC 랜선을 뽑았다가 다시 꽂는다 (droptest와 달리 실제 끊김). 성공 기준은 D051
 - droptest 원리: `sc._force_recon = True; sc.socketpair[1].send(b"x")` — 실제 원격 끊김과 같은 경로. pychromecast 내부 속성이 없으면 "이 버전에서는 끊김 시험 불가"
+- 쓰기 잠금 (D073): `SocketClient.send_message`를 감쌈. pychromecast를 올리면 소켓 쓰기가 아직 이 함수 한 곳뿐인지(`sendall` 검색), 자가검사 대역이 쓰는 속성(`stop`·`connecting`·`_force_recon`·`_ensure_channel_connected`·`_gen_request_id`·`socket`)이 그대로인지 확인
+- 크래시 단서: 소스 실행 때 `.venv\Scripts\python -X faulthandler main.py -v` → 강제 종료 시 터미널에 스레드별 스택. exe에서는 남지 않음
 - 음성 2개 시험 파일 만들기: `ffmpeg -i <mp4> -t 600 -map 0:v -map 0:a -map 0:a -c:v copy -c:a:0 copy -c:a:1 aac -b:a:1 128k -filter:a:1 "volume=0.2" <음성 2개>.mp4`
 - 로그 (D070): GUI `logs/castplayer.log`는 옵션 "로그 기록"을 켰을 때만, 실행마다 새로(1MB×3 순환, `castplayer.1.log` 형식), `-v`는 옵션과 무관하게 DEBUG 기록. tools `logs/cast_test_YYYYMMDD_HHMMSS.log`

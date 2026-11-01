@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+import functools
 import logging
 import queue
 import threading
@@ -46,9 +47,24 @@ from pychromecast.socket_client import (
     CONNECTION_STATUS_LOST,
     ConnectionStatus,
     ConnectionStatusListener,
+    SocketClient,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# 소켓 쓰기는 send_message 한 곳뿐인데 잠금이 없어, cast-worker와 소켓 스레드가 겹쳐 쓰면
+# SSL 오류나 traceback 없는 강제 종료가 난다 (O111, R§4 T19). 재귀 호출이 있어 RLock
+_SEND_LOCK = threading.RLock()
+_send_message = SocketClient.send_message
+
+
+@functools.wraps(_send_message)
+def _locked_send_message(self: SocketClient, *args: Any, **kwargs: Any) -> None:
+    with _SEND_LOCK:
+        _send_message(self, *args, **kwargs)
+
+
+SocketClient.send_message = _locked_send_message  # type: ignore[method-assign]
 
 _ACTIVE_STATES = (MEDIA_PLAYER_STATE_PLAYING, MEDIA_PLAYER_STATE_PAUSED,
                   MEDIA_PLAYER_STATE_BUFFERING)

@@ -1,8 +1,8 @@
 # PROGRESS — CastPlayer
 
 ## 상태
-- 단계: 8 구현 · 계획 없음 (직전 `docs/plans/2026-10-29-gui-autotest.md` done) · PRD 변경 승인(2026-10-29, D071 자동·실기기 원칙, D072 보안 정책 기본 수준) · 1.0.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.0.0)
-- 갱신: 2026-10-29
+- 단계: 8 구현 · 계획 `docs/plans/2026-11-02-ssl-write-lock.md` active (O111, 작업 1~3 끝, 실기기 시험 대기) · PRD 변경 승인(2026-10-29, D071 자동·실기기 원칙, D072 보안 정책 기본 수준) · 1.0.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.0.0)
+- 갱신: 2026-11-02
 - 히스토리를 새로 시작함(D041). 아래 완료 기록의 옛 커밋 해시는 저장소 밖 로컬 백업 `../CastPlayer-git-backup-2026-10-27`에만 있다
 
 ## 다음 할 일

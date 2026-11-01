@@ -36,7 +36,7 @@ from PySide6.QtWidgets import QApplication
 from pychromecast.controllers.media import MediaStatus
 from pychromecast.error import NotConnected, PyChromecastError
 from pychromecast.socket_client import (CONNECTION_STATUS_DISCONNECTED, CONNECTION_STATUS_LOST,
-                                        ConnectionStatus)
+                                        ConnectionStatus, SocketClient)
 
 import core.cast_manager as cm_mod  # 자가검사에서 pychromecast 연결 함수 대역 교체
 import core.media_server as ms_mod  # 자가검사에서 SLOW_SEND 대역 교체
@@ -1205,6 +1205,38 @@ def _paths_cases(check: Callable[[str, bool, str], None]) -> None:
     check("배포 파일: 아이콘 경로 (소스 실행)", icon.is_file(), f"{icon.relative_to(app_dir())}")
 
 
+def _socket_lock_cases(check: Callable[[str, bool, str], None]) -> None:
+    """O111: 두 스레드가 send_message를 동시에 불러도 sendall이 겹치지 않는다 (R§4 T19).
+    대역은 send_message가 읽는 속성만 둔다 (pychromecast 14.0.10 원본 확인, R§5)."""
+    busy = [0, 0]   # [지금 sendall 안에 있는 수, 최대값]
+
+    def sendall(_data: bytes) -> None:
+        busy[0] += 1
+        busy[1] = max(busy)
+        time.sleep(0.01)
+        busy[0] -= 1
+
+    quiet = logging.getLogger("selftest.socket")
+    sc = SimpleNamespace(
+        stop=threading.Event(), connecting=False, _force_recon=False,
+        _ensure_channel_connected=lambda _dest: None, _gen_request_id=lambda: 1,
+        _request_callbacks={}, logger=quiet, heartbeat_controller=SimpleNamespace(logger=quiet),
+        source_id="sender-0", session_id=None, fn=None, host="10.0.0.9", port=8009,
+        socket=SimpleNamespace(sendall=sendall))
+
+    def send() -> None:
+        for _ in range(20):
+            SocketClient.send_message(sc, "receiver-0", "urn:x-cast:selftest", {})  # type: ignore[arg-type]
+
+    ts = [threading.Thread(target=send) for _ in range(2)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join()
+    check("O111 → send_message 동시 호출 → sendall 겹침 0", busy[1] == 1,
+          f"동시에 {busy[1]}개")
+
+
 def _log_cases(check: Callable[[str, bool, str], None]) -> None:
     """PRD F7-5~F7-8 (D070): GUI 로그 파일. 루트 로거의 수준·핸들러는 끝나면 되돌린다."""
     root = logging.getLogger()
@@ -1777,6 +1809,8 @@ def selftest() -> int:
         _buffering_cases(check)
         print("[자가검사] paths.py — ffmpeg·ffprobe 찾기 (bin → PATH)")
         _paths_cases(check)
+        print("[자가검사] cast_manager.py — 소켓 동시 쓰기 막기 (O111)")
+        _socket_lock_cases(check)
         print("[자가검사] planner.py·subtitles.py — 4K fps 절반, 자막 스타일 (D069)")
         _plan_style_cases(check)
         print("[자가검사] main.py — GUI 로그 기록 옵션 (D070)")

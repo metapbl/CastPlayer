@@ -997,6 +997,40 @@ def _manager_cases(check: Callable[[str, bool, str], None]) -> None:
         want = [(2173.6, 2173.6)] * 3 + [(2174.0, 2174.0)]
         return seen == want, f"(위치, 상태 신호) {seen}"
 
+    def reload_defers_seek():
+        """다시 불러오는 중 탐색은 새 세션이 재생을 시작한 뒤 마지막 값 한 번만 (BUFFERING 중
+        보내면 TV가 5초 넘게 응답하지 않아 거짓 '이동 실패', 2026-11-02 실기기 로그)."""
+        req_r = MediaRequest(url="http://t/r2", mime="video/mp4", title="t",
+                             start_time=1834.4, duration=6000.0)
+        sent: list[float] = []
+        sent_ev = threading.Event()
+
+        def push(state: str, pos: float, sid: int) -> None:
+            st = status(req_r.url, state, pos)
+            st.media_session_id = sid
+            mc.status = st
+            cm.new_media_status(st)
+
+        def seek(pos: float, timeout: float = 0.0) -> None:
+            sent.append(pos)
+            sent_ev.set()
+
+        mc = SimpleNamespace(status=status(req_a.url, "PLAYING", 1834.4), seek=seek,
+                             play_media=lambda *_a, **_kw: push("BUFFERING", 0.0, 2))
+        cm._cast = SimpleNamespace(app_id=cm_mod.APP_MEDIA_RECEIVER, media_controller=mc)
+        try:
+            cm._do_play(req_r)
+            cm._media_cmd("seek", 2200.0)
+            cm._media_cmd("seek", 2225.0)
+            during, held = list(sent), round(cm.position(), 1)
+            push("PLAYING", 1834.5, 2)
+            sent_ev.wait(2.0)
+            time.sleep(0.1)                      # 두 번 나가지 않는지
+        finally:
+            cm._cast = cast
+        ok = during == [] and held == 2225.0 and sent == [2225.0]
+        return ok, f"불러오는 중 보냄 {during}, 위치 {held}, 재생 뒤 보냄 {sent}"
+
     try:
         case("세션 확인: 준비 전 오류 3회 뒤 응답 → 다시 시도해 받음", ask_retry)
         case("세션 확인: 준비 전 오류가 계속 → 기한 뒤 '채널 준비 안 됨'", ask_timeout)
@@ -1010,6 +1044,7 @@ def _manager_cases(check: Callable[[str, bool, str], None]) -> None:
         case("세션 확인: 확인 중 다시 끊김 → 판정 보류·기억 유지", check_held)
         case("세션 확인: 수신기 상태 받기 전에는 보내지 않음", check_waits_rx)
         case("다시 불러오는 동안 위치 0 → 시작 위치 유지", reload_holds_pos)
+        case("다시 불러오는 중 탐색 → 재생 시작 뒤 마지막 값 한 번", reload_defers_seek)
     finally:
         cm._cast, cm._req, cm._expect_app = None, None, False
         cm.shutdown(timeout=1.0)

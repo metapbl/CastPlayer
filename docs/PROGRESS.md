@@ -6,7 +6,7 @@
 - 히스토리를 새로 시작함(D041). 아래 완료 기록의 옛 커밋 해시는 저장소 밖 로컬 백업 `../CastPlayer-git-backup-2026-10-27`에만 있다
 
 ## 다음 할 일
-1. O111 실기기 시험 — 계획 `2026-11-02-ssl-write-lock.md` 작업 4의 1~4번 (`.venv\Scripts\python -X faulthandler main.py -v`, 로그 기록 켬). 통과하면 O111을 해결됨으로, 계획을 done으로. 다시 꺼지면 터미널의 faulthandler 스택을 받는다
+1. 실기기 시험 — 계획 `2026-11-02-reload-position.md` 작업 4의 1~3번(다시 불러오는 동안 위치 유지 + O111 1번 재시험). O111 2~4번은 2026-11-02 통과. 이전 안내: 계획 `2026-11-02-ssl-write-lock.md` 작업 4의 1~4번 (`.venv\Scripts\python -X faulthandler main.py -v`, 로그 기록 켬). 통과하면 O111을 해결됨으로, 계획을 done으로. 다시 꺼지면 터미널의 faulthandler 스택을 받는다
 2. 보안 정책 D072 후속: `requirements.lock.txt`(pip freeze) 커밋 + `pip-audit` 첫 실행 (설치는 실행 전 확인) — 작은 계획으로
 3. 보류 질문: O103·O105·O106·O109·O111
 

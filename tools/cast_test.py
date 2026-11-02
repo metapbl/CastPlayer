@@ -967,6 +967,36 @@ def _manager_cases(check: Callable[[str, bool, str], None]) -> None:
         ok = early == 0 and rx.sent == 1 and res == [True]
         return ok, f"상태 받기 전 전송 {early}회, 뒤 {rx.sent}회, 결과 {res}"
 
+    def reload_holds_pos():
+        """다시 불러오는 동안 TV가 보내는 위치 0을 내보내지 않음 (2026-11-02 실기기 로그 순서)."""
+        req_r = MediaRequest(url="http://t/r", mime="video/mp4", title="t",
+                             start_time=2173.6, duration=6000.0)
+        seen: list[tuple[float, float]] = []
+        got: list[PlaybackState] = []
+
+        def push(state: str, pos: float, sid: int) -> None:
+            st = status(req_r.url, state, pos)
+            st.media_session_id = sid
+            mc.status = st
+            cm.new_media_status(st)
+            seen.append((round(cm.position(), 1), round(got[-1].position, 1)))
+
+        def play_media(*_a: Any, **_kw: Any) -> None:
+            push("IDLE", 0.0, 1)                 # 이전 세션 중단 (INTERRUPTED)
+            push("BUFFERING", 0.0, 2)            # 새 세션, 위치 아직 0 → 대기 해제
+
+        mc = SimpleNamespace(status=status(req_a.url, "PLAYING", 2173.6), play_media=play_media)
+        cm._cast = SimpleNamespace(app_id=cm_mod.APP_MEDIA_RECEIVER, media_controller=mc)
+        cm.cb.on_media_status = got.append
+        try:
+            cm._do_play(req_r)
+            push("BUFFERING", 2173.6, 2)
+            push("PLAYING", 2174.0, 2)
+        finally:
+            cm._cast, cm.cb.on_media_status = cast, None
+        want = [(2173.6, 2173.6)] * 3 + [(2174.0, 2174.0)]
+        return seen == want, f"(위치, 상태 신호) {seen}"
+
     try:
         case("세션 확인: 준비 전 오류 3회 뒤 응답 → 다시 시도해 받음", ask_retry)
         case("세션 확인: 준비 전 오류가 계속 → 기한 뒤 '채널 준비 안 됨'", ask_timeout)
@@ -979,6 +1009,7 @@ def _manager_cases(check: Callable[[str, bool, str], None]) -> None:
         case("끊긴 위치: 연달아 두 번 끊김 → 처음 위치 유지", point_double_lost)
         case("세션 확인: 확인 중 다시 끊김 → 판정 보류·기억 유지", check_held)
         case("세션 확인: 수신기 상태 받기 전에는 보내지 않음", check_waits_rx)
+        case("다시 불러오는 동안 위치 0 → 시작 위치 유지", reload_holds_pos)
     finally:
         cm._cast, cm._req, cm._expect_app = None, None, False
         cm.shutdown(timeout=1.0)

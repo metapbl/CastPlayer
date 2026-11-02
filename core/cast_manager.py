@@ -190,6 +190,9 @@ class CastManager(MediaStatusListener, CastStatusListener):
         self._rx_ready = threading.Event()    # 이번 연결에서 수신기 상태를 받았는지
         # 재생 요청 대기 중: (url, 이전 세션 번호, 새 세션이 생기면 켤 이벤트)
         self._load_wait: tuple[str, int | None, threading.Event] | None = None
+        # 다시 불러오는 중: (요청, 이전 세션 번호). 새 세션이 위치를 보고할 때까지 TV의 위치 0 대신
+        #   요청 시작 위치를 내보낸다 (LOAD 뒤 약 2.6초 위치 0, 2026-11-02 실기기 로그)
+        self._load_from: tuple[MediaRequest, int | None] | None = None
         # (재생 상태, 바뀐 시각): 상태가 바뀔 때마다 INFO 한 줄 (버퍼링 횟수 판정용)
         self._play_state: tuple[str, float] = ("없음", time.monotonic())
         self._lost_at = 0.0                   # 마지막 LOST 시각 (다시 연결 기한 계산)
@@ -378,7 +381,13 @@ class CastManager(MediaStatusListener, CastStatusListener):
         cast = self._cast
         if not cast:
             return 0.0
-        return cast.media_controller.status.adjusted_current_time or 0.0
+        return self._held_pos(cast.media_controller.status)
+
+    def _held_pos(self, status: MediaStatus) -> float:
+        lf = self._load_from
+        if lf is not None and lf[0] is self._req:
+            return lf[0].start_time or 0.0
+        return status.adjusted_current_time or 0.0
 
     @property
     def paused(self) -> bool:
@@ -665,6 +674,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
                 loaded.set()
 
             self._load_wait = (req.url, old_sid, loaded)
+            self._load_from = (req, old_sid)
             deadline = time.monotonic() + self.READY_WAIT
             while True:
                 try:
@@ -687,6 +697,10 @@ class CastManager(MediaStatusListener, CastStatusListener):
             self._cmd_error("재생 요청", err)
         finally:
             self._load_wait = None
+            # 새 세션 없이 끝남(실패·시간 초과·연결 변경) → 유지할 이유 없음
+            lf = self._load_from
+            if lf is not None and cast.media_controller.status.media_session_id in (None, lf[1]):
+                self._load_from = None
 
     def _wait_loaded(self, cast: pychromecast.Chromecast, old_sid: int | None,
                      loaded: threading.Event, box: dict[str, Any]) -> None:
@@ -883,6 +897,11 @@ class CastManager(MediaStatusListener, CastStatusListener):
         if (wait is not None and status.content_id == wait[0]
                 and status.media_session_id not in (None, wait[1])):
             wait[2].set()
+        lf = self._load_from
+        if (lf is not None and status.content_id == lf[0].url
+                and status.media_session_id not in (None, lf[1])
+                and ((status.current_time or 0.0) > 0 or status.player_state in _SUB_READY_STATES)):
+            self._load_from = None
         prev, since = self._play_state
         now = time.monotonic()
         # UNKNOWN은 끊기기 직전의 빈 상태라 전환으로 세지 않음
@@ -890,7 +909,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
             _LOGGER.info("재생 상태: %s → %s, %.1f초", prev, status.player_state, now - since)
             self._play_state = (status.player_state, now)
         req = self._req
-        pos = status.adjusted_current_time or 0.0
+        pos = self._held_pos(status)
         state = PlaybackState(
             player_state=status.player_state,
             position=pos,

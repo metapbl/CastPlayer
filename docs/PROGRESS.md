@@ -1,13 +1,12 @@
 # PROGRESS — CastPlayer
 
 ## 상태
-- 단계: 8 구현 · 계획 없음 (직전 `2026-11-02-ssl-write-lock.md`·`2026-11-02-reload-position.md` done) · PRD 변경 승인(2026-10-29, D071 자동·실기기 원칙, D072 보안 정책 기본 수준) · 1.0.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.0.0)
+- 단계: 8 구현 · 계획 없음 (직전 `2026-11-02-dependency-lock.md` done: lock 커밋, pip-audit 첫 검사 취약점 없음) · PRD 변경 승인(2026-10-29, D071 자동·실기기 원칙, D072 보안 정책 기본 수준) · 1.0.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.0.0)
 - 갱신: 2026-11-02
 - 히스토리를 새로 시작함(D041). 아래 완료 기록의 옛 커밋 해시는 저장소 밖 로컬 백업 `../CastPlayer-git-backup-2026-10-27`에만 있다
 
 ## 다음 할 일
-1. 보안 정책 D072 후속: `requirements.lock.txt`(pip freeze) 커밋 + `pip-audit` 첫 실행 (설치는 실행 전 확인) — 작은 계획으로
-2. 보류 질문: O103·O105·O106·O109. O106(읽기·쓰기 겹침, 거짓 "재생 실패")은 다음 `-v` 로그가 생기면 판단
+1. 보류 질문: O103·O105·O106·O109. O106(읽기·쓰기 겹침, 거짓 "재생 실패")은 다음 `-v` 로그가 생기면 판단
 
 ## 미해결
 - 다시 불러온 뒤 첫 PLAYING 0.5초 사이 보낸 탐색을 TV가 APP_ERROR로 거절 1회 (알림 없음, 영향 없음, 2026-11-02) — 자주 보이면 재검토

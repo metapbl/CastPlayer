@@ -46,6 +46,7 @@
 ## 8. 의존성
 - lock 파일: `requirements.lock.txt` (`.venv`에서 `pip freeze`로 만들고 커밋, 라이브러리를 바꿀 때 다시 만든다) [U] (D072)
 - 취약점 검사 명령: 공개 배포(zip) 전에 `.venv\Scripts\pip-audit -r requirements.lock.txt`. `pip-audit` 설치는 실행 전 확인 (D048) [U] (D072)
+- 첫 검사: 2026-11-02, pip-audit 2.10.1, 알려진 취약점 없음
 - ffmpeg는 동봉하지 않으므로 사용자가 설치한 버전을 따른다 [X] (D042)
 
 ## 9. 사고 대응

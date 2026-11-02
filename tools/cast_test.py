@@ -1031,6 +1031,31 @@ def _manager_cases(check: Callable[[str, bool, str], None]) -> None:
         ok = during == [] and held == 2225.0 and sent == [2225.0]
         return ok, f"불러오는 중 보냄 {during}, 위치 {held}, 재생 뒤 보냄 {sent}"
 
+    def launch_waits():
+        """다른 Android 앱이 떠 있으면 수신 앱 실행이 약 18초 걸린다 (O105, 2026-10-23 droptest).
+        기본 10초로 기다리면 LOAD를 보내지 못하므로 그보다 길게 기다린 뒤 LOAD."""
+        calls: list[Any] = []
+        mc = SimpleNamespace(status=status("", "IDLE", 0.0), play_media=lambda *_a, **_kw:
+                             (calls.append("load"), push_new()))
+
+        def push_new() -> None:
+            st = status("http://t/l", "BUFFERING", 0.0)
+            st.media_session_id = 9
+            mc.status = st
+            cm.new_media_status(st)
+
+        def start_app(app_id: str, timeout: float = 10.0) -> None:
+            calls.append(("start", app_id, timeout))
+
+        cm._cast = SimpleNamespace(app_id="ANDROID_APP", media_controller=mc, start_app=start_app)
+        try:
+            cm._do_play(MediaRequest(url="http://t/l", mime="video/mp4", title="t"))
+        finally:
+            cm._cast = cast
+        ok = (len(calls) == 2 and calls[0][1] == cm_mod.APP_MEDIA_RECEIVER
+              and calls[0][2] >= 25.0 and calls[1] == "load")
+        return ok, f"{calls}"
+
     try:
         case("세션 확인: 준비 전 오류 3회 뒤 응답 → 다시 시도해 받음", ask_retry)
         case("세션 확인: 준비 전 오류가 계속 → 기한 뒤 '채널 준비 안 됨'", ask_timeout)
@@ -1045,6 +1070,7 @@ def _manager_cases(check: Callable[[str, bool, str], None]) -> None:
         case("세션 확인: 수신기 상태 받기 전에는 보내지 않음", check_waits_rx)
         case("다시 불러오는 동안 위치 0 → 시작 위치 유지", reload_holds_pos)
         case("다시 불러오는 중 탐색 → 재생 시작 뒤 마지막 값 한 번", reload_defers_seek)
+        case("다른 앱이 떠 있음 → 수신 앱 실행을 18초 넘게 기다린 뒤 LOAD", launch_waits)
     finally:
         cm._cast, cm._req, cm._expect_app = None, None, False
         cm.shutdown(timeout=1.0)

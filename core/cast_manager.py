@@ -162,6 +162,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
     RETRY_WAIT = 5.0         # 시도 한 번의 연결 대기(초)
     FIND_WAIT = 10.0         # [연결] 때 목록에 기기가 없으면 나타나길 기다리는 시간(초) (D033 ③)
     CMD_TIMEOUT = 5.0
+    LAUNCH_WAIT = 30.0   # 수신 앱 실행 대기(초). 다른 Android 앱이 떠 있으면 약 18초 걸림 (O105)
     READY_WAIT = 5.0     # 다시 연결 후 앱 채널·수신기 상태를 기다리는 최대 시간(초)
     READY_POLL = 0.2     # 그 사이 다시 시도·확인 간격(초)
     LOAD_WAIT = 15.0        # 재생 요청 후 새 세션을 기다리는 최대 시간(초)
@@ -662,7 +663,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
             return
         try:
             if cast.app_id != APP_MEDIA_RECEIVER:
-                cast.start_app(APP_MEDIA_RECEIVER)
+                cast.start_app(APP_MEDIA_RECEIVER, timeout=self.LAUNCH_WAIT)
             self._req = req
             self._lost = None              # 새로 불러오면 이전 끊김 기억은 의미 없음
             self._expect_app = True

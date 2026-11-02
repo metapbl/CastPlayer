@@ -90,7 +90,7 @@
 | T12 | 남은 일시정지 세션 위 LOAD가 22초 걸리고 PLAYING 뒤 약 8초 정지 | 원인 미확정 (새로 띄운 앱에서는 0.8초) | 끊김 보강 뒤 재발 시 LOAD 전 STOP | OPEN O103 |
 | T13 | 30초 끊김 뒤 다시 붙는 데 60초가 넘음 | pychromecast 14.0.10은 재연결 실패마다 다음 시도 간격을 2·4·8·16·32초로 두 배씩 늘림(`socket_client.mdns_backoff`). `tries`를 늘려도 간격은 그대로 늘어남 | 포기 신호(DISCONNECTED) 뒤 우리가 마지막 IP로 3초 간격 재시도 (`cast_manager._retry_connect`) | D056, 2026-10-23 원본 확인 |
 | T14 | 61~90초 사이에 꽂아도 자동으로 다시 연결 안 됨 | 포기 뒤 30초 대기의 자동 연결은 기기 목록이 바뀔 때만 돈다. 목록을 유지(검색 재기동 안 함)하면 기기가 목록에 남아 있어 변화가 없음 | 마지막 IP 재시도 기한을 90초로 늘림 | D059, 2026-10-23 GUI 시험 3차 |
-| T15 | 재생 요청이 "start app CC1AD845 timed out after 10.0 s" | TV에 다른 Android 앱이 떠 있으면 기본 수신 앱 실행이 약 18초 걸림. 앱이 뜬 뒤에도 다시 요청하지 않음 | 보류. 시험 전 TV를 홈 화면에 둔다 | O105, 2026-10-23 droptest |
+| T15 | 재생 요청이 "start app CC1AD845 timed out after 10.0 s" | TV에 다른 Android 앱이 떠 있으면 기본 수신 앱 실행이 약 18초 걸림. 앱이 뜬 뒤에도 다시 요청하지 않음 | 수신 앱 실행 대기 30초 (`CastManager.LAUNCH_WAIT`) | D074, 2026-10-23 droptest |
 | T16 | 리모컨으로 탐색한 직후 버퍼링이 판정에 셈됨 | TV 리모컨 탐색은 우리 프로그램을 거치지 않아 `탐색:` 로그가 없음 → `--count-buffering`이 10초 제외를 못 함 | 보류. 판정 로그를 볼 때 `HLS 생산 시작` 위치 점프로 구분 | O109, 2026-10-25 exe 시험 |
 | T17 | 배포 zip의 exe에 지운 줄 알았던 영상 이름이 남음 | zip을 공개 전 정리 커밋보다 먼저 빌드함. 주석은 exe에 안 들어가지만 docstring은 기본 빌드(최적화 없음)에서 들어감 | 릴리스 직전 마지막 코드 커밋 뒤 다시 빌드하고, exe 안 `core`·`ui` 모듈 문자열을 검색(`PyInstaller.archive.readers.CArchiveReader` → `PYZ.pyz`) | D041, 2026-10-27 릴리스 점검 |
 | T18 | GUI 자가검사에서 첫 Space가 일시정지 대신 "재생"으로 가거나, 종료 정리 시험에 HLS 경로가 없음 | 가짜 TV(`_GuiCM`)의 `device`가 None인 채로 `_fresh()`가 `ctrl.play`를 불러 "연결된 기기가 없습니다"로 조용히 실패 (`_route` 없음, `active` 거짓) | 재생 중 상태가 필요한 시험은 `cm.device = _dev()`를 먼저 넣고 `_fresh(cm)` (`_gui(loaded=True)`가 그렇게 함). 결과가 이상하면 출력에 "연결된 기기가 없습니다"가 있는지 본다 | D071, 2026-10-29 작업 2·4 |

@@ -1056,6 +1056,35 @@ def _manager_cases(check: Callable[[str, bool, str], None]) -> None:
               and calls[0][2] >= 25.0 and calls[1] == "load")
         return ok, f"{calls}"
 
+    def error_idle_alerts():
+        """오류 코드 없는 LOAD_FAILED는 pychromecast가 알리지 않으므로 IDLE/ERROR로 알린다.
+        코드가 있어 이미 알렸으면 두 번 알리지 않고, 다른 주소의 오류는 무시한다."""
+        got: list[str] = []
+        codes: list[int] = []
+
+        def idle_error(url: str) -> None:
+            st = status(url, "IDLE", 0.0)
+            st.idle_reason = "ERROR"
+            cm.new_media_status(st)
+
+        cm._cast = SimpleNamespace()
+        cm.cb.on_error, cm.cb.on_load_failed = got.append, lambda c, _n: codes.append(c)
+        cm._req, cm._expect_app, cm._failed_fired = req_a, True, False
+        try:
+            idle_error("http://t/old")
+            other = len(got)
+            idle_error(req_a.url)
+            idle_error(req_a.url)
+            once = len(got)
+            cm._failed_fired = False
+            cm.load_media_failed(1, 104)
+            idle_error(req_a.url)
+        finally:
+            cm._cast, cm.cb.on_error, cm.cb.on_load_failed = cast, None, None
+            cm._req, cm._expect_app = None, False
+        ok = other == 0 and once == 1 and len(got) == 1 and codes == [104]
+        return ok, f"다른 주소 {other}회, 같은 주소 {once}회, 코드 있음 {codes}, 전체 {got}"
+
     try:
         case("세션 확인: 준비 전 오류 3회 뒤 응답 → 다시 시도해 받음", ask_retry)
         case("세션 확인: 준비 전 오류가 계속 → 기한 뒤 '채널 준비 안 됨'", ask_timeout)
@@ -1071,6 +1100,7 @@ def _manager_cases(check: Callable[[str, bool, str], None]) -> None:
         case("다시 불러오는 동안 위치 0 → 시작 위치 유지", reload_holds_pos)
         case("다시 불러오는 중 탐색 → 재생 시작 뒤 마지막 값 한 번", reload_defers_seek)
         case("다른 앱이 떠 있음 → 수신 앱 실행을 18초 넘게 기다린 뒤 LOAD", launch_waits)
+        case("오류 코드 없는 재생 실패(IDLE/ERROR) → 현재 주소만 한 번 알림", error_idle_alerts)
     finally:
         cm._cast, cm._req, cm._expect_app = None, None, False
         cm.shutdown(timeout=1.0)

@@ -183,6 +183,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
         self._req: MediaRequest | None = None
         self._expect_app = False      # 우리가 수신 앱을 띄워 사용 중인지
         self._finished_fired = False
+        self._failed_fired = False    # 이 요청의 재생 실패를 이미 알렸는지
         # (url, trackId|None): 이 url이 재생되기 시작하면 켤 자막
         self._pending_sub: tuple[str, int | None] | None = None
         # 연결이 끊긴 순간의 (요청, 처음 켤 자막). 다시 연결되면 check_session이 되살림
@@ -668,6 +669,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
             self._lost = None              # 새로 불러오면 이전 끊김 기억은 의미 없음
             self._expect_app = True
             self._finished_fired = False
+            self._failed_fired = False
             self._pending_sub = (req.url, req.active_track)
             mc = cast.media_controller
             old_sid = mc.status.media_session_id
@@ -958,8 +960,15 @@ class CastManager(MediaStatusListener, CastStatusListener):
             self._finished_fired = True
             if self.cb.on_finished:
                 self.cb.on_finished()
+        # 오류 코드 없는 LOAD_FAILED는 pychromecast가 load_media_failed를 부르지 않음 (실측)
+        if (status.player_state == "IDLE" and status.idle_reason == "ERROR"
+                and self._expect_app and not self._failed_fired
+                and req is not None and status.content_id == req.url):
+            self._failed_fired = True
+            self._error("TV가 이 영상을 재생하지 못했습니다.")
 
     def load_media_failed(self, queue_item_id: int, error_code: int) -> None:
+        self._failed_fired = True
         name = MEDIA_PLAYER_ERROR_CODES.get(error_code, "UNKNOWN")
         if self.cb.on_load_failed:
             self.cb.on_load_failed(error_code, name)

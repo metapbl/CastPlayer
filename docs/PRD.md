@@ -1,6 +1,6 @@
 # PRD — CastPlayer
 
-상태: approved (2026-10-29) | 단계: 5 확정 | 갱신: 2026-10-29
+상태: approved (2026-11-04) | 단계: 5 확정 | 갱신: 2026-11-04
 <!-- 상태가 approved (YYYY-MM-DD)가 되기 전에는 코드·뼈대·의존성 설치를 하지 않는다. -->
 <!-- 모든 항목 끝에 출처를 단다: [U] 사용자 · [X] 기존 코드·문서 · [AI] AI 기본값. 근거 결정은 (D###). -->
 <!-- [X] 출처 약칭: C = docs/legacy/claude.md, P = docs/legacy/progress.md -->
@@ -18,7 +18,7 @@
 - 정지하면 수신기의 기본 미디어 수신 앱을 종료. 프로그램을 끌 때도 정지 후 앱 종료 [X] C §4 (D005)
 - 대상 형식 mp4, mkv, avi, ts, mov 등 (H.264, HEVC, XviD 등) [X] C §4
 - 4K 해상도 유지: 축소(다운스케일)하지 않는다. 재인코딩 때만 FHD(1920×1080)보다 픽셀이 많고 31fps 초과면 fps 절반 (1440p 등도 해당) [X] C §4 · 코드 `planner.make_plan` (D009, D069)
-- 음성: AAC·MP3는 그대로 보내고(HLS 경로에서는 AAC만), 그 밖의 코덱은 AAC 2ch로 변환. 음성 트랙 선택 [X] C §4·코드 `planner.COPY_AUDIO` (D008)
+- 음성: AAC·MP3는 그대로 보내고(HLS 경로에서는 AAC만), 그 밖의 코덱과 HE-AAC·48kHz 초과·6채널 초과 AAC는 AAC 2ch로 변환. 음성 트랙 선택 [X] C §4·코드 `planner.COPY_AUDIO` (D008) [U] (D075)
 - 자막: srt, smi, 내장 텍스트 → WebVTT. 투명 배경 + 검은 테두리, 크기·싱크 조절 [X] C §4 (D019~D023)
 - TV와 PC 양쪽 탐색 바가 처음부터 전체 길이를 보이고, TV 리모컨으로 전체 구간 탐색 [X] C §4 (D015)
 - 연결이 끊겼다 다시 연결되면 사용자 조작 없이 그 자리에서 이어 재생 (일시정지 상태 유지) [X] C §4 (D029, D033)
@@ -68,7 +68,7 @@
 ### F2 불러오기·송출 방식 결정
 - 송출 방식 규칙: 영상이 수신기 미지원(H.264 High 5.1 초과·10bit, HEVC Main/Main10 5.1 초과, 그 밖 코덱, 표시 시각 결함)이면 TRANSCODE. 아니면 mp4가 아님·HEVC 태그가 hvc1 아님·음성 변환 필요·첫 번째가 아닌 음성 트랙 중 하나라도 있으면 REMUX, 없으면 DIRECT [X] 코드 `planner.make_plan` (D010, D015, D024, D046)
 - 정상 흐름: probe → 계획(DIRECT / REMUX / TRANSCODE) → 키프레임 분석(REMUX, 캐시) → 자막 준비 → 송출. DIRECT는 mp4 파일 그대로, 나머지는 HLS VOD(fMP4) [X] C §8 player·planner·hls
-- 예외: ffmpeg/ffprobe를 `bin/`·PATH 어디서도 못 찾음 → 경고창(찾아본 곳, 복사 가능한 `winget install Gyan.FFmpeg`, 설치 후 다시 실행) 뒤 종료 코드 2 [U] (D042, D045). 포트 충돌 → 안내창 후 종료 코드 2. probe 실패 → 상태줄 "불러오기 실패: <ffprobe 메시지>", 예상 못 한 오류는 "불러오기 실패: 내부 오류: …" [X] `ui/tasks` (D069). 키프레임 98% 이상 읽었으면 경고 로그 후 사용, 98% 미만에서 멈추거나 0개면 "키프레임 분석 실패 …"로 불러오기 실패 [X] C §8 · `core/keyframes` (D069). 인코더(nvenc → qsv → amf → libx264)가 모두 실패하면 재인코딩이 필요한 파일만 "불러오기 실패: 사용 가능한 H.264 인코더가 없습니다.", DIRECT·REMUX는 영향 없음 [X] `core/player._prepare` (D069)
+- 예외: ffmpeg/ffprobe를 `bin/`·PATH 어디서도 못 찾음 → 경고창(찾아본 곳, 복사 가능한 `winget install Gyan.FFmpeg`, 설치 후 다시 실행) 뒤 종료 코드 2 [U] (D042, D045). 포트 충돌 → 안내창 후 종료 코드 2. probe 실패 → 상태줄 "불러오기 실패: <ffprobe 메시지>", 예상 못 한 오류는 "불러오기 실패: 내부 오류: …" [X] `ui/tasks` (D069). 키프레임 98% 이상 읽었으면 경고 로그 후 사용, 98% 미만에서 멈추거나 0개면 "키프레임 분석 실패 …"로 불러오기 실패 [X] C §8 · `core/keyframes` (D069). 인코더(nvenc → qsv → amf → libx264)가 모두 실패하면 재인코딩이 필요한 파일만 "불러오기 실패: 사용 가능한 H.264 인코더가 없습니다.", DIRECT·REMUX는 영향 없음 [X] `core/player._prepare` (D069). TV가 오류 코드 없이 재생에 실패(IDLE/ERROR) → 상태줄 "TV가 이 영상을 재생하지 못했습니다." 요청 하나당 한 번 [U] (D075)
 - 상태별 동작: 새 파일로 바꾸기 전 확인·취소 창. 불러오기는 TaskRunner에서 한 번에 하나 [X] C §9 4단계
 - 인터페이스: `PlaybackController.load/play`, `MediaServer.register` 경로 `/media/<token>`, `/hls/<token>/`, `/sub/<token>/` [X] C §8
 - 인수 기준 (D061, 확인: [자동] = `--selftest`, TV 없이 가짜 cast·기기 목록·로그 수집으로 모의 / [실기기] = 사용자 확인):
@@ -78,6 +78,8 @@
   - F2-4 [자동] Given ffmpeg가 `bin/`·PATH 어디에도 없음 / When 프로그램을 시작 / Then 안내창(찾아본 곳, `winget install Gyan.FFmpeg`) 뒤 종료 코드 2 [U] (D045)
   - F2-5 [자동] Given 재생 중 / When 다른 파일을 엶 / Then 확인 창이 뜨고, 취소하면 기존 재생이 이어짐 [X] (D071)
   - F2-6 [자동] Given 3840×2160 60fps XviD / When 계획을 세움 / Then TRANSCODE, 출력 fps 30 [AI] (D009, D069)
+  - F2-7 [자동] Given mkv + H.264 + HE-AAC, 또는 48kHz 초과, 또는 6채널 초과 AAC / When 계획을 세움 / Then 영상은 복사, 음성은 AAC 2ch로 변환. LC-AAC 48kHz 이하·6채널 이하는 복사 [U] (D075)
+  - F2-8 [자동] Given 재생 요청 중 / When TV가 현재 주소에 IDLE/ERROR를 여러 번 보냄 / Then 알림은 한 번. 다른 주소의 오류나 오류 코드로 이미 알린 실패에는 알리지 않음 [U] (D075)
 - 확인 방법: 인수 기준의 표시대로. 자동은 `--selftest`, 실기기는 §6의 확인 결과 형식 (D062)
 - 근거: D001, D042, D008~D018, D024
 ### F3 재생 제어
@@ -216,3 +218,4 @@
 | 2026-10-28 | F7·§5·§6 로그 방식: 기본 꺼짐·옵션 "로그 기록"·실행마다 새로·DEBUG는 `-v`만·못 쓰면 알림·확장자 `.log`, F7-5 대체·F7-6~9 추가 | D070 |
 | 2026-10-29 | §6 자동·실기기 나누는 원칙과 GUI 자동 시험, 전체 테스트 15초 이내. §3 인수 기준 표시 재분류: [자동]으로 6개(F1-2·F2-5·F3-2·F5-2·F5-3·F7-9), [자동]+[실기기]로 12개 | D071 |
 | 2026-10-29 | §6 보안 정책 줄 추가 (`docs/SECURITY_POLICY.md`, 기본 수준) | D072 |
+| 2026-11-04 | §2.1 음성 규칙에 AAC 복사 조건, F2 예외에 오류 코드 없는 재생 실패 알림, 인수 기준 F2-7·F2-8 추가 | D075 |

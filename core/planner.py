@@ -8,6 +8,8 @@ from fractions import Fraction
 from .probe import AudioStream, MediaInfo, VideoStream
 
 COPY_AUDIO = {"aac", "mp3"}
+AAC_MAX_RATE = 48000   # 넘으면 변환 (D075)
+AAC_MAX_CHANNELS = 6
 H264_PROFILES = {"Baseline", "Constrained Baseline", "Main", "High"}
 HEVC_PROFILES = {"Main", "Main 10"}
 H264_MAX_LEVEL = 51    # 5.1
@@ -74,12 +76,19 @@ def pick_audio(info: MediaInfo, order: int | None) -> AudioStream | None:
     return info.audio[order]
 
 
+def _audio_copy_ok(a: AudioStream) -> bool:
+    if a.codec != "aac":
+        return a.codec in COPY_AUDIO
+    return (not a.profile.startswith("HE-") and a.sample_rate <= AAC_MAX_RATE
+            and a.channels <= AAC_MAX_CHANNELS)
+
+
 def make_plan(info: MediaInfo, audio_order: int | None = None) -> Plan:
     v = info.video
     if v is None:
         raise PlanError("영상 트랙이 없습니다.")
     audio = pick_audio(info, audio_order)
-    audio_copy = audio is None or audio.codec in COPY_AUDIO
+    audio_copy = audio is None or _audio_copy_ok(audio)
     reasons: list[str] = []
 
     ok, why = _video_ok(v)
@@ -98,7 +107,9 @@ def make_plan(info: MediaInfo, audio_order: int | None = None) -> Plan:
     if v.codec == "hevc" and v.tag != "hvc1":
         reasons.append(f"HEVC 태그 {v.tag or '?'}→hvc1")
     if audio is not None and not audio_copy:
-        reasons.append(f"{audio.codec} → AAC")
+        reasons.append(f"{audio.codec} {audio.profile} {audio.sample_rate}Hz "
+                       f"{audio.channels}ch → AAC" if audio.codec == "aac"
+                       else f"{audio.codec} → AAC")
     if audio is not None and audio.order != 0:
         reasons.append("기본 외 음성 트랙 선택")
 

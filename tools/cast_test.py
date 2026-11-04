@@ -1416,6 +1416,18 @@ def _plan_style_cases(check: Callable[[str, bool, str], None]) -> None:
     plan = planner_mod.make_plan(info)
     check("F2-6 4K 60fps XviD → TRANSCODE, 30fps",
           plan.mode is Mode.TRANSCODE and plan.fps_cap == 30, f"{plan.summary}")
+
+    def aac_copy(profile: str, rate: int, channels: int) -> bool:
+        a = AudioStream(1, 0, "aac", channels, "", "", True, profile, rate)
+        h = VideoStream(0, "h264", "High", 41, 1920, 1080, "yuv420p", Fraction(24), "avc1")
+        return planner_mod.make_plan(MediaInfo(Path("m.mkv"), "matroska,webm", 600.0, h,
+                                               (a,), ())).audio_copy
+    # 2026-11-04 실기기: HE-AAC 96kHz 7.1 원본은 LOAD_FAILED, 음성만 바꾼 파일은 재생됨
+    got = (aac_copy("LC", 48000, 2), aac_copy("LC", 48000, 6), aac_copy("", 48000, 2),
+           aac_copy("HE-AAC", 48000, 2), aac_copy("HE-AACv2", 44100, 2),
+           aac_copy("LC", 96000, 2), aac_copy("LC", 48000, 8))
+    check("AAC 복사 조건: HE-AAC·48kHz 초과·6채널 초과는 음성 변환",
+          got == (True, True, True, False, False, False, False), f"{got}")
     st = text_style(5.0)
     want = {"backgroundColor": "#FFFFFF00", "foregroundColor": "#FFFFFFFF",
             "edgeType": "OUTLINE", "edgeColor": "#000000FF"}

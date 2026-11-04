@@ -58,6 +58,8 @@ class AudioStream:
     language: str
     title: str
     default: bool
+    profile: str = ""
+    sample_rate: int = 0
 
     @property
     def label(self) -> str:
@@ -178,7 +180,8 @@ def probe(path: Path, timeout: float = 30.0) -> MediaInfo:
                 index=s["index"], order=len(audio), codec=s.get("codec_name", ""),
                 channels=int(s.get("channels", 0) or 0),
                 language=tags.get("language", ""), title=tags.get("title", ""),
-                default=bool(disp.get("default"))))
+                default=bool(disp.get("default")), profile=s.get("profile", ""),
+                sample_rate=int(s.get("sample_rate", 0) or 0)))
         elif kind == "subtitle":
             subs.append(SubtitleStream(
                 index=s["index"], order=len(subs), codec=s.get("codec_name", ""),

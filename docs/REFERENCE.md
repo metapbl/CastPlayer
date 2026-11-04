@@ -96,6 +96,7 @@
 | T18 | GUI 자가검사에서 첫 Space가 일시정지 대신 "재생"으로 가거나, 종료 정리 시험에 HLS 경로가 없음 | 가짜 TV(`_GuiCM`)의 `device`가 None인 채로 `_fresh()`가 `ctrl.play`를 불러 "연결된 기기가 없습니다"로 조용히 실패 (`_route` 없음, `active` 거짓) | 재생 중 상태가 필요한 시험은 `cm.device = _dev()`를 먼저 넣고 `_fresh(cm)` (`_gui(loaded=True)`가 그렇게 함). 결과가 이상하면 출력에 "연결된 기기가 없습니다"가 있는지 본다 | D071, 2026-10-29 작업 2·4 |
 | T19 | 빠른 연속 탐색 중 `Error writing to socket: [SSL] internal error` 뒤 traceback 없이 꺼짐 | pychromecast `SocketClient.send_message`가 잠금 없이 `sendall`. cast-worker와 소켓 스레드(ping·GET_STATUS)가 한 SSL 객체에 동시에 쓰면 OpenSSL 메모리가 깨져 access violation (로컬 TLS로 쓰기 2개 → 5번 중 3번 꺼짐) | `core/cast_manager.py`가 불러올 때 `send_message`를 공용 RLock으로 감쌈. 읽기·쓰기 겹침(통신 깨짐, O106)은 남음 | D073, O111, 2026-11-02 |
 | T20 | 자막 싱크를 바꾸면 위치가 잠깐 0:00, 그 사이 좌우키가 0 근처로 탐색 | LOAD 뒤 TV가 이전 세션 IDLE·새 세션 BUFFERING을 위치 0으로 약 2.6초 보낸 뒤에야 시작 위치를 보고 | `CastManager._load_from`: 새 세션이 PLAYING/PAUSED가 될 때까지 `position()`·상태 신호는 요청 시작 위치. 그 사이 탐색은 보내지 않고 마지막 값만 두었다가 재생 시작 뒤 한 번 (BUFFERING 중 SEEK는 TV가 5초 넘게 응답 안 해 거짓 "이동 실패", 이어서 INVALID_REQUEST) | 계획 2026-11-02-reload-position |
+| T21 | 재생 요청 직후 TV가 `LOAD_FAILED`, 앱에는 아무 알림도 없음 | HE-AAC 96kHz 7.1을 복사해 보냄. 오류 코드(`detailedErrorCode`)가 없으면 pychromecast가 `load_media_failed`를 부르지 않음 | 복사 조건 제한(`planner._audio_copy_ok`), IDLE/ERROR로 알림 | D075, 2026-11-04 실기기 |
 
 ## R§5 환경·도구
 - 개발 환경: Windows 11, PowerShell 7, Python 3.15.1 `.venv`(설계 기준 3.11+), PyChromecast 14.0.10, zeroconf 0.151.5, protobuf 7.36.2, PySide6 6.12.0, charset-normalizer 3.5.2 (2026-10-23 확인). PyInstaller 미설치

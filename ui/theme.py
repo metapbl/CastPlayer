@@ -1,5 +1,5 @@
 # 다크(Graphite)·라이트(Paper) 테마 — PySide6 6.8 이상 (QStyleHints.setColorScheme).
-# Graphite/Paper 테마 1.4.2. Copyright (c) 2026 metapbl. MIT License.
+# Graphite/Paper 테마 1.4.3. Copyright (c) 2026 metapbl. MIT License.
 # 창별 QSS 는 @이름 으로 적어 qss() 로 바꾼다.
 # 설정 저장은 앱이 맡는다. 이 모듈은 mode 값만 받는다.
 
@@ -7,8 +7,14 @@ import re
 from pathlib import Path
 
 from PySide6.QtCore import QEvent, QObject, Qt, Signal
-from PySide6.QtGui import QColor, QPalette
-from PySide6.QtWidgets import QAbstractButton, QAbstractItemView, QApplication
+from PySide6.QtGui import QColor, QKeyEvent, QPalette
+from PySide6.QtWidgets import (
+    QAbstractButton,
+    QAbstractItemView,
+    QApplication,
+    QDialog,
+    QPushButton,
+)
 
 _ICONS = Path(__file__).resolve().parent.parent / "assets" / "icons"
 TOKENS: dict = {
@@ -75,11 +81,13 @@ class _Notifier(QObject):
 notifier = _Notifier()
 
 
-class _OnPolish(QObject):
-    """스타일을 입힐 때(Polish) 위젯마다 한 번씩 손본다.
+class _WidgetFixes(QObject):
+    """앱 전체 이벤트 필터. Qt 기본 동작 중 Windows 관례와 다른 것을 고친다.
 
-    - 항목을 채운 뒤 레이아웃에 넣은 목록·트리는 행 간격이 스타일의 높이를 반영하지 않아 행이 겹친다. 다시 배치한다.
+    - 항목을 채운 뒤 레이아웃에 넣은 목록·트리는 행 간격이 스타일의 높이를 반영하지 않아 행이 겹친다. 스타일을 입힐 때(Polish) 다시 배치한다.
     - 버튼류는 Qt 기본(StrongFocus)대로면 클릭만 해도 포커스 고리가 남는다. Windows 11 처럼 Tab 으로만 포커스를 받게 한다.
+    - 대화상자 밖의 포커스 받은 QPushButton 은 Space 로만 눌린다. Enter 로도 누르게 한다.
+      대화상자 안은 Qt 의 기본 버튼·autoDefault 규칙을 따르므로 건드리지 않는다.
     """
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
@@ -89,10 +97,22 @@ class _OnPolish(QObject):
             # shortcut: 기본값과 앱이 직접 고른 StrongFocus 를 구별하지 못한다. 클릭 포커스가 필요한 버튼은 ClickFocus 로 지정하게 한다
             elif isinstance(watched, QAbstractButton) and watched.focusPolicy() == Qt.FocusPolicy.StrongFocus:
                 watched.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+        elif (
+            isinstance(event, QKeyEvent)
+            and event.type() == QEvent.Type.KeyPress
+            and event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
+            and event.modifiers() in (Qt.KeyboardModifier.NoModifier, Qt.KeyboardModifier.KeypadModifier)
+            and isinstance(watched, QPushButton)
+            and watched.isEnabled()
+            and not isinstance(watched.window(), QDialog)
+        ):
+            if not event.isAutoRepeat():
+                watched.animateClick()
+            return True
         return False
 
 
-_on_polish = _OnPolish()
+_widget_fixes = _WidgetFixes()
 
 
 def qss(css: str) -> str:
@@ -292,7 +312,7 @@ def apply_theme(app: QApplication, mode: str = "system") -> None:
     _mode = mode
     hints = app.styleHints()
     if not _listening:
-        app.installEventFilter(_on_polish)
+        app.installEventFilter(_widget_fixes)
         app.setStyle("Fusion")  # QSS 와 팔레트는 Fusion 기준으로 맞췄다. windows11 스타일에서는 어긋난다
         hints.colorSchemeChanged.connect(lambda _scheme: _sync())
         _listening = True

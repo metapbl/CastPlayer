@@ -63,14 +63,16 @@ QPushButton#big { border-radius: 20px; }
 /* 밝게에서 회색 요소가 흰 카드에 묻히지 않게: 윤곽선·빈 막대를 한 단계 진하게, 꺼진 것도 같은 윤곽 */
 QPushButton, QPushButton:disabled, QPushButton[role="primary"]:disabled { border: 1px solid @line2; }
 QPushButton[role="primary"] { border: 1px solid @accent; }
+/* 꺼진 버튼은 바탕 없이 윤곽선과 흐린 글자만 → 켜진(채워진) 버튼과 한눈에 구분 */
+QPushButton:disabled, QPushButton[role="primary"]:disabled { background: transparent; color: @faint; }
 QComboBox:disabled { background: @base; border: 1px solid @line2; }
 QSlider::groove:horizontal { background: @line2; }
 """
 # 밝게 전용: 기본 버튼 바탕(btn)이 흰 카드와 거의 같아, 화면 내용에 따라 밝기를 바꾸는
 # 디스플레이(콘텐츠 적응 밝기 등)에서는 흰색으로 보임 → 테두리 색(line2)까지 진하게.
-# 꺼진 버튼은 흐린 글자(faint)로 구분. 창 스타일시트는 앱 것보다 우선하므로 역할 버튼도 다시 적는다
+# 창 스타일시트는 앱 것보다 우선하므로 역할 버튼도 다시 적는다
 QSS_LIGHT = """
-QPushButton, QPushButton:disabled, QPushButton[role="primary"]:disabled { background: @line2; }
+QPushButton { background: @line2; }
 QPushButton:hover { background: @btn2; }
 QPushButton:pressed { background: @btn; }
 QPushButton[role="primary"] { background: @accent; }

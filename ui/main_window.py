@@ -53,12 +53,18 @@ GLYPH = {"play": "", "pause": "", "stop": "", "vol": "",
          "mute": "", "refresh": "", "back": "", "fwd": "",
          "minus": "", "plus": "", "drop": ""}
 QSS = """
-QFrame#card { background: @base; border: 1px solid @line; border-radius: 10px; }
+QWidget#root { background: @base; }
+QFrame#card { background: @surface; border: 1px solid @line; border-radius: 10px; }
 QFrame#drop { border: 1px dashed @line2; border-radius: 8px; }
 QLabel#title { font-size: 15px; font-weight: bold; color: @text; }
 QLabel#sub, QLabel#field, QLabel#drop_icon { color: @muted; }
 QPushButton[icon_btn="true"] { padding: 0; }
 QPushButton#big { border-radius: 20px; }
+/* 밝게에서 버튼이 카드 바탕에 묻히지 않게 윤곽선 */
+QPushButton { border: 1px solid @line2; }
+QPushButton:disabled { border: 1px solid @line; }
+QPushButton[role="primary"] { border: 1px solid @accent; }
+QPushButton[role="primary"]:disabled { border: 1px solid @line; }
 """
 
 
@@ -287,8 +293,10 @@ class MainWindow(QMainWindow):
         g.addLayout(hbox(self.btn_sync_dn, self.sync_label, self.btn_sync_up, spacing=6),
                     2, 4)
         card(root).addLayout(g)
+        root.addStretch(1)                  # 창을 키워도 카드는 제 높이
 
         w = QWidget()
+        w.setObjectName("root")
         w.setLayout(root)
         self.setCentralWidget(w)
         self.setStyleSheet(theme.qss(QSS))

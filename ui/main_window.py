@@ -66,6 +66,14 @@ QPushButton[role="primary"] { border: 1px solid @accent; }
 QComboBox:disabled { background: @base; border: 1px solid @line2; }
 QSlider::groove:horizontal { background: @line2; }
 """
+# 밝게 전용: 기본 버튼 바탕(btn)이 흰 카드와 거의 같아 안 보임 → 한 단계 진하게.
+# 창 스타일시트는 앱 것보다 우선하므로 역할 버튼도 다시 적는다
+QSS_LIGHT = """
+QPushButton, QPushButton:disabled, QPushButton[role="primary"]:disabled { background: @btn2; }
+QPushButton:hover { background: @line2; }
+QPushButton[role="primary"] { background: @accent; }
+QPushButton[role="primary"]:hover { background: @accent2; }
+"""
 
 
 def _plan_text(plan: Plan, info: MediaInfo) -> str:
@@ -299,7 +307,7 @@ class MainWindow(QMainWindow):
         w.setObjectName("root")
         w.setLayout(root)
         self.setCentralWidget(w)
-        self.setStyleSheet(theme.qss(QSS))
+        self.setStyleSheet(theme.qss(QSS + (QSS_LIGHT if theme.current() == "light" else "")))
         self.scale_label.setText(f"{self.ctrl.subtitle_scale:.1f}")
         self._set_volume_ui(self.cfg.volume, False)
 
@@ -387,7 +395,7 @@ class MainWindow(QMainWindow):
 
     def _restyle(self) -> None:
         """테마가 바뀌면 이 창이 직접 넣은 색을 다시 칠한다."""
-        self.setStyleSheet(theme.qss(QSS))
+        self.setStyleSheet(theme.qss(QSS + (QSS_LIGHT if theme.current() == "light" else "")))
         self._paint_status()
         self._set_conn(self._conn, self._conn_extra)
 

@@ -60,23 +60,17 @@ QLabel#title { font-size: 15px; font-weight: bold; color: @text; }
 QLabel#sub, QLabel#field, QLabel#drop_icon { color: @muted; }
 QPushButton[icon_btn="true"] { padding: 0; }
 QPushButton#big { border-radius: 20px; }
-/* 밝게에서 회색 요소가 흰 카드에 묻히지 않게: 윤곽선·빈 막대를 한 단계 진하게, 꺼진 것도 같은 윤곽 */
-QPushButton, QPushButton:disabled, QPushButton[role="primary"]:disabled { border: 1px solid @line2; }
-QPushButton[role="primary"] { border: 1px solid @accent; }
-/* 꺼진 버튼은 바탕 없이 윤곽선과 흐린 글자만 → 켜진(채워진) 버튼과 한눈에 구분 */
-QPushButton:disabled, QPushButton[role="primary"]:disabled { background: transparent; color: @faint; }
+/* 회색 채움은 흔히 "누를 수 없음"으로 읽힘(Windows 11 관례) → 켜진 버튼은 바탕색에 진한
+   윤곽·글자, 꺼진 버튼만 회색 채움·흐린 글자. 창 스타일시트가 앱 것보다 우선하므로 역할 버튼도 다시 적는다 */
+QPushButton { background: @surface; color: @text; border: 1px solid @muted; }
+QPushButton:hover { background: @raised; }
+QPushButton:pressed { background: @line; }
+QPushButton[role="primary"] { background: @accent; color: @on_accent; border: 1px solid @accent; }
+QPushButton[role="primary"]:hover { background: @accent2; border: 1px solid @accent2; }
+QPushButton:disabled, QPushButton[role="primary"]:disabled {
+    background: @raised; color: @faint; border: 1px solid @line; }
 QComboBox:disabled { background: @base; border: 1px solid @line2; }
 QSlider::groove:horizontal { background: @line2; }
-"""
-# 밝게 전용: 기본 버튼 바탕(btn)이 흰 카드와 거의 같아, 화면 내용에 따라 밝기를 바꾸는
-# 디스플레이(콘텐츠 적응 밝기 등)에서는 흰색으로 보임 → 테두리 색(line2)까지 진하게.
-# 창 스타일시트는 앱 것보다 우선하므로 역할 버튼도 다시 적는다
-QSS_LIGHT = """
-QPushButton { background: @line2; }
-QPushButton:hover { background: @btn2; }
-QPushButton:pressed { background: @btn; }
-QPushButton[role="primary"] { background: @accent; }
-QPushButton[role="primary"]:hover { background: @accent2; }
 """
 
 
@@ -311,7 +305,7 @@ class MainWindow(QMainWindow):
         w.setObjectName("root")
         w.setLayout(root)
         self.setCentralWidget(w)
-        self.setStyleSheet(theme.qss(QSS + (QSS_LIGHT if theme.current() == "light" else "")))
+        self.setStyleSheet(theme.qss(QSS))
         self.scale_label.setText(f"{self.ctrl.subtitle_scale:.1f}")
         self._set_volume_ui(self.cfg.volume, False)
 
@@ -399,7 +393,7 @@ class MainWindow(QMainWindow):
 
     def _restyle(self) -> None:
         """테마가 바뀌면 이 창이 직접 넣은 색을 다시 칠한다."""
-        self.setStyleSheet(theme.qss(QSS + (QSS_LIGHT if theme.current() == "light" else "")))
+        self.setStyleSheet(theme.qss(QSS))
         self._paint_status()
         self._set_conn(self._conn, self._conn_extra)
 

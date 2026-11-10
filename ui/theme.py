@@ -1,5 +1,5 @@
 # 다크(Graphite)·라이트(Paper) 테마 — PySide6 6.8 이상 (QStyleHints.setColorScheme).
-# Graphite/Paper 테마 1.2.0. Copyright (c) 2026 metapbl. MIT License.
+# Graphite/Paper 테마 1.4.0. Copyright (c) 2026 metapbl. MIT License.
 # 창별 QSS 는 @이름 으로 적어 qss() 로 바꾼다.
 # 설정 저장은 앱이 맡는다. 이 모듈은 mode 값만 받는다.
 
@@ -115,22 +115,30 @@ def icon_path(kind: str, name: str | None = None) -> Path:
 
 
 # 역할 버튼: QPushButton 에 setProperty("role", "primary" | "danger"). 역할이 없거나 "secondary" 면 기본 모양.
+# 켜진 기본 버튼은 바탕색 + 진한 윤곽, 꺼진 버튼만 회색으로 채운다 (Windows 11 관례). 채운 색은 역할 버튼에만.
 _APP_QSS = """
 QPushButton {
-    background: @btn; color: @text2; border: 1px solid transparent; border-radius: 6px; padding: 6px 14px;
+    background: @surface; color: @text; border: 1px solid @muted; border-radius: 6px; padding: 6px 14px;
 }
-QPushButton:hover { background: @btn2; }
-QPushButton:pressed { background: @line2; }
-QPushButton:focus { border: 1px solid @accent; }
-QPushButton[role="primary"] { background: @accent; color: @on_accent; font-weight: bold; }
-QPushButton[role="primary"]:hover { background: @accent2; }
+QPushButton:hover { background: @raised; }
+QPushButton:pressed { background: @line; }
+/* 포커스는 2px: 1px 색 바꿈만으로는 muted→accent 대비가 1.0~1.4 라 보이지 않는다. 안쪽 1px 은 바탕→고리색 대비로 3:1 을 넘긴다.
+   두께가 늘어난 만큼 padding 을 줄여 크기를 지킨다 */
+QPushButton:focus { border: 2px solid @accent; padding: 5px 13px; }
+/* 토글 버튼(setCheckable) 켜짐: Windows 11 관례대로 강조색 채움 */
+QPushButton:checked { background: @accent; color: @on_accent; border: 1px solid @accent; }
+QPushButton:checked:hover { background: @accent2; border: 1px solid @accent2; }
+QPushButton:checked:focus { border: 2px solid @on_accent; padding: 5px 13px; }
+QPushButton[role="primary"] { background: @accent; color: @on_accent; border: 1px solid @accent; font-weight: bold; }
+QPushButton[role="primary"]:hover { background: @accent2; border: 1px solid @accent2; }
 QPushButton[role="primary"]:pressed { background: @accent; }
-QPushButton[role="primary"]:focus { border: 1px solid @text; }
+QPushButton[role="primary"]:focus { border: 2px solid @on_accent; padding: 5px 13px; }
 /* 글자는 on_strong 이 아니라 on_accent: 다크에서 on_strong 은 danger 위 대비가 3.3 이다 */
-QPushButton[role="danger"] { background: @danger; color: @on_accent; font-weight: bold; }
-QPushButton[role="danger"]:hover, QPushButton[role="danger"]:focus { border: 1px solid @text; }
+QPushButton[role="danger"] { background: @danger; color: @on_accent; border: 1px solid @danger; font-weight: bold; }
+QPushButton[role="danger"]:hover { border: 1px solid @text; }
+QPushButton[role="danger"]:focus { border: 2px solid @on_accent; padding: 5px 13px; }
 QPushButton:disabled, QPushButton[role="primary"]:disabled, QPushButton[role="danger"]:disabled {
-    background: @raised; color: @faint; border: 1px solid transparent;
+    background: @raised; color: @faint; border: 1px solid @line;
 }
 
 QLineEdit, QPlainTextEdit, QTextEdit, QAbstractSpinBox, QComboBox {
@@ -141,7 +149,7 @@ QLineEdit:focus, QPlainTextEdit:focus, QTextEdit:focus, QAbstractSpinBox:focus, 
     border: 1px solid @accent;
 }
 QLineEdit:disabled, QPlainTextEdit:disabled, QTextEdit:disabled, QAbstractSpinBox:disabled, QComboBox:disabled {
-    background: @surface; color: @faint; border: 1px solid @line;
+    background: @base; color: @faint; border: 1px solid @line2;
 }
 
 QComboBox::drop-down { border: none; width: 20px; }
@@ -153,7 +161,7 @@ QAbstractSpinBox::down-arrow { image: url("%down%"); width: 10px; height: 10px; 
 
 QAbstractItemView {
     background: @base; alternate-background-color: @surface; color: @text;
-    border: 1px solid @line; border-radius: 6px; outline: 0; gridline-color: @line;
+    border: 1px solid @line2; border-radius: 6px; outline: 0; gridline-color: @line;
 }
 QAbstractItemView:focus { border: 1px solid @accent; }
 QAbstractItemView::item { padding: 0 6px; height: 22px; }
@@ -167,15 +175,16 @@ QHeaderView::section {
 }
 QTableCornerButton::section { background: @raised; border: none; }
 
-/* 글자는 숨긴다: 어떤 글자색도 track 과 accent 양쪽에서 읽히지 않는다. 퍼센트는 옆 QLabel 로 */
-QProgressBar { background: @track; color: transparent; border: none; border-radius: 3px; max-height: 6px; }
+/* 글자는 숨긴다: 어떤 글자색도 line2 와 accent 양쪽에서 읽히지 않는다. 퍼센트는 옆 QLabel 로.
+   홈은 track 이 아니라 line2: 라이트 track 은 흰 surface 위에서 보이지 않는다 */
+QProgressBar { background: @line2; color: transparent; border: none; border-radius: 3px; max-height: 6px; }
 QProgressBar::chunk { background: @accent; border-radius: 3px; }
 
-QGroupBox { color: @text2; border: 1px solid @line; border-radius: 6px; margin-top: 8px; padding: 12px 8px 8px 8px; }
+QGroupBox { color: @text2; border: 1px solid @line2; border-radius: 6px; margin-top: 8px; padding: 12px 8px 8px 8px; }
 QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }
 
-QSlider::groove:horizontal { background: @track; height: 6px; border-radius: 3px; }
-QSlider::groove:vertical { background: @track; width: 6px; border-radius: 3px; }
+QSlider::groove:horizontal { background: @line2; height: 6px; border-radius: 3px; }
+QSlider::groove:vertical { background: @line2; width: 6px; border-radius: 3px; }
 QSlider::sub-page:horizontal, QSlider::add-page:vertical { background: @accent; border-radius: 3px; }
 QSlider::handle:horizontal, QSlider::handle:vertical {
     background: @accent; width: 12px; height: 12px; border: 2px solid @surface; border-radius: 8px;
@@ -193,8 +202,8 @@ QCheckBox::indicator, QAbstractItemView::indicator {
     width: 16px; height: 16px; border-radius: 4px; border: 1px solid @muted; background: @base;
 }
 QRadioButton::indicator { width: 16px; height: 16px; border-radius: 9px; border: 1px solid @muted; background: @base; }
-QCheckBox::indicator:hover, QAbstractItemView::indicator:hover, QRadioButton::indicator:hover,
-QCheckBox::indicator:focus, QRadioButton::indicator:focus { border: 1px solid @accent; }
+QCheckBox::indicator:hover, QAbstractItemView::indicator:hover, QRadioButton::indicator:hover { border: 1px solid @accent; }
+QCheckBox::indicator:focus, QRadioButton::indicator:focus { border: 2px solid @accent; }
 QCheckBox::indicator:checked, QAbstractItemView::indicator:checked {
     background: @accent; border: 1px solid @accent; image: url("%check%");
 }
@@ -202,7 +211,7 @@ QCheckBox::indicator:checked:hover, QAbstractItemView::indicator:checked:hover {
     background: @accent2; border: 1px solid @accent2;
 }
 QRadioButton::indicator:checked { background: @accent; border: 1px solid @accent; image: url("%radio%"); }
-QCheckBox::indicator:checked:focus, QRadioButton::indicator:checked:focus { border: 1px solid @text; }
+QCheckBox::indicator:checked:focus, QRadioButton::indicator:checked:focus { border: 2px solid @on_accent; }
 QCheckBox::indicator:disabled, QRadioButton::indicator:disabled { background: @surface; border: 1px solid @line2; }
 QCheckBox::indicator:checked:disabled, QRadioButton::indicator:checked:disabled {
     background: @faint; border: 1px solid @faint; image: none;
@@ -256,6 +265,7 @@ def _sync() -> None:
     """설정과 시스템 색 모드에 맞춰 칠한다. 이미 그 테마면 아무것도 하지 않는다."""
     global _current, _name
     app = QApplication.instance()
+    assert isinstance(app, QApplication), "apply_theme(app) 을 먼저 부른다"
     name = resolve(_mode, app.styleHints().colorScheme())
     if name == _name:
         return

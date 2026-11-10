@@ -60,17 +60,6 @@ QLabel#title { font-size: 15px; font-weight: bold; color: @text; }
 QLabel#sub, QLabel#field, QLabel#drop_icon { color: @muted; }
 QPushButton[icon_btn="true"] { padding: 0; }
 QPushButton#big { border-radius: 20px; }
-/* 회색 채움은 흔히 "누를 수 없음"으로 읽힘(Windows 11 관례) → 켜진 버튼은 바탕색에 진한
-   윤곽·글자, 꺼진 버튼만 회색 채움·흐린 글자. 창 스타일시트가 앱 것보다 우선하므로 역할 버튼도 다시 적는다 */
-QPushButton { background: @surface; color: @text; border: 1px solid @muted; }
-QPushButton:hover { background: @raised; }
-QPushButton:pressed { background: @line; }
-QPushButton[role="primary"] { background: @accent; color: @on_accent; border: 1px solid @accent; }
-QPushButton[role="primary"]:hover { background: @accent2; border: 1px solid @accent2; }
-QPushButton:disabled, QPushButton[role="primary"]:disabled {
-    background: @raised; color: @faint; border: 1px solid @line; }
-QComboBox:disabled { background: @base; border: 1px solid @line2; }
-QSlider::groove:horizontal { background: @line2; }
 """
 
 

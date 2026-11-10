@@ -62,7 +62,7 @@ def show_formats(parent: QWidget) -> None:
         "맞지 않거나 기본 외 음성 선택 → HLS, 영상 복사<br>"
         "<b>TRANSCODE</b>: 영상 미지원(XviD, H.264 10bit 등)이나 표시 시각 결함 → "
         "HLS, H.264 재인코딩<br><br>"
-        "음성: AAC는 복사, 나머지는 AAC 2ch로 변환<br>"
+        "음성: AAC는 복사(HE-AAC·48kHz 초과·6채널 초과는 변환), 나머지는 AAC 2ch로 변환<br>"
         "자막: srt, smi(클래스별), ass/ssa, vtt, 내장 텍스트 자막 → WebVTT<br>"
         "이미지 자막(PGS, VobSub)은 지원 안 함"))
 

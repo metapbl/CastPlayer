@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtGui import QAction, QActionGroup, QKeySequence
 from PySide6.QtWidgets import QMainWindow, QMenu
 
 
@@ -15,6 +15,7 @@ class MenuActions:
     disconnect: QAction
     quit: QAction
     auto_connect: QAction
+    themes: dict[str, QAction]     # system / dark / light
     log_file: QAction
     open_logs: QAction
     clear_cache: QAction
@@ -35,7 +36,8 @@ def _add(win: QMainWindow, menu: QMenu, text: str, shortcut: str | None = None,
     return act
 
 
-def build_menus(win: QMainWindow, auto_connect: bool, log_file: bool) -> MenuActions:
+def build_menus(win: QMainWindow, auto_connect: bool, log_file: bool,
+                theme: str) -> MenuActions:
     bar = win.menuBar()
 
     m = bar.addMenu("메뉴")
@@ -49,6 +51,11 @@ def build_menus(win: QMainWindow, auto_connect: bool, log_file: bool) -> MenuAct
 
     o = bar.addMenu("옵션")
     auto = _add(win, o, "시작 시 마지막 기기 자동 연결", checked=auto_connect)
+    t = o.addMenu("테마")
+    group = QActionGroup(win)
+    themes = {}
+    for key, text in (("system", "시스템 설정 따르기"), ("dark", "어둡게"), ("light", "밝게")):
+        themes[key] = group.addAction(_add(win, t, text, checked=key == theme))
     o.addSeparator()
     log = _add(win, o, "로그 기록", checked=log_file)
     logs = _add(win, o, "로그 폴더 열기")
@@ -61,5 +68,5 @@ def build_menus(win: QMainWindow, auto_connect: bool, log_file: bool) -> MenuAct
     i.addSeparator()
     about = _add(win, i, "CastPlayer 정보")
 
-    return MenuActions(open_file, rescan, add_ip, disconnect, quit_, auto, log,
+    return MenuActions(open_file, rescan, add_ip, disconnect, quit_, auto, themes, log,
                        logs, cache, shortcuts, formats, about)

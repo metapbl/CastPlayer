@@ -21,6 +21,9 @@ class AppConfig:
     last_device_host: str | None = None   # 4단계: mDNS로 못 찾을 때 시도할 IP (힌트)
     auto_connect: bool = True             # 4단계: 시작 시 마지막 기기 자동 연결
     log_file: bool = False                # 옵션 "로그 기록" (D070, -v는 이 값을 바꾸지 않음)
+    theme: str = "system"                 # 옵션 "테마": system / dark / light (D076)
+    last_folder: str = ""                 # 마지막으로 파일을 연 폴더 (D076)
+    window_geometry: str = ""             # 창 크기·위치, QWidget.saveGeometry의 base64 (D076)
 
     @classmethod
     def load(cls) -> "AppConfig":

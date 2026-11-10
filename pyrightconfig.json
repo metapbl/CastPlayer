@@ -1,5 +1,6 @@
 {
   "include": ["main.py", "core", "ui", "tools"],
+  "exclude": ["ui/theme.py"],
   "venvPath": ".",
   "venv": ".venv"
 }

@@ -2,7 +2,8 @@
 # ffmpeg·ffprobe는 넣지 않는다 (D042). config.json·logs·cache·bin은 exe 옆에 실행 중 생긴다.
 import shutil
 
-a = Analysis(['main.py'], datas=[('assets/cast.ico', 'assets')])   # 창 아이콘 (core.paths.asset_path)
+a = Analysis(['main.py'], datas=[('assets/cast.ico', 'assets'),          # 창 아이콘 (core.paths.asset_path)
+                                    ('assets/icons', 'assets/icons')])  # 테마 아이콘 (ui.theme)
 pyz = PYZ(a.pure)
 exe = EXE(
     pyz,

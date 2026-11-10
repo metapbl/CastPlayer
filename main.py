@@ -25,6 +25,7 @@ from core.encoders import EncoderDetector
 from core.media_server import MediaServer
 from core.paths import app_dir, asset_path, bin_dir, ffmpeg_path, ffprobe_path
 from core.player import PlaybackController
+from ui import theme
 from ui.bridge import CastBridge
 from ui.dialogs import APP_NAME
 from ui.main_window import MainWindow
@@ -106,6 +107,7 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setWindowIcon(QIcon(str(asset_path("cast.ico"))))   # 창·작업표시줄 (exe 파일 아이콘은 spec)
+    theme.apply_theme(app, cfg.theme)                          # 창을 만들기 전에 (D076)
 
     missing = [p.name for p in (ffmpeg_path(), ffprobe_path()) if not p.is_file()]
     if missing:

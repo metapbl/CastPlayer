@@ -56,6 +56,7 @@ from core.playlist import PlaylistItem
 from core.probe import AudioStream, MediaInfo, ProbeError, VideoStream
 from core.subtitles import Cue, SubtitleSet, SubtitleTrack, text_style
 import ui.main_window as mw_mod     # 자가검사: 화면 없는 창 (D071), 대기 시간·대화창 대역 교체
+from ui import theme
 from ui.bridge import CastBridge
 
 _LOGGER = logging.getLogger("cast_test")
@@ -605,6 +606,7 @@ class _FakeSubs:
 
 def _fake_plan(order: int) -> Any:
     return SimpleNamespace(mode=Mode.DIRECT, video_copy=True, summary="DIRECT (시험)",
+                           audio_copy=True, fps_cap=None,
                            audio=SimpleNamespace(order=order, label=f"음성 {order + 1}"))
 
 
@@ -1439,7 +1441,8 @@ def _plan_style_cases(check: Callable[[str, bool, str], None]) -> None:
 
 
 # ===================== GUI 자가검사 (화면 없는 Qt, D071) =====================
-GREEN, GRAY = mw_mod.ST_OK[1], mw_mod.ST_NONE[1]
+# 테마를 적용하기 전이라 어둡게 색. 테마를 바꾸는 시험(F9-1)은 마지막에 돌고 되돌린다
+GREEN, GRAY, RED = (theme.color(st[1]) for st in (mw_mod.ST_OK, mw_mod.ST_NONE, mw_mod.ST_LOST))
 
 
 class _GuiCM(_FakeCM):
@@ -1667,8 +1670,10 @@ def _play_cases(check: Callable[[str, bool, str], None]) -> None:
     assert step is not None
     step(40)
     QApplication.processEvents()
-    check("상태줄 \"키프레임 분석 N%\"", w.statusBar().currentMessage() == "키프레임 분석 40%…",
-          w.statusBar().currentMessage())
+    check("F9-4 불러오는 중 → 진행 막대 \"키프레임 분석 40%\"",
+          w.load_box.isVisible() and w.load_bar.value() == 40
+          and w.load_stage.text() == "키프레임 분석" and w.load_pct.text() == "40%",
+          f"{w.load_box.isVisible()}, {w.load_stage.text()} {w.load_pct.text()}")
 
     with tempfile.TemporaryDirectory() as t:
         path = Path(t) / "other.mp4"
@@ -1683,7 +1688,7 @@ def _play_cases(check: Callable[[str, bool, str], None]) -> None:
             mw_mod.confirm = saved
     check("F2-5 재생 중 새 파일 → 확인 창, 취소하면 그대로",
           len(asked) == 1 and ctrl.active and "stop" not in cm.names()
-          and w.file_label.text() == "파일: -" and w.tasks.busy is None,
+          and w.file_label.text() == "" and w.tasks.busy is None,
           f"확인 {len(asked)}번, {cm.names()}, {w.file_label.text()}")
 
     _key(w, K.Key_S)
@@ -1799,7 +1804,7 @@ def _lost_cases(check: Callable[[str, bool, str], None]) -> None:
     cm.drop(1000.0, False)
     bridge.connection_lost.emit(dev)           # pychromecast가 스스로 다시 붙는 끊김
     QApplication.processEvents()
-    lost = mw_mod.ST_LOST[1] in w.conn_label.text()
+    lost = RED in w.conn_label.text()
     _connect(w, cm, bridge, dev)
     cm.answer(False)                           # 수신기 세션 없음
     r = cm.loads[-1] if cm.loads else None
@@ -1906,10 +1911,96 @@ def _log_slow_close_cases(check: Callable[[str, bool, str], None]) -> None:
           f"{cm.names()}, 세션 {'닫힘' if session.closed else '열림'}, 서버 {stopped}")
 
 
+def _ui_cases(check: Callable[[str, bool, str], None]) -> None:
+    """PRD F9 화면·테마 (D076)."""
+    w, cm, _ctrl, bridge = _gui()
+    drop_off = w.drop.isVisible() and not w.btn_open_big.isEnabled()
+    dev = _dev()
+    bridge.devices_changed.emit([dev, _dev("10.0.0.8")])
+    _connect(w, cm, bridge, dev)
+    w.dev_combo.setCurrentIndex(w.dev_combo.findData(dev.uuid))
+    check("F9-3 파일 없음 → 끌어다 놓기 안내, 미연결이면 [파일 열기] 비활성",
+          drop_off and w.drop.isVisible() and w.btn_open_big.isEnabled()
+          and w.drop_hint.text() == "동영상 파일을 여기에 끌어다 놓으세요",
+          f"{drop_off}, {w.drop_hint.text()}")
+    here = w.btn_connect.text()
+    w.dev_combo.setCurrentIndex(1)
+    other = w.btn_connect.text()
+    w.dev_combo.setCurrentIndex(0)
+    cm.calls.clear()
+    w.btn_connect.click()
+    check("F9-2 연결된 기기 → \"연결 해제\", 다른 기기 → \"연결\", 해제 누르면 해제",
+          (here, other) == ("연결 해제", "연결") and "disconnect" in cm.names(),
+          f"{here}, {other}, {cm.names()}")
+    _close(w)
+
+    w, cm, ctrl, bridge = _gui(loaded=True)
+    bridge.media_status.emit(PlaybackState("PLAYING", 100.0, 6000.0, None))
+    QApplication.processEvents()
+    cm.pos = 100.0
+    got = []
+    for b in (w.btn_back, w.btn_fwd):
+        with _Grab("core.player") as lines:
+            b.click()
+            QTest.qWait(mw_mod.SEEK_COALESCE_MS + 150)
+        got += _seeks(lines)
+    check("F9-5 [−10초]·[+30초] → 10초 뒤·30초 앞으로 탐색",
+          got == ["탐색: 90.0초", "탐색: 130.0초"], f"{got}")
+    _close(w)
+
+    with tempfile.TemporaryDirectory() as t:
+        path = Path(t) / "movie.mp4"
+        path.write_bytes(b"")
+        cfg = AppConfig(auto_connect=False)
+        w, cm, ctrl, bridge = _gui(cfg=cfg)
+        _connect(w, cm, bridge)
+        w.tasks.submit = lambda *_a: True          # 불러오기는 하지 않음
+        w._open(path)   # pylint: disable=protected-access
+        asked: list[str] = []
+        saved = mw_mod.QFileDialog
+        mw_mod.QFileDialog = SimpleNamespace(       # 대화창 대신 시작 폴더만 기록
+            getOpenFileName=lambda _p, _t, start, _f: (asked.append(start), ("", ""))[1])
+        try:
+            w._open_dialog()   # pylint: disable=protected-access
+        finally:
+            mw_mod.QFileDialog = saved
+        check("F9-6 파일을 연 폴더에서 다음 파일 열기 시작",
+              asked == [t] and cfg.last_folder == t, f"{asked}, {cfg.last_folder}")
+        _close(w)
+
+    cfg = AppConfig(auto_connect=False)
+    w, *_ = _gui(cfg=cfg)
+    w.setGeometry(60, 70, 600, 480)               # 화면 없는 Qt의 화면(800×600) 안
+    QApplication.processEvents()
+    want = w.geometry()
+    _close(w)
+    w, *_ = _gui(cfg=cfg)
+    got_geo = w.geometry()
+    check("F9-7 창 크기·위치 기억", got_geo == want and cfg.window_geometry != "",
+          f"{want} → {got_geo}")
+    _close(w)
+
+    cfg = AppConfig(auto_connect=False)
+    w, *_ = _gui(cfg=cfg)
+    first = theme.current()
+    w.acts.themes["light"].trigger()
+    QApplication.processEvents()
+    light = (theme.current(), cfg.theme, theme.color("base"))
+    _close(w)
+    w, *_ = _gui(cfg=cfg)
+    checked = w.acts.themes["light"].isChecked()
+    w.acts.themes["dark"].trigger()                # 뒤 시험을 위해 되돌림
+    _close(w)
+    check("F9-1 옵션 → 테마 → 밝게: 바로 바뀌고 저장, 다시 열어도 밝게",
+          first is None and light == ("light", "light", theme.TOKENS["light"]["base"])
+          and checked, f"{first}, {light}, 다시 열었을 때 {checked}")
+
+
 def _gui_cases(check: Callable[[str, bool, str], None]) -> None:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")   # 창을 화면에 띄우지 않음
     _app = QApplication.instance() or QApplication([])
-    for fn in (_conn_cases, _play_cases, _media_cases, _lost_cases, _log_slow_close_cases):
+    for fn in (_conn_cases, _play_cases, _media_cases, _lost_cases, _log_slow_close_cases,
+               _ui_cases):
         try:
             fn(check)
         except Exception as err:  # pylint: disable=broad-except

@@ -54,17 +54,17 @@ GLYPH = {"play": "", "pause": "", "stop": "", "vol": "",
          "minus": "", "plus": "", "drop": ""}
 QSS = """
 QWidget#root { background: @base; }
-QFrame#card { background: @surface; border: 1px solid @line; border-radius: 10px; }
-QFrame#drop { border: 1px dashed @line2; border-radius: 8px; }
+QFrame#card { background: @surface; border: 1px solid @line2; border-radius: 10px; }
+QFrame#drop { border: 1px dashed @faint; border-radius: 8px; }
 QLabel#title { font-size: 15px; font-weight: bold; color: @text; }
 QLabel#sub, QLabel#field, QLabel#drop_icon { color: @muted; }
 QPushButton[icon_btn="true"] { padding: 0; }
 QPushButton#big { border-radius: 20px; }
-/* 밝게에서 버튼이 카드 바탕에 묻히지 않게 윤곽선 */
-QPushButton { border: 1px solid @line2; }
-QPushButton:disabled { border: 1px solid @line; }
+/* 밝게에서 회색 요소가 흰 카드에 묻히지 않게: 윤곽선·빈 막대를 한 단계 진하게, 꺼진 것도 같은 윤곽 */
+QPushButton, QPushButton:disabled, QPushButton[role="primary"]:disabled { border: 1px solid @line2; }
 QPushButton[role="primary"] { border: 1px solid @accent; }
-QPushButton[role="primary"]:disabled { border: 1px solid @line; }
+QComboBox:disabled { background: @base; border: 1px solid @line2; }
+QSlider::groove:horizontal { background: @line2; }
 """
 
 

@@ -14,7 +14,7 @@ from core.paths import ffmpeg_path
 from core.proc import NO_WINDOW
 
 APP_NAME = "CastPlayer"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.1.1"
 
 SHORTCUTS = (
     ("Space", "재생 / 일시정지"),

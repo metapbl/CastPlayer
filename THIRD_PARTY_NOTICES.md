@@ -8,8 +8,8 @@ CastPlayer is MIT-licensed ([LICENSE](LICENSE)). The executable (Releases zip) b
 
 ## Components
 
-이 목록은 CastPlayer 1.1.0 빌드(PyInstaller 6.22.3, Python 3.15.1)에 실제로 들어간 것을 기준으로 합니다.
-This list reflects what is actually bundled in the CastPlayer 1.1.0 build (PyInstaller 6.22.3, Python 3.15.1).
+이 목록은 CastPlayer 1.1.1 빌드(PyInstaller 6.22.3, Python 3.15.1)에 실제로 들어간 것을 기준으로 합니다.
+This list reflects what is actually bundled in the CastPlayer 1.1.1 build (PyInstaller 6.22.3, Python 3.15.1).
 
 | Component | Version | License | Source |
 |---|---|---|---|

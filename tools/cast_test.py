@@ -1404,6 +1404,29 @@ def _log_cases(check: Callable[[str, bool, str], None]) -> None:
             err = run(tmp, False, True)
             check("F7-8 쓸 수 없으면 알림 문구",
                   bool(err) and str(err).startswith("로그 파일을 만들 수 없습니다"), f"{err}")
+        hang = main_mod.HANG_SEC
+        main_mod.HANG_SEC = 0.3
+        try:
+            with tempfile.TemporaryDirectory() as t:
+                file_log, _err = main_mod.setup_logging(False, True, Path(t) / "logs",
+                                                        console=False)
+
+                def frozen_gui(sec: float) -> None:     # 화면 스레드가 막힌 것처럼
+                    time.sleep(sec)
+                for _ in range(3):                      # 제때 부르면 기록 없음
+                    file_log.heartbeat()
+                    frozen_gui(0.1)
+                text = (Path(t) / "logs" / "castplayer.log").read_text(encoding="utf-8")
+                quiet = "Timeout" not in text
+                file_log.heartbeat()
+                frozen_gui(0.6)
+                file_log.set(False)
+                text = (Path(t) / "logs" / "castplayer.log").read_text(encoding="utf-8")
+                check("D077 로그 기록 중 화면이 멈춤 → 스레드 호출 위치 기록, 제때면 기록 없음",
+                      quiet and "Timeout" in text and "frozen_gui" in text,
+                      f"{quiet}, {len(text.splitlines())}줄")
+        finally:
+            main_mod.HANG_SEC = hang
     except Exception as err:  # pylint: disable=broad-except
         check("GUI 로그 파일", False, f"예외: {err!r}")
     finally:

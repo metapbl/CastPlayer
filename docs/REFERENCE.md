@@ -72,6 +72,7 @@
 - D042 — ffmpeg `bin/` → PATH, 동봉 안 함
 - D046 — 첫 번째가 아닌 음성 트랙은 REMUX
 - D050 — 재생 상태 전환 로그로 버퍼링 판정
+- D077 — 로그 기록 중 화면 10초 멈춤 → 모든 스레드 호출 위치를 로그에
 
 ## R§4 함정 대장
 | ID | 증상 | 원인 | 대처 | 근거 |
@@ -105,6 +106,6 @@
 - 실기기 끊김 시험: PC 랜선을 뽑았다가 다시 꽂는다 (droptest와 달리 실제 끊김). 성공 기준은 D051
 - droptest 원리: `sc._force_recon = True; sc.socketpair[1].send(b"x")` — 실제 원격 끊김과 같은 경로. pychromecast 내부 속성이 없으면 "이 버전에서는 끊김 시험 불가"
 - 쓰기 잠금 (D073): `SocketClient.send_message`를 감쌈. pychromecast를 올리면 소켓 쓰기가 아직 이 함수 한 곳뿐인지(`sendall` 검색), 자가검사 대역이 쓰는 속성(`stop`·`connecting`·`_force_recon`·`_ensure_channel_connected`·`_gen_request_id`·`socket`)이 그대로인지 확인
-- 크래시 단서: 소스 실행 때 `.venv\Scripts\python -X faulthandler main.py -v` → 강제 종료 시 터미널에 스레드별 스택. exe에서는 남지 않음
+- 크래시 단서: 소스 실행 때 `.venv\Scripts\python -X faulthandler main.py -v` → 강제 종료 시 터미널에 스레드별 스택. exe에서는 남지 않음. 단 화면 멈춤(응답 없음)은 로그 기록 중이면 exe에서도 로그에 남음 (D077)
 - 음성 2개 시험 파일 만들기: `ffmpeg -i <mp4> -t 600 -map 0:v -map 0:a -map 0:a -c:v copy -c:a:0 copy -c:a:1 aac -b:a:1 128k -filter:a:1 "volume=0.2" <음성 2개>.mp4`
-- 로그 (D070): GUI `logs/castplayer.log`는 옵션 "로그 기록"을 켰을 때만, 실행마다 새로(1MB×3 순환, `castplayer.1.log` 형식), `-v`는 옵션과 무관하게 DEBUG 기록. tools `logs/cast_test_YYYYMMDD_HHMMSS.log`
+- 로그 (D070): GUI `logs/castplayer.log`는 옵션 "로그 기록"을 켰을 때만, 실행마다 새로(1MB×3 순환, `castplayer.1.log` 형식), `-v`는 옵션과 무관하게 DEBUG 기록. tools `logs/cast_test_YYYYMMDD_HHMMSS.log`. 기록 중 화면이 10초 넘게 응답 없으면 `Timeout (0:00:10)!` 뒤에 모든 스레드의 호출 위치가 이어진다 (D077)

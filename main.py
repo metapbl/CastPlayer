@@ -5,17 +5,19 @@
 
 로그 (D070): 기본 꺼짐. 옵션 "로그 기록"을 켜면 logs/castplayer.log.
 실행할 때마다 지난 castplayer*.log를 지우고 새로 씀 (한 실행 안에서는 1MB씩, castplayer.1~3.log).
+로그를 기록하는 중 화면이 HANG_SEC 동안 응답하지 않으면 모든 스레드의 호출 위치를 로그에 남김 (D077).
 소스로 실행하면 콘솔에도 출력.
 """
 from __future__ import annotations
 
 import argparse
+import faulthandler
 import logging
 import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMessageBox
 
@@ -33,6 +35,7 @@ from ui.main_window import MainWindow
 _LOGGER = logging.getLogger("castplayer")
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 LOG_NAME = "castplayer.log"
+HANG_SEC = 10.0     # 화면 응답 없음으로 볼 시간 (D077)
 
 
 def _rotated_name(default: str) -> str:
@@ -56,6 +59,7 @@ class FileLog:
         """파일을 못 열면 알림 문구를 돌려준다."""
         root = logging.getLogger()
         if not on:
+            faulthandler.cancel_dump_traceback_later()
             if self._handler:
                 root.removeHandler(self._handler)
                 self._handler.close()
@@ -78,6 +82,13 @@ class FileLog:
         root.addHandler(fh)
         self._handler = fh
         return None
+
+    def heartbeat(self) -> None:
+        """GUI 스레드에서 1초마다 부른다. 부르지 못한 채 HANG_SEC가 지나면 faulthandler가
+        모든 스레드의 호출 위치를 로그 파일에 쓴다 ("Timeout (0:00:10)!"). 파일이 바뀌어도
+        (1MB 넘김) 다음 호출이 새 파일로 다시 건다 (D077)."""
+        if self._handler and self._handler.stream:
+            faulthandler.dump_traceback_later(HANG_SEC, file=self._handler.stream)
 
 
 def setup_logging(verbose: bool, log_on: bool, log_dir: Path,
@@ -139,9 +150,13 @@ def main() -> int:
                               subtitle_scale=cfg.subtitle_scale)
     win = MainWindow(cfg, cm, ctrl, bridge, set_log=file_log.set, log_error=log_error)
     win.show()
+    beat = QTimer(app)
+    beat.timeout.connect(file_log.heartbeat)
+    beat.start(1000)
     try:
         return app.exec()
     finally:
+        faulthandler.cancel_dump_traceback_later()  # 종료 처리는 오래 걸릴 수 있음
         cleanup(cm, ctrl, server)
 
 

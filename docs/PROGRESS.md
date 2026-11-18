@@ -1,13 +1,14 @@
 # PROGRESS — CastPlayer
 
 ## 상태
-- 단계: 8 구현 · 진행 중인 계획 없음 (마지막: `docs/plans/2026-11-10-ui-theme.md` 화면 개편·테마 D076 완료, F9-8 통과. 자가검사 84/84) · PRD 변경 승인(2026-11-18, D077 F7-10) · 1.1.1 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.1.1)
-- 갱신: 2026-11-18
+- 단계: 8 구현 · 계획 `docs/plans/2026-11-19-languages-readme.md` (화면 6개 언어·README 개편, F10·D079~D089) 작업 1부터 · PRD 변경 승인(2026-11-19) · metarche upgrade U1·U6·U7 적용 · 1.1.1 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.1.1)
+- 갱신: 2026-11-19
 - 히스토리를 새로 시작함(D041). 아래 완료 기록의 옛 커밋 해시는 저장소 밖 로컬 백업 `../CastPlayer-git-backup-2026-10-27`에만 있다
 
 ## 다음 할 일
-1. 화면 멈춤 감시(D077)는 1.1.1부터 exe에 있음. 다시 멈추면 강제 종료 뒤 다시 켜기 전에 `logs/castplayer.log`의 `Timeout` 아래 스택으로 원인 판단 (로그 기록 켜 두기)
-2. 보류 질문: O103·O106·O109. O106(읽기·쓰기 겹침, 거짓 "재생 실패")은 다음 `-v` 로그가 생기면 판단
+1. 계획 작업 1: 번역 틀 — `core/i18n.py` (`tr`·`set_language`·`pick_language`), `core/config.py > AppConfig.language`, 실패하는 시험부터
+2. 화면 멈춤 감시(D077)는 1.1.1부터 exe에 있음. 다시 멈추면 강제 종료 뒤 다시 켜기 전에 `logs/castplayer.log`의 `Timeout` 아래 스택으로 원인 판단 (로그 기록 켜 두기)
+3. 보류 질문: O103·O106·O109. O106(읽기·쓰기 겹침, 거짓 "재생 실패")은 다음 `-v` 로그가 생기면 판단
 
 ## 미해결
 - 다시 불러온 뒤 첫 PLAYING 0.5초 사이 보낸 탐색을 TV가 APP_ERROR로 거절 1회 (알림 없음, 영향 없음, 2026-11-02) — 자주 보이면 재검토

@@ -13,9 +13,12 @@
 # 자가검사는 가짜 객체(SimpleNamespace 등)를 진짜 타입 자리에 넣으므로 이 두 규칙은 끈다 (D068)
 # pyright: reportAttributeAccessIssue=false, reportArgumentType=false
 import argparse
+import ast          # 자가검사: 번역 키 검사 (F10-4)
 import logging
 import queue
 import os
+import re
+import string       # 자가검사: 번역 {이름} 비교 (F10-4)
 import subprocess   # 명령줄 기록용 list2cmdline
 import sys
 import tempfile
@@ -2031,6 +2034,78 @@ def _gui_cases(check: Callable[[str, bool, str], None]) -> None:
 
 
 # ===================== 화면 언어 (F10, D079~D086) =====================
+_HANGUL = re.compile(r"[가-힣]")
+I18N_SOURCES = ("core", "ui", "main.py")   # core/i18n.py·core/lang/은 뺌 (언어 이름·사전)
+
+
+def scan_i18n(root: Path) -> tuple[dict[str, str], list[str], list[str]]:
+    """소스를 읽어 (tr 키 → 처음 나온 곳, 키가 문자열 상수가 아닌 tr 호출, tr·로그 밖 한글 문자열)."""
+    keys: dict[str, str] = {}
+    bad: list[str] = []
+    loose: list[str] = []
+    files = [p for s in I18N_SOURCES for p in ((root / s).rglob("*.py") if (root / s).is_dir()
+                                                 else [root / s])
+             if p.is_file() and p.name != "i18n.py" and p.parent.name != "lang"]
+    for path in sorted(files):
+        rel = path.relative_to(root).as_posix()
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        skip: set[int] = set()   # tr·로그 호출 안, 문서 문자열
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant):
+                skip.add(id(node.value))
+            if not isinstance(node, ast.Call):
+                continue
+            f = node.func
+            name = f.id if isinstance(f, ast.Name) else f.attr if isinstance(f, ast.Attribute) else ""
+            owner = f.value.id if isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name) else ""
+            if name == "tr":
+                arg = node.args[0] if node.args else None
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                    keys.setdefault(arg.value, f"{rel}:{node.lineno}")
+                else:
+                    bad.append(f"{rel}:{node.lineno}")
+            elif owner != "_LOGGER":
+                continue
+            skip.update(id(n) for n in ast.walk(node))
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Constant) and isinstance(node.value, str)
+                    and id(node) not in skip and _HANGUL.search(node.value)):
+                loose.append(f"{rel}:{node.lineno} {node.value[:40]!r}")
+    return keys, bad, loose
+
+
+def _fields(text: str) -> set[str]:
+    return {f for _, f, _, _ in string.Formatter().parse(text) if f is not None}
+
+
+def _i18n_key_cases(check: Callable[[str, bool, str], None]) -> None:
+    """F10-4: 코드의 tr 키가 사전마다 있고, 남는 키가 없고, {이름}이 같다."""
+    from core import i18n
+    with tempfile.TemporaryDirectory() as tmp:
+        (Path(tmp) / "main.py").write_text(
+            '"""문서 문자열."""\n'
+            'a = tr("열기 {n}", n=1)\n'
+            'b = i18n.tr(f"{a}개")\n'
+            '_LOGGER.info("로그 %s", "한글 인수")\n'
+            'c = "감싸지 않음"\n', encoding="utf-8")
+        got = scan_i18n(Path(tmp))
+    check("검사기 자체: tr 키·변수 키·로그·문서 문자열·감싸지 않은 한글 구분",
+          got == ({"열기 {n}": "main.py:2"}, ["main.py:3"], ["main.py:5 '감싸지 않음'"]), f"{got}")
+    keys, bad, loose = scan_i18n(Path(__file__).resolve().parent.parent)
+    check("F10-4 tr() 키는 문자열 상수", not bad, ", ".join(bad[:5]))
+    for code, table in i18n._TABLES.items():   # pyright: ignore[reportPrivateUsage]  # 사전 목록은 시험만 봄
+        missing = [k for k in keys if k not in table]
+        unused = [k for k in table if k not in keys]
+        fmt = [k for k in keys if k in table and _fields(k) != _fields(table[k])]
+        check(f"F10-4 사전 {code}: 빠진 키·남는 키·{{이름}} 불일치 없음",
+              not (missing or unused or fmt),
+              f"키 {len(keys)}개, 빠짐 {missing[:3]}, 남음 {unused[:3]}, 불일치 {fmt[:3]}")
+    core_n = sum(s.startswith("core/") for s in loose)
+    # shortcut: 감싸기(작업 3·4) 전이라 개수만 알린다. 0개가 되면 실패 조건으로 바꾼다
+    check("tr()·로그 밖 한글 문자열 (기준값)", True,
+          f"core {core_n}개, ui·main.py {len(loose) - core_n}개")
+
+
 def _i18n_cases(check: Callable[[str, bool, str], None]) -> None:
     import core.config as config_mod
     from core import i18n
@@ -2065,6 +2140,7 @@ def _i18n_cases(check: Callable[[str, bool, str], None]) -> None:
         finally:
             config_mod.config_path = saved_path
     check("config: language 없는 파일 → \"system\"", cfg.language == "system", cfg.language)
+    _i18n_key_cases(check)
 
 
 def selftest() -> int:

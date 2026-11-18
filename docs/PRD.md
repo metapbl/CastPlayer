@@ -1,6 +1,6 @@
 # PRD — CastPlayer
 
-Status: approved (2026-11-18) | 단계: 5 확정 | 갱신: 2026-11-18
+Status: approved (2026-11-19) | 단계: 5 확정 | 갱신: 2026-11-19
 <!-- 상태가 approved (YYYY-MM-DD)가 되기 전에는 코드·뼈대·의존성 설치를 하지 않는다. -->
 <!-- 모든 항목 끝에 출처를 단다: [U] 사용자 · [X] 기존 코드·문서 · [AI] AI 기본값. 근거 결정은 (D###). -->
 <!-- [X] 출처 약칭: C = docs/legacy/claude.md, P = docs/legacy/progress.md -->
@@ -23,7 +23,8 @@ Status: approved (2026-11-18) | 단계: 5 확정 | 갱신: 2026-11-18
 - TV와 PC 양쪽 탐색 바가 처음부터 전체 길이를 보이고, TV 리모컨으로 전체 구간 탐색 [X] C §4 (D015)
 - 연결이 끊겼다 다시 연결되면 사용자 조작 없이 그 자리에서 이어 재생 (일시정지 상태 유지) [X] C §4 (D029, D033)
 - 버퍼링을 줄인다: 끊겨도 세션 유지(완료), 조각 전송 계측(완료). 영화 한 편(125.5분) 버퍼링 0회로 성공 기준 통과(2026-10-24), 비트레이트 상한은 하지 않음 [X] C §4 (D034) · [U] (D065)
-- GitHub 공개: README(한국어+영어), LICENSE(MIT, META PUBLIC), 의존성 라이선스 고지, Releases에 exe(onedir zip). zip의 exe 옆에 LICENSE·THIRD_PARTY_NOTICES.md·README.md·README.en.md 동봉. 1.0.0 공개 (2026-10-27, Releases v1.0.0) [U] (D039~D044, D067)
+- GitHub 공개: README, LICENSE(MIT, META PUBLIC), 의존성 라이선스 고지, Releases에 exe(onedir zip). zip의 exe 옆에 LICENSE·THIRD_PARTY_NOTICES.md·README*.md 동봉 [AI] (D087). 1.0.0 공개 (2026-10-27, Releases v1.0.0) [U] (D039~D044, D067)
+- README: metarche readme 표준. `README.md` 영어 기본 + `README.ko.md`·`README.zh-CN.md`·`README.ja.md`·`README.es.md`·`README.ru.md`(AI 번역, 영어판 우선 안내), 맨 위 언어 줄·Shields.io 배지. 스크린샷은 화면 없는 Qt + 가짜 TV 연결로 다크·라이트 자동 생성(`tools/cast_test.py` 옵션, `docs/images/`) [U] (D082, D083) · 위치 [AI] (D088). 맨 위에 작동 장면 GIF 1개(연결 → 파일 열기 → 불러오기 → 재생 중 조작, 같은 방식으로 장면을 찍어 ffmpeg로 묶음, 약 2MB 이하) [U] (D089). 이미지는 English 화면 하나를 6개 README가 같이 씀 [AI] (D089). 확인은 표준 §6 점검 항목 [AI] (D088)
 - 프로그램 아이콘 `assets/cast.ico`를 exe 파일과 창·작업표시줄에 쓴다 [U] (D066)
 - ffmpeg·ffprobe를 프로그램 옆 `bin/` → PATH 순서로 자동으로 찾는다 [U] (D042)
 ### 2.2 있으면 좋음
@@ -31,7 +32,6 @@ Status: approved (2026-11-18) | 단계: 5 확정 | 갱신: 2026-11-18
 ### 2.3 이번에는 안 함
 - PC 화면에서 동영상 재생 [X] C §1
 - ffmpeg 동봉·설치 대행 (README 안내만) [U] (D042)
-- 화면 다국어화 [U] (D040)
 - 비트레이트 상한 옵션 — 장시간 시청에서 버퍼링 0회라 하지 않음. 버퍼링이 다시 잦아지면 O101 설계부터 [U] (D065)
 - 이미지 자막(PGS, VobSub 등) 표시 — "지원 안 함"으로 회색 처리, 자리만 남김 [X] C §4 (D007)
 ### 2.4 반목표 (절대 그렇게 되면 안 되는 동작)
@@ -185,6 +185,19 @@ Status: approved (2026-11-18) | 단계: 5 확정 | 갱신: 2026-11-18
   - F9-8 [사람] 어둡게·밝게 캡처를 보고 정렬·대비 확인 (모양은 자동 대상 아님, §6) [U]
 - 근거: D076
 
+### F10 화면 언어
+- 정상 흐름: 화면 언어 6개 — English, 한국어, 简体中文, 日本語, Español, Русский [U] (D079). 처음에는 Windows 표시 언어를 따르고, 6개에 없으면 English. 중국어는 간체만, 번체 Windows는 English [U] (D080) · [AI] (D086). 옵션 → 언어(맨 위 "시스템 설정 따르기", 각 언어는 자기 이름)로 고르면 다시 켜지 않아도 바로 바뀌고 `config.json`의 `language`에 저장 [U] (D085) · 메뉴 모양 [AI] (D086)
+- 범위: 화면·알림·대화상자. 로그 문구와 콘솔 시험 도구 출력은 번역하지 않음 [U] (D081) · [AI] (D086)
+- 방식: `core/i18n.py`의 `tr()`를 core·ui가 같이 씀. 언어마다 Python 사전 파일 하나, 키는 코드의 한국어 문장(한국어 사전 없음) [U] (D084) · 키 [AI] (D086)
+- 예외: 사전에 없는 문장은 한국어 원문 그대로 보임(자가검사가 막음). 언어를 바꾸기 전에 떠 있던 알림은 그대로, 다음 알림부터 새 언어 [U] (D085)
+- 인수 기준:
+  - F10-1 [자동] Given 언어 설정 "시스템", Windows 표시 언어 일본어 / When 실행 / Then 메뉴와 화면 글자가 일본어 [U]
+  - F10-2 [자동] Given 언어 설정 "시스템", Windows 표시 언어가 6개에 없음(예: 독일어) 또는 번체 중국어 / When 실행 / Then English [U]·[AI]
+  - F10-3 [자동] Given 한국어, 연결됨, 파일 열림 / When 옵션 → 언어 → English / Then 다시 켜지 않아도 모든 위젯 글자·풍선 도움말·메뉴에 한글이 없고 트랙 이름·송출 방식 줄도 영어. 다시 켜도 English [U]
+  - F10-4 [자동] Given 6개 언어 사전 / When 자가검사 / Then 코드의 모든 `tr()` 키가 각 사전에 있고 `{이름}` 자리표시가 원문과 같음 [U]
+  - F10-5 [사람] exe에서 简体中文·日本語·Español·Русский 화면을 보고 글자 깨짐(□)과 버튼 글자 잘림이 없음 (모양은 자동 대상 아님, §6) [AI]
+- 근거: D079~D081, D084~D086
+
 ## 4. 기술 결정
 | 항목 | 선택 | 버린 안 (이유) | 근거 |
 |---|---|---|---|
@@ -197,7 +210,8 @@ Status: approved (2026-11-18) | 단계: 5 확정 | 갱신: 2026-11-18
 | 인코더 | nvenc → qsv → amf → libx264 (실측 amf) | - | D012 [X] |
 | 스레딩 | core는 Qt 비의존·콜백, cast-worker 1개, TaskRunner 1개 | - | D003, D004, D027 [X] |
 | 배포 | PyInstaller onedir, `--windowed` | - | D014 [X] |
-| 공개 | GitHub, MIT, 화면 한국어·README 한/영 | 화면 다국어화 (작업량) | D039, D040 [U] |
+| 공개 | GitHub, MIT, README 영어 기본 + 5개 언어 | README 한국어 기본 (D082) | D039, D040, D082 [U] |
+| 화면 언어 | 자체 사전 `core/i18n.py` `tr()`, 6개 언어, 즉시 적용 | Qt Linguist(core가 Qt 못 씀) / gettext(.mo 단계) | D079, D084, D085 [U] |
 
 ## 5. 비기능 요구
 - 실행 환경: Windows 11 (공식, D040), Python 3.11 이상(개발 환경 3.15.1 .venv). PC와 Chromecast가 같은 서브넷 (개발 환경: PC 유선, TV 5GHz 무선, 같은 사설 서브넷) [X] C §3 (D041 예시값)
@@ -243,3 +257,4 @@ Status: approved (2026-11-18) | 단계: 5 확정 | 갱신: 2026-11-18
 | 2026-11-09 | F9 화면·테마 추가 (Graphite/Paper, 카드 배치, 연결 버튼 하나, 빈 화면·진행 막대, 아이콘, ±이동 버튼, 폴더·창 기억), 인수 기준 F9-1~8 | D076 |
 | 2026-11-18 | F7에 화면 멈춤 감시(로그 기록 중 10초 응답 없음 → 스레드 호출 위치 기록), 인수 기준 F7-10 | D077 |
 | 2026-11-19 | §6 작업 끝 자동 검사 줄 추가 (metarche upgrade U6) | D078 |
+| 2026-11-19 | F10 화면 언어 6개(시스템 따르기, 즉시 적용, 자체 사전) 추가, §2.3 화면 다국어화 삭제, §2.1 README 표준·스크린샷·zip README 구성, §4 공개·화면 언어 줄, README 작동 장면 GIF | D079~D089 |

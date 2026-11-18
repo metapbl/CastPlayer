@@ -14,6 +14,7 @@ Windows PC의 로컬 동영상을 Chromecast with Google TV로 보내는 PySide6
 - 실행: `.venv\Scripts\python main.py -v` (TV 송출 → 실행 전 확인)
 - 전체 테스트 (작업마다, TV 불필요, 15초 이내): `.venv\Scripts\python -m tools.cast_test --selftest --log` (D064, D071)
 - 편집 때 자동 검사: `.claude/hooks/check.ps1`이 실행 (`.venv\Scripts\ruff.exe check` → `pyright`(전역 npm), 설정 `ruff.toml`·`pyrightconfig.json`, D063·D068)
+- 작업 끝 자동 검사: `.claude/hooks/finish.ps1`이 실행 (`.venv\Scripts\python -m tools.cast_test --selftest`, D078)
 - 콘솔 시험: `.venv\Scripts\python -m tools.cast_test "<파일>" -v --log` (TV 송출 → 실행 전 확인)
 - 빌드 (실행 전 확인): `.venv\Scripts\pyinstaller.exe --noconfirm CastPlayer.spec` → `Compress-Archive dist\CastPlayer dist\CastPlayer-<버전>-win64.zip`. zip 전에 `.venv\Scripts\pip-audit -r requirements.lock.txt`를 돌리고(D072), `dist\CastPlayer`의 시험 흔적(`bin`·`logs`·`cache`·`config.json`)이 없어야 한다 (D014·D043·D067)
 
@@ -44,7 +45,7 @@ Windows PC의 로컬 동영상을 Chromecast with Google TV로 보내는 PySide6
 - wrap 때 남은 변경을 `docs:`로 커밋하고, push는 할지 묻는다 (D048)
 - 관련 없는 작업으로 넘어갈 때는 /clear를 제안한다.
 - 새 결정은 `docs/discovery/DECISIONS.md`에, 반복된 실수의 원인은 REFERENCE 함정 대장에 적는다.
-- PRD 변경 중(`상태: changing`)에는 docs/ 밖을 수정하지 않는다 (훅이 막는다).
+- PRD 변경 중(`Status: changing`)에는 docs/ 밖을 수정하지 않는다 (훅이 막는다).
 
 ## 압축 시 보존
 - 압축할 때는 진행 중인 계획 파일 경로, 수정한 파일 목록, 확인 명령, 마지막 실기기 시험 로그 파일 이름을 보존한다.

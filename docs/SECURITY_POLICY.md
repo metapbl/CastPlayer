@@ -1,6 +1,6 @@
 # 보안 정책 — CastPlayer
 
-상태: approved (2026-10-29) | 수준: 기본 | 갱신: 2026-10-29
+Status: approved (2026-10-29) | 수준: 기본 | 갱신: 2026-10-29
 <!-- PRD와 함께 승인한다. 바꾸려면 PRD 변경 절차(discover.md §7)를 따른다. -->
 <!-- 작성 기준은 metarche references/security.md. 항목 끝에 출처 [U]·[X]·[AI]와 근거 D###. -->
 

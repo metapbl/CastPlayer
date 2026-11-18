@@ -1,5 +1,5 @@
 # 의존성 고정·취약점 검사 (D072 후속)
-상태: done (2026-11-02) | 시작: 2026-11-02 | 근거: SECURITY_POLICY §8 (D072)
+Status: done (2026-11-02) | 시작: 2026-11-02 | 근거: SECURITY_POLICY §8 (D072)
 
 목표: `.venv`의 설치 목록이 `requirements.lock.txt`로 커밋되어 있고, `pip-audit`으로 첫 취약점 검사를 해서 결과가 기록되어 있다.
 구조:

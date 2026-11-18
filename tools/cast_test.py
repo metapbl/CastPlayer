@@ -1422,7 +1422,7 @@ def _log_cases(check: Callable[[str, bool, str], None]) -> None:
                 frozen_gui(0.6)
                 file_log.set(False)
                 text = (Path(t) / "logs" / "castplayer.log").read_text(encoding="utf-8")
-                check("D077 로그 기록 중 화면이 멈춤 → 스레드 호출 위치 기록, 제때면 기록 없음",
+                check("F7-10 로그 기록 중 화면이 멈춤 → 스레드 호출 위치 기록, 제때면 기록 없음",
                       quiet and "Timeout" in text and "frozen_gui" in text,
                       f"{quiet}, {len(text.splitlines())}줄")
         finally:

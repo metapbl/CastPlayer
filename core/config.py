@@ -24,6 +24,7 @@ class AppConfig:
     theme: str = "system"                 # 옵션 "테마": system / dark / light (D076)
     last_folder: str = ""                 # 마지막으로 파일을 연 폴더 (D076)
     window_geometry: str = ""             # 창 크기·위치, QWidget.saveGeometry의 base64 (D076)
+    language: str = "system"              # 옵션 "언어": system / en·ko·zh_CN·ja·es·ru (F10, D086)
 
     @classmethod
     def load(cls) -> "AppConfig":

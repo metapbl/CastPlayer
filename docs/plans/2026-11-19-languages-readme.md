@@ -23,9 +23,10 @@ Status: active | 시작: 2026-11-19 | 근거: PRD F10, §2.1 README (D079~D089)
 시험 접점: `tools/cast_test.py --selftest`의 GUI 시험(`_gui()` = 가짜 TV를 붙인 실제 `MainWindow`)과 `core.i18n`의 공개 함수
 
 ## 작업
-- [ ] 1. 번역 틀 — `core/i18n.py` (`tr`·`set_language`·`language`·`pick_language`·`LANGUAGES`), `core/config.py > AppConfig.language`, 빈 `core/lang/*.py` 5개
+- [x] 1. 번역 틀 — `core/i18n.py` (`tr`·`set_language`·`language`·`pick_language`·`LANGUAGES`), `core/config.py > AppConfig.language`, 빈 `core/lang/*.py` 5개
   - 먼저 실패하는 시험: `pick_language(["ja-JP"]) == "ja"`, `["de-DE"]` → `"en"`, `["zh-TW"]`·`["zh-Hant-HK"]` → `"en"`, `["zh-Hans-CN"]`·`["zh-CN"]` → `"zh_CN"`, `["ko-KR"]` → `"ko"`, 빈 목록 → `"en"`. `tr`은 사전에 없으면 키 그대로, `{n}` 채움. config에 `language`가 없던 파일을 읽으면 `"system"`
   - 확인: `.venv\Scripts\python -m tools.cast_test --selftest --log` 전부 통과
+  - 결과: 2026-11-19 통과 — 새 시험 4개 먼저 실패(ImportError) 확인 뒤 구현, 자가검사 88/88, 13.6초. ruff·pyright 0건
 - [ ] 2. 키 검사기 (F10-4 틀) — `tools/cast_test.py`: `core/`·`ui/`·`main.py`를 ast로 읽어 (가) `tr("문자열")`의 키 목록, (나) `tr()`·`log.*` 밖에 있는 한글 문자열 상수 목록을 만든다. (가)의 키가 각 사전에 있는지, 자리표시가 같은지 확인하고, 사전에만 있는 키(안 쓰는 키)를 실패로 본다. (나)는 이 단계에서 개수만 출력 (after: 1)
   - 확인: selftest 통과, (나)의 개수가 출력됨 (감싸기 전 기준값)
 - [ ] 3. 화면 글자 감싸기 (구조 변경, 동작 같음) — `ui/*.py`·`main.py`의 화면 문장을 `tr()`로. 고정 글자(버튼·툴팁·라벨·창 제목)는 `MainWindow._retranslate()`로 옮기고 `__init__`에서 한 번 부름. 메뉴 글자는 `menus.retranslate_menus(acts)`로. `dialogs.py`의 단축키 표는 키만 상수로 두고 설명은 표시할 때 `tr()` (after: 2)

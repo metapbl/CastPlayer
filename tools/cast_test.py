@@ -2030,6 +2030,43 @@ def _gui_cases(check: Callable[[str, bool, str], None]) -> None:
             check(f"GUI {fn.__name__}", False, f"예외: {err!r}")
 
 
+# ===================== 화면 언어 (F10, D079~D086) =====================
+def _i18n_cases(check: Callable[[str, bool, str], None]) -> None:
+    import core.config as config_mod
+    from core import i18n
+    cases = {("ja-JP",): "ja", ("de-DE",): "en", ("zh-TW",): "en", ("zh-Hant-HK",): "en",
+             ("zh-Hans-CN",): "zh_CN", ("zh-CN",): "zh_CN", ("ko-KR",): "ko", (): "en",
+             ("de-DE", "es-ES"): "es"}
+    got = {k: i18n.pick_language(list(k)) for k in cases}
+    check("i18n pick_language: Windows 표시 언어 → 6개 중 하나, 없으면 en (번체는 en)",
+          got == cases, f"{ {k: v for k, v in got.items() if cases[k] != v} }")
+    saved = i18n.language()
+    try:
+        i18n.set_language("en")
+        missing = i18n.tr("사전에 없는 문장 {n}", n=3)
+        i18n.set_language("ko")
+        ko = i18n.tr("{n}초", n=5)
+    finally:
+        i18n.set_language(saved)
+    check("i18n tr: 사전에 없으면 키 그대로, {이름} 채움",
+          missing == "사전에 없는 문장 3" and ko == "5초", f"{missing!r}, {ko!r}")
+    check("i18n LANGUAGES: 6개, 자기 이름",
+          list(i18n.LANGUAGES.items()) == [("en", "English"), ("ko", "한국어"),
+                                           ("zh_CN", "简体中文"), ("ja", "日本語"),
+                                           ("es", "Español"), ("ru", "Русский")],
+          f"{i18n.LANGUAGES}")
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "config.json"
+        path.write_text('{"theme": "dark"}', encoding="utf-8")
+        saved_path = config_mod.config_path
+        config_mod.config_path = lambda: path
+        try:
+            cfg = AppConfig.load()
+        finally:
+            config_mod.config_path = saved_path
+    check("config: language 없는 파일 → \"system\"", cfg.language == "system", cfg.language)
+
+
 def selftest() -> int:
     oks: list[bool] = []
 
@@ -2063,6 +2100,11 @@ def selftest() -> int:
         _plan_style_cases(check)
         print("[자가검사] main.py — GUI 로그 기록 옵션 (D070)")
         _log_cases(check)
+        print("[자가검사] i18n.py — 화면 언어 (F10)")
+        try:
+            _i18n_cases(check)
+        except Exception as err:  # pylint: disable=broad-except
+            check("i18n", False, f"예외: {err!r}")
         print("[자가검사] main_window.py — 화면 없는 창 + 가짜 TV (D071)")
         _gui_cases(check)
     finally:

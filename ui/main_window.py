@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Callable
 from uuid import UUID
 
-from PySide6.QtCore import QByteArray, Qt, QTimer
+from PySide6.QtCore import QByteArray, QLocale, Qt, QTimer
 from PySide6.QtGui import QFont, QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QFrame, QGridLayout,
                                QHBoxLayout, QLabel, QMainWindow, QMessageBox, QProgressBar,
@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QFrame, QGr
 
 from core.cast_manager import CastManager, DeviceInfo, PlaybackState
 from core.config import AppConfig
-from core.i18n import N_, tr
+from core.i18n import N_, set_language, startup_language, tr
 from core.paths import app_dir, cache_dir
 from core.planner import Mode, Plan, PlanError
 from core.player import PlaybackController
@@ -31,7 +31,7 @@ from ui import theme
 from ui.bridge import CastBridge
 from ui.dialogs import (APP_NAME, ask_ip, confirm, show_about, show_formats,
                         show_shortcuts)
-from ui.menus import build_menus
+from ui.menus import build_menus, retranslate_menus
 from ui.tasks import TaskRunner, stop_and_wait
 from ui.widgets import SeekSlider, fmt_time
 
@@ -105,7 +105,7 @@ class MainWindow(QMainWindow):
         self.resize(680, 0)
         self._build_ui()
         self._retranslate()
-        self.acts = build_menus(self, cfg.auto_connect, cfg.log_file, cfg.theme)
+        self.acts = build_menus(self, cfg.auto_connect, cfg.log_file, cfg.theme, cfg.language)
         self._wire()
         if cfg.window_geometry:
             self.restoreGeometry(QByteArray.fromBase64(cfg.window_geometry.encode()))
@@ -371,6 +371,8 @@ class MainWindow(QMainWindow):
         a.auto_connect.toggled.connect(self._set_auto)
         for mode, act in a.themes.items():
             act.triggered.connect(lambda _c=False, m=mode: self._set_theme(m))
+        for code, act in a.languages.items():
+            act.triggered.connect(lambda _c=False, c=code: self._set_language(c))
         theme.notifier.changed.connect(self._restyle)
         a.log_file.toggled.connect(self._toggle_log)
         a.open_logs.triggered.connect(self._open_logs)
@@ -846,6 +848,17 @@ class MainWindow(QMainWindow):
         app = QApplication.instance()
         assert isinstance(app, QApplication)
         theme.apply_theme(app, mode)
+
+    def _set_language(self, setting: str) -> None:
+        """다시 켜지 않고 바로 바꾼다 (D085). 떠 있는 상태줄 알림은 다음 알림부터."""
+        self.cfg.language = setting
+        self.cfg.save()
+        set_language(startup_language(setting, QLocale.system().uiLanguages()))
+        self._retranslate()
+        retranslate_menus(self.acts)
+        self._set_conn(self._conn, self._conn_extra[0], **self._conn_extra[1])   # _update_ui 포함
+        self._fill_tracks()
+        self._show_plan()
 
     def _toggle_log(self, on: bool) -> None:
         err = self._set_log(on)

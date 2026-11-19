@@ -42,9 +42,11 @@ Status: active | 시작: 2026-11-19 | 근거: PRD F10, §2.1 README (D079~D089)
 - [x] 5. 영어 사전 — `core/lang/en.py`에 3·4에서 나온 모든 키 (after: 3, 4)
   - 확인: selftest의 키 검사기가 en에 대해 통과
   - 결과: 2026-11-19 통과 — 사전 en 161/161, 빠짐·남음·자리표시 불일치 0, 자가검사 96/96, 13.6초
-- [ ] 6. 언어 메뉴·감지·즉시 적용 (F10-1·F10-2·F10-3) — `main.py`에서 `cfg.language`가 `system`이면 `QLocale.system().uiLanguages()` → `pick_language`, 아니면 그 값으로 `set_language` (ffmpeg 확인 대화상자보다 먼저). `ui/menus.py`: 옵션 → 언어(맨 위 "시스템 설정 따르기", 6개는 `LANGUAGES`의 자기 이름, 테마처럼 하나만 체크). `MainWindow._set_language(code)`: 저장 → `set_language` → `_retranslate()`·`retranslate_menus()`·`_update_ui`·`_fill_tracks`·`_show_plan`·`_show_sync`·연결 상태 글 다시 그리기 (after: 5)
+- [x] 6. 언어 메뉴·감지·즉시 적용 (F10-1·F10-2·F10-3) — `main.py`에서 `cfg.language`가 `system`이면 `QLocale.system().uiLanguages()` → `pick_language`, 아니면 그 값으로 `set_language` (ffmpeg 확인 대화상자보다 먼저). `ui/menus.py`: 옵션 → 언어(맨 위 "시스템 설정 따르기", 6개는 `LANGUAGES`의 자기 이름, 테마처럼 하나만 체크). `MainWindow._set_language(code)`: 저장 → `set_language` → `_retranslate()`·`retranslate_menus()`·`_update_ui`·`_fill_tracks`·`_show_plan`·`_show_sync`·연결 상태 글 다시 그리기 (after: 5)
   - 먼저 실패하는 시험: F10-3 — `_gui(loaded=True)` 한국어 → 메뉴의 English 실행 → 모든 위젯의 `text()`·`toolTip()`·`windowTitle()`·메뉴 글자·콤보 항목에 한글 없음(기기 이름·파일 이름 같은 데이터 제외), `cfg.language == "en"`, 새로 만든 창(같은 cfg)도 English. F10-1·F10-2 — `main`의 언어 결정 함수에 `["ja-JP"]`·`["de-DE"]`·`["zh-TW"]`를 넣어 `ja`·`en`·`en`, 그 상태로 만든 창의 메뉴 글자가 사전 값과 같음
   - 확인: selftest 통과
+  - 결과: 2026-11-19 통과 — 새 시험(F10-1·2, F10-3) 먼저 실패 확인 뒤 구현. 자가검사 98/98, 14.2초 두 번. F10-3: 영어로 바꾸기 전 한글 글자 48개 → 뒤 0개, 송출 방식 풍선 도움말도 영어, 다시 만든 창도 English
+  - 계획과 다른 점: 언어 결정 함수는 main.py가 아니라 `core.i18n.startup_language`(main·창이 같이 씀). 시험의 기대값 1개(연결 버튼)는 시험 환경에서 기기 목록이 비어 "연결"이 맞아 고침. 언어 메뉴의 각 언어 이름("한국어" 등)은 한글 검사에서 뺌. 새 키 "언어" 1개 → 162개
 - [ ] 7. 4개 언어 사전 (F10-4) — `core/lang/zh_CN.py`·`ja.py`·`es.py`·`ru.py`를 en과 같은 키로 채움 (AI 번역) (after: 5)
   - 확인: selftest의 키 검사기가 5개 사전 모두 통과(누락·남는 키·자리표시 불일치 0). F10-3 시험을 5개 언어 각각으로 돌려 한글 0
 - [ ] 8. 스크린샷·작동 장면 GIF — `tools/cast_test.py --shots` (예시 기기 이름·파일 이름, English). 먼저 화면 없는 Qt(offscreen)가 아이콘 글꼴(Segoe Fluent Icons)과 본문 글꼴을 실제 창과 같게 그리는지 캡처를 보고 판단. 다르면 Windows 기본 플랫폼으로 창을 화면 밖 좌표에 두고 `grab()`. 장면: 미연결 → 연결됨·파일 없음 → 불러오기 진행 막대 → 재생 중 → 탐색 → 음성·자막 바꾸기. ffmpeg로 `docs/images/demo.gif`(팔레트 생성, 약 2MB 이하), 정지 화면 `docs/images/main-dark.png`·`main-light.png` (after: 6)

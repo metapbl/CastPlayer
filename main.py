@@ -17,14 +17,14 @@ import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QLocale, Qt, QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from core.cast_manager import CastManager
 from core.config import AppConfig
 from core.encoders import EncoderDetector
-from core.i18n import tr
+from core.i18n import set_language, startup_language, tr
 from core.media_server import MediaServer
 from core.paths import app_dir, asset_path, bin_dir, ffmpeg_path, ffprobe_path
 from core.player import PlaybackController
@@ -116,6 +116,8 @@ def main() -> int:
     args = ap.parse_args()
 
     cfg = AppConfig.load()
+    # 로그·ffmpeg 안내 문구보다 먼저 (F10, D080)
+    set_language(startup_language(cfg.language, QLocale.system().uiLanguages()))
     file_log, log_error = setup_logging(args.verbose, cfg.log_file, app_dir() / "logs")
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)

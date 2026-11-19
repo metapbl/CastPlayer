@@ -2022,11 +2022,92 @@ def _ui_cases(check: Callable[[str, bool, str], None]) -> None:
           and checked, f"{first}, {light}, 다시 열었을 때 {checked}")
 
 
+def _hangul_texts(w: Any) -> list[str]:
+    """창에 보이는 글자(라벨·버튼·풍선 도움말·콤보 항목·메뉴) 중 한글이 든 것.
+    기기 이름(데이터)과 언어 메뉴의 "한국어"(각 언어 자기 이름, D086)는 뺌."""
+    from PySide6.QtWidgets import QAbstractButton, QComboBox, QLabel, QWidget
+    from core.i18n import LANGUAGES
+    found: list[str] = []
+    for c in [w, *w.findChildren(QWidget)]:
+        texts = [c.toolTip(), c.windowTitle()]
+        if isinstance(c, (QLabel, QAbstractButton)):
+            texts.append(c.text())
+        if isinstance(c, QComboBox) and c is not w.dev_combo:
+            texts += [c.itemText(i) for i in range(c.count())]
+        found += [t for t in texts if _HANGUL.search(t)]
+
+    def walk(menu: Any) -> None:
+        for act in menu.actions():
+            if _HANGUL.search(act.text()) and act.text() not in LANGUAGES.values():
+                found.append(act.text())
+            if act.menu():
+                walk(act.menu())
+    walk(w.menuBar())
+    return found
+
+
+def _lang_cases(check: Callable[[str, bool, str], None]) -> None:
+    """F10-1·F10-2·F10-3: Windows 표시 언어 따르기, 옵션 → 언어로 바로 바뀜."""
+    from core import i18n
+    from core.lang import en, ja
+    got = [main_mod.startup_language("system", tags)
+           for tags in (["ja-JP"], ["de-DE"], ["zh-TW"])] + [main_mod.startup_language("es", ["ja-JP"])]
+    try:
+        i18n.set_language(got[0])
+        w, *_ = _gui()
+        ja_menu = w.acts.open_file.text()
+        _close(w)
+        i18n.set_language(got[1])
+        w, *_ = _gui()
+        en_menu = w.acts.open_file.text()
+        _close(w)
+    finally:
+        i18n.set_language("ko")
+    check("F10-1·F10-2 시스템 언어 ja-JP → ja, de-DE·zh-TW → en, 설정이 es면 es. 그 언어로 메뉴",
+          got == ["ja", "en", "en", "es"] and ja_menu == ja.STRINGS.get("파일 열기…", "파일 열기…")
+          and en_menu == en.STRINGS["파일 열기…"], f"{got}, {ja_menu!r}, {en_menu!r}")
+
+    cfg = AppConfig(auto_connect=False)
+    w, _cm, ctrl, _bridge = _gui(loaded=True, cfg=cfg)
+    try:
+        v = VideoStream(0, "h264", "High", 41, 1920, 1080, "yuv420p", Fraction(24), "avc1")
+        audio = tuple(AudioStream(i + 1, i, "aac", 2, lang, "", i == 0)
+                      for i, lang in enumerate(("ko", "en")))
+        ctrl.info = MediaInfo(Path("selftest.mkv"), "matroska,webm", 6000.0, v, audio, ())
+        ctrl.plan = planner_mod.make_plan(ctrl.info, 0)
+        ctrl.subs = SubtitleSet([
+            SubtitleTrack("ext:selftest.srt", "selftest.srt", "ko", True, (Cue(1.0, 2.0, "x"),),
+                          track_id=1, external=True),
+            SubtitleTrack("emb:3", "#1 PGS", "ko", False, note="지원 안 함")])
+        w._fill_tracks()   # pylint: disable=protected-access
+        w._show_plan()     # pylint: disable=protected-access
+        before = len(_hangul_texts(w))
+        connect_ko = w.btn_connect.text()      # 기기 목록이 비어 "연결"
+        w.acts.languages["en"].trigger()
+        QApplication.processEvents()
+        left = _hangul_texts(w)
+        plan_text, connect = w.plan_label.toolTip(), w.btn_connect.text()
+        _close(w)
+        i18n.set_language("ko")
+        i18n.set_language(main_mod.startup_language(cfg.language, ["ko-KR"]))   # 다시 켠 것처럼
+        w2, *_ = _gui(cfg=cfg)
+        again = (w2.btn_open_big.text(), w2.acts.languages["en"].isChecked())
+        _close(w2)
+    finally:
+        i18n.set_language("ko")
+    check("F10-3 파일 연 상태에서 옵션 → 언어 → English: 다시 켜지 않아도 화면에 한글 없음, 저장·유지",
+          before > 0 and not left and "container conversion" in plan_text
+          and (connect_ko, connect) == ("연결", "Connect") and cfg.language == "en"
+          and again == ("Open file", True),
+          f"전 {before}개, 남음 {left[:5]}, {plan_text!r}, {connect_ko!r}→{connect!r}, "
+          f"{cfg.language}, {again}")
+
+
 def _gui_cases(check: Callable[[str, bool, str], None]) -> None:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")   # 창을 화면에 띄우지 않음
     _app = QApplication.instance() or QApplication([])
     for fn in (_conn_cases, _play_cases, _media_cases, _lost_cases, _log_slow_close_cases,
-               _ui_cases):
+               _ui_cases, _lang_cases):
         try:
             fn(check)
         except Exception as err:  # pylint: disable=broad-except

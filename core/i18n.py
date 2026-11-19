@@ -34,6 +34,11 @@ def language() -> str:
     return _lang
 
 
+def startup_language(setting: str, ui_langs: list[str]) -> str:
+    """옵션 값(system 또는 언어 코드) → 쓸 언어. system이면 Windows 표시 언어를 따른다 (D080)."""
+    return pick_language(ui_langs) if setting == "system" else setting
+
+
 def pick_language(ui_langs: list[str]) -> str:
     """Windows 표시 언어 목록(BCP 47, 선호순) → 지원하는 첫 언어, 없으면 en. 중국어는 간체만 (D086)."""
     for tag in ui_langs:

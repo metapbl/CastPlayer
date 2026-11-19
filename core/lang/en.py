@@ -198,6 +198,7 @@ STRINGS: dict[str, str] = {
     "옵션": "Options",
     "시작 시 마지막 기기 자동 연결": "Connect to the last device at startup",
     "테마": "Theme",
+    "언어": "Language",
     "로그 기록": "Logging",
     "로그 폴더 열기": "Open log folder",
     "캐시 비우기…": "Clear cache…",

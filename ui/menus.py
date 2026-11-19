@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from PySide6.QtGui import QAction, QActionGroup, QKeySequence
 from PySide6.QtWidgets import QMainWindow, QMenu
 
-from core.i18n import N_, tr
+from core.i18n import LANGUAGES, N_, tr
 
 
 @dataclass
@@ -18,6 +18,7 @@ class MenuActions:
     quit: QAction
     auto_connect: QAction
     themes: dict[str, QAction]     # system / dark / light
+    languages: dict[str, QAction]  # system / en·ko·zh_CN·ja·es·ru (F10)
     log_file: QAction
     open_logs: QAction
     clear_cache: QAction
@@ -50,7 +51,7 @@ def _menu(parent, key: str) -> QMenu:
 
 
 def build_menus(win: QMainWindow, auto_connect: bool, log_file: bool,
-                theme: str) -> MenuActions:
+                theme: str, language: str) -> MenuActions:
     bar = win.menuBar()
     _TEXTS.clear()
 
@@ -71,6 +72,17 @@ def build_menus(win: QMainWindow, auto_connect: bool, log_file: bool,
     for key, text in (("system", N_("시스템 설정 따르기")), ("dark", N_("어둡게")),
                       ("light", N_("밝게"))):
         themes[key] = group.addAction(_add(win, t, text, checked=key == theme))
+    lang_menu = _menu(o, N_("언어"))
+    group = QActionGroup(win)
+    languages = {"system": group.addAction(
+        _add(win, lang_menu, N_("시스템 설정 따르기"), checked=language == "system"))}
+    lang_menu.addSeparator()
+    for code, name in LANGUAGES.items():   # 각 언어는 자기 이름 그대로 (번역 안 함)
+        act = QAction(name, win)
+        act.setCheckable(True)
+        act.setChecked(code == language)
+        lang_menu.addAction(act)
+        languages[code] = group.addAction(act)
     o.addSeparator()
     log = _add(win, o, N_("로그 기록"), checked=log_file)
     logs = _add(win, o, N_("로그 폴더 열기"))
@@ -83,8 +95,8 @@ def build_menus(win: QMainWindow, auto_connect: bool, log_file: bool,
     i.addSeparator()
     about = _add(win, i, N_("CastPlayer 정보"))
 
-    acts = MenuActions(open_file, rescan, add_ip, disconnect, quit_, auto, themes, log,
-                       logs, cache, shortcuts, formats, about, list(_TEXTS))
+    acts = MenuActions(open_file, rescan, add_ip, disconnect, quit_, auto, themes, languages,
+                       log, logs, cache, shortcuts, formats, about, list(_TEXTS))
     retranslate_menus(acts)
     return acts
 

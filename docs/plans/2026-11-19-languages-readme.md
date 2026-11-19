@@ -39,8 +39,9 @@ Status: active | 시작: 2026-11-19 | 근거: PRD F10, §2.1 README (D079~D089)
   - (나)가 0개(로그 제외)가 되면 검사기를 "개수 출력"에서 "0개가 아니면 실패"로 바꾼다
   - 결과: 2026-11-19 통과 — 자가검사 96/96, 14.0·14.3초, 기존 시험 기대값 변경 없음. 키 161개, 감싸지 않은 한글 0개를 실패 조건으로 고정
   - 계획과 다른 점: 로그로만 가는 문장(재연결 판정 이유, 내부 자막 오류 등 17줄)은 줄 끝 `# 로그 전용` 표시로 검사에서 뺌. 즉시 적용을 위해 `Plan.reasons`를 (키, 값) 튜플로, 내장 자막 `label`은 "#번호 …"로 두고 `SubtitleTrack.title`이 보여 줄 때 "내장"을 붙임(TV 자막 이름도 같음), 불러오기 단계 이름은 N_ 키로 보내 화면이 번역
-- [ ] 5. 영어 사전 — `core/lang/en.py`에 3·4에서 나온 모든 키 (after: 3, 4)
+- [x] 5. 영어 사전 — `core/lang/en.py`에 3·4에서 나온 모든 키 (after: 3, 4)
   - 확인: selftest의 키 검사기가 en에 대해 통과
+  - 결과: 2026-11-19 통과 — 사전 en 161/161, 빠짐·남음·자리표시 불일치 0, 자가검사 96/96, 13.6초
 - [ ] 6. 언어 메뉴·감지·즉시 적용 (F10-1·F10-2·F10-3) — `main.py`에서 `cfg.language`가 `system`이면 `QLocale.system().uiLanguages()` → `pick_language`, 아니면 그 값으로 `set_language` (ffmpeg 확인 대화상자보다 먼저). `ui/menus.py`: 옵션 → 언어(맨 위 "시스템 설정 따르기", 6개는 `LANGUAGES`의 자기 이름, 테마처럼 하나만 체크). `MainWindow._set_language(code)`: 저장 → `set_language` → `_retranslate()`·`retranslate_menus()`·`_update_ui`·`_fill_tracks`·`_show_plan`·`_show_sync`·연결 상태 글 다시 그리기 (after: 5)
   - 먼저 실패하는 시험: F10-3 — `_gui(loaded=True)` 한국어 → 메뉴의 English 실행 → 모든 위젯의 `text()`·`toolTip()`·`windowTitle()`·메뉴 글자·콤보 항목에 한글 없음(기기 이름·파일 이름 같은 데이터 제외), `cfg.language == "en"`, 새로 만든 창(같은 cfg)도 English. F10-1·F10-2 — `main`의 언어 결정 함수에 `["ja-JP"]`·`["de-DE"]`·`["zh-TW"]`를 넣어 `ja`·`en`·`en`, 그 상태로 만든 창의 메뉴 글자가 사전 값과 같음
   - 확인: selftest 통과

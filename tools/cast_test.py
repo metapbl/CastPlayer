@@ -2111,6 +2111,37 @@ def _lang_cases(check: Callable[[str, bool, str], None]) -> None:
           not any(others.values()), f"{ {k: v[:3] for k, v in others.items() if v} }")
 
 
+def _track_text_cases(check: Callable[[str, bool, str], None]) -> None:
+    """F9-11 (D092, D096): 음성·자막 목록은 사람이 읽는 형태, 트랙 제목은 풍선 도움말."""
+    from core.i18n import N_
+    w, _cm, ctrl, _bridge = _gui(loaded=True)
+    v = VideoStream(0, "h264", "High", 41, 1920, 1080, "yuv420p", Fraction(24), "avc1")
+    audio = (AudioStream(1, 0, "eac3", 6, "kor", "한국어 [Dolby Digital Plus with Dolby Atmos 5.1]", True),
+             AudioStream(2, 1, "aac", 2, "eng", "", False))
+    ctrl.info = MediaInfo(Path("selftest.mkv"), "matroska,webm", 6000.0, v, audio, ())
+    ctrl.plan = planner_mod.make_plan(ctrl.info, 0)
+    cues = lambda n: tuple(Cue(i, i + 0.5, "x") for i in range(n))   # noqa: E731
+    ctrl.subs = SubtitleSet([
+        SubtitleTrack("emb:5", "#5 kor subrip 'x'", "ko", True, cues(2352), track_id=1,
+                      codec="subrip", stream_title="한국어"),
+        SubtitleTrack("ext:a", "selftest.en.srt", "en", True, cues(1342), track_id=2, external=True),
+        SubtitleTrack("emb:6", "#6 kor hdmv_pgs_subtitle", "ko", False, note=N_("지원 안 함"),
+                      codec="hdmv_pgs_subtitle")])
+    w._fill_tracks()   # pylint: disable=protected-access
+    a_texts = [w.audio_combo.itemText(i) for i in range(w.audio_combo.count())]
+    s_texts = [w.sub_combo.itemText(i) for i in range(w.sub_combo.count())]
+    tips = (w.audio_combo.itemData(0, Qt.ItemDataRole.ToolTipRole),
+            w.sub_combo.itemData(1, Qt.ItemDataRole.ToolTipRole))
+    grey = not w.sub_combo.model().item(3).isEnabled()   # pyright: ignore[reportAttributeAccessIssue]
+    _close(w)
+    check("F9-11 음성·자막 목록: 언어 · 형식 · 기본/줄 수, 트랙 제목은 풍선 도움말",
+          a_texts == ["한국어 · Dolby Digital Plus 5.1 · 기본", "영어 · AAC stereo"]
+          and s_texts == ["끄기", "한국어 · 내장 SRT · 2352줄", "영어 · selftest.en.srt · 1342줄",
+                          "한국어 · 내장 PGS · 지원 안 함"]
+          and tips == ("한국어 [Dolby Digital Plus with Dolby Atmos 5.1]", "한국어") and grey,
+          f"{a_texts}, {s_texts}, {tips}, 회색 {grey}")
+
+
 def _layout_cases(check: Callable[[str, bool, str], None]) -> None:
     """F9-9·F9-10 (D091, D094): 미디어 카드 높이는 상태와 무관, 세로로 늘리면 윗칸만 커짐."""
     w, cm, ctrl, bridge = _gui()
@@ -2150,7 +2181,7 @@ def _gui_cases(check: Callable[[str, bool, str], None]) -> None:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")   # 창을 화면에 띄우지 않음
     _app = QApplication.instance() or QApplication([])
     for fn in (_conn_cases, _play_cases, _media_cases, _lost_cases, _log_slow_close_cases,
-               _ui_cases, _lang_cases, _layout_cases):
+               _ui_cases, _lang_cases, _layout_cases, _track_text_cases):
         try:
             fn(check)
         except Exception as err:  # pylint: disable=broad-except

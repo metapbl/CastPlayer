@@ -34,6 +34,7 @@ from ui.dialogs import (APP_NAME, ask_ip, confirm, show_about, show_formats,
                         show_shortcuts)
 from ui.menus import build_menus, retranslate_menus
 from ui.tasks import TaskRunner, stop_and_wait
+from ui.tracks import audio_text, subtitle_text
 from ui.widgets import SeekSlider, fmt_time
 
 _LOGGER = logging.getLogger(__name__)
@@ -491,14 +492,19 @@ class MainWindow(QMainWindow):
         info, plan = self.ctrl.info, self.ctrl.plan
         self.audio_combo.clear()
         for a in info.audio if info else ():
-            self.audio_combo.addItem(a.label, a.order)
+            self.audio_combo.addItem(audio_text(a), a.order)
+            if a.title:                             # 트랙 제목은 풍선 도움말 (D096)
+                self.audio_combo.setItemData(self.audio_combo.count() - 1, a.title,
+                                             Qt.ItemDataRole.ToolTipRole)
         if plan and plan.audio is not None:
             self.audio_combo.setCurrentIndex(plan.audio.order)
         self.sub_combo.clear()
         self.sub_combo.addItem(tr("끄기"), 0)
         subs, cur = self.ctrl.subs, self.ctrl.subtitle
         for n, t in enumerate(subs.tracks if subs else [], 1):
-            self.sub_combo.addItem(t.display, n)
+            self.sub_combo.addItem(subtitle_text(t), n)
+            if t.stream_title:
+                self.sub_combo.setItemData(n, t.stream_title, Qt.ItemDataRole.ToolTipRole)
             if not t.supported:                     # 회색 비활성, 자리만 남김
                 self.sub_combo.model().item(n).setEnabled(False)  # pyright: ignore[reportAttributeAccessIssue]  # 기본 모델은 QStandardItemModel
             if cur is t:

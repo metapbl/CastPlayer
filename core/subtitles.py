@@ -81,6 +81,8 @@ class SubtitleTrack:
     track_id: int = 0            # Cast trackId (지원 트랙만 1부터)
     external: bool = False
     note: str = ""               # N_ 키: 지원 안 함 / 읽기 실패 / 추출 실패 / 비어 있음
+    codec: str = ""              # 내장 자막 형식 (subrip, hdmv_pgs_subtitle …), 화면 표기용
+    stream_title: str = ""       # 파일에 적힌 트랙 제목 (풍선 도움말, D096)
 
     @property
     def title(self) -> str:
@@ -519,14 +521,12 @@ def load_subtitles(info: MediaInfo, on_progress: ProgressFn | None = None) -> Su
         if s.title:
             label += f" '{s.title}'"
         lang, key = norm_lang(s.language), f"emb:{s.index}"
-        if s.codec not in TEXT_SUB_CODECS:
-            tracks.append(SubtitleTrack(key, label, lang, False, note=N_("지원 안 함")))
-        elif s.index not in cues_by_index:
-            tracks.append(SubtitleTrack(key, label, lang, False, note=N_("추출 실패")))
-        elif not cues_by_index[s.index]:
-            tracks.append(SubtitleTrack(key, label, lang, False, note=N_("비어 있음")))
-        else:
-            tracks.append(SubtitleTrack(key, label, lang, True, tuple(cues_by_index[s.index])))
+        note = (N_("지원 안 함") if s.codec not in TEXT_SUB_CODECS
+                else N_("추출 실패") if s.index not in cues_by_index
+                else N_("비어 있음") if not cues_by_index[s.index] else "")
+        tracks.append(SubtitleTrack(key, label, lang, not note,
+                                    () if note else tuple(cues_by_index[s.index]),
+                                    note=note, codec=s.codec, stream_title=s.title))
     next_id = 1
     for t in tracks:
         if t.supported:

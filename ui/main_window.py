@@ -17,7 +17,8 @@ from PySide6.QtCore import QByteArray, QLocale, Qt, QTimer
 from PySide6.QtGui import QFont, QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QFrame, QGridLayout,
                                QHBoxLayout, QLabel, QMainWindow, QMessageBox, QProgressBar,
-                               QPushButton, QSizePolicy, QSlider, QVBoxLayout, QWidget)
+                               QPushButton, QSizePolicy, QSlider, QStackedWidget, QVBoxLayout,
+                               QWidget)
 
 from core.cast_manager import CastManager, DeviceInfo, PlaybackState
 from core.config import AppConfig
@@ -58,6 +59,7 @@ QWidget#root { background: @base; }
 QFrame#card { background: @surface; border: 1px solid @line2; border-radius: 10px; }
 QFrame#drop { border: 1px dashed @faint; border-radius: 8px; }
 QLabel#title { font-size: 15px; font-weight: bold; color: @text; }
+QLabel#title[big="true"] { font-size: 19px; }
 QLabel#sub, QLabel#field, QLabel#drop_icon { color: @muted; }
 QPushButton[icon_btn="true"] { padding: 0; }
 QPushButton#big { border-radius: 20px; }
@@ -128,7 +130,8 @@ class MainWindow(QMainWindow):
         def btn(text: str, tip: str = "", width: int = 96, role: str = "") -> QPushButton:
             b = QPushButton(text)
             b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-            b.setFixedSize(width, H)
+            b.setFixedHeight(H)
+            b.setMinimumWidth(width)          # 글자가 긴 언어에서는 넓어짐 (D095)
             if tip:
                 b.setToolTip(tip)
             if role:
@@ -163,13 +166,13 @@ class MainWindow(QMainWindow):
             c.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
             return c
 
-        def card(parent: QVBoxLayout) -> QVBoxLayout:
+        def card(parent: QVBoxLayout, stretch: int = 0) -> QVBoxLayout:
             f = QFrame()
             f.setObjectName("card")
             v = QVBoxLayout(f)
             v.setContentsMargins(16, 14, 16, 14)
             v.setSpacing(10)
-            parent.addWidget(f)
+            parent.addWidget(f, stretch)
             return v
 
         def hbox(*ws, spacing: int = 8) -> QHBoxLayout:
@@ -196,11 +199,16 @@ class MainWindow(QMainWindow):
         self.dev_combo.setMinimumWidth(160)
         self.btn_rescan = icon("refresh", "")
         self.btn_connect = btn("")
-        card(root).addLayout(hbox(self.conn_label, (self.dev_combo, 1), self.btn_rescan,
-                                  self.btn_connect))
+        dv_card = card(root)
+        dv_card.addLayout(hbox(self.conn_label, (self.dev_combo, 1), self.btn_rescan,
+                               self.btn_connect))
+        self.device_card = dv_card.parentWidget()
 
-        # 미디어: 파일이 없으면 끌어다 놓기 영역, 있으면 이름·방식
-        mv = card(root)
+        # 미디어: 윗칸 한 자리를 끌어다 놓기 영역 / 파일 정보가 번갈아 씀 → 상태와 무관하게 같은
+        # 높이 (D091). 창을 세로로 늘리면 이 윗칸만 커짐 (D094)
+        mv = card(root, 1)
+        self.media_card = mv.parentWidget()
+        self.media_slot = QStackedWidget()
         self.drop = QFrame()
         self.drop.setObjectName("drop")
         dv = QVBoxLayout(self.drop)
@@ -213,10 +221,12 @@ class MainWindow(QMainWindow):
         drop_icon.setFont(f)
         self.drop_hint = label("", "sub", align=center)
         self.btn_open_big = btn("", "Ctrl+O", 112, "primary")
+        dv.addStretch(1)                    # 영역이 커져도 아이콘·안내·버튼은 가운데에 모임
         dv.addWidget(drop_icon)
         dv.addWidget(self.drop_hint)
         dv.addLayout(hbox(None, self.btn_open_big, None))
-        mv.addWidget(self.drop)
+        dv.addStretch(1)
+        self.media_slot.addWidget(self.drop)
 
         self.info_box = QWidget()
         self.file_label = label("", "title")
@@ -233,7 +243,6 @@ class MainWindow(QMainWindow):
         ih.setSpacing(8)
         ih.addLayout(tv, 1)
         ih.addWidget(self.btn_open, 0, Qt.AlignmentFlag.AlignTop)
-        mv.addWidget(self.info_box)
 
         self.load_box = QWidget()
         self.load_stage = label("", "sub")
@@ -244,7 +253,16 @@ class MainWindow(QMainWindow):
         lh.setContentsMargins(0, 0, 0, 0)
         self.load_box.setLayout(lh)
         self.load_box.hide()
-        mv.addWidget(self.load_box)
+        page = QWidget()
+        pv = QVBoxLayout(page)
+        pv.setContentsMargins(0, 0, 0, 0)
+        pv.setSpacing(10)
+        pv.addStretch(1)                    # 창이 클 때 파일 정보를 가운데에 (D096)
+        pv.addWidget(self.info_box)
+        pv.addWidget(self.load_box)
+        pv.addStretch(1)
+        self.media_slot.addWidget(page)
+        mv.addWidget(self.media_slot, 1)
 
         self.pos_label = label("00:00", "sub", 56)
         self.dur_label = label("00:00", "sub", 56, right)
@@ -291,8 +309,9 @@ class MainWindow(QMainWindow):
         g.addWidget(self.lbl_sync, 2, 3)
         g.addLayout(hbox(self.btn_sync_dn, self.sync_label, self.btn_sync_up, spacing=6),
                     2, 4)
-        card(root).addLayout(g)
-        root.addStretch(1)                  # 창을 키워도 카드는 제 높이
+        tr_card = card(root)
+        tr_card.addLayout(g)
+        self.track_card = tr_card.parentWidget()
 
         w = QWidget()
         w.setObjectName("root")
@@ -428,6 +447,11 @@ class MainWindow(QMainWindow):
 
     def resizeEvent(self, e) -> None:
         super().resizeEvent(e)
+        big = self.media_slot.height() >= 2 * self.media_slot.minimumSizeHint().height()
+        if self.file_label.property("big") != big:      # 창이 크면 파일 이름을 조금 크게 (D096)
+            self.file_label.setProperty("big", big)
+            self.file_label.style().unpolish(self.file_label)
+            self.file_label.style().polish(self.file_label)
         self._elide_title()
 
     @property
@@ -441,8 +465,7 @@ class MainWindow(QMainWindow):
         self.btn_open.setEnabled(ok and not busy)
         self.btn_open_big.setEnabled(ok and not busy)
         has_file = loaded or bool(self._title)
-        self.drop.setVisible(not has_file)
-        self.info_box.setVisible(has_file)
+        self.media_slot.setCurrentIndex(1 if has_file else 0)
         self.drop_hint.setText(tr("동영상 파일을 여기에 끌어다 놓으세요") if ok
                                else tr("먼저 기기를 연결하세요"))
         dev = self.cm.device

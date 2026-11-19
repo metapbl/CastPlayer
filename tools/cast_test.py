@@ -2111,11 +2111,46 @@ def _lang_cases(check: Callable[[str, bool, str], None]) -> None:
           not any(others.values()), f"{ {k: v[:3] for k, v in others.items() if v} }")
 
 
+def _layout_cases(check: Callable[[str, bool, str], None]) -> None:
+    """F9-9·F9-10 (D091, D094): 미디어 카드 높이는 상태와 무관, 세로로 늘리면 윗칸만 커짐."""
+    w, cm, ctrl, bridge = _gui()
+    _connect(w, cm, bridge)
+    w.resize(680, 0)
+    QApplication.processEvents()
+    heights = [w.media_card.height()]                     # 파일 없음
+    w._set_title("selftest.mkv")                          # pylint: disable=protected-access
+    w._on_progress("키프레임 분석", 40)                    # pylint: disable=protected-access
+    w._update_ui()                                        # pylint: disable=protected-access
+    QApplication.processEvents()
+    heights.append(w.media_card.height())                 # 불러오는 중
+    w.load_box.hide()
+    ctrl.info = SimpleNamespace(path=Path("selftest.mkv"), duration=6000.0, audio=())
+    w._update_ui()                                        # pylint: disable=protected-access
+    QApplication.processEvents()
+    heights.append(w.media_card.height())                 # 재생 중
+    check("F9-9 파일 없음·불러오는 중·재생 중 미디어 카드 높이 같음",
+          len(set(heights)) == 1, f"{heights}")
+
+    def sizes() -> tuple[int, ...]:
+        QApplication.processEvents()
+        return (w.media_slot.height(), w.device_card.height(), w.track_card.height(),
+                w.btn_play.height(), w.media_card.height())
+
+    w.resize(680, w.minimumSizeHint().height())
+    small = sizes()
+    w.resize(680, w.minimumSizeHint().height() + 200)
+    big = sizes()
+    _close(w)
+    check("F9-10 세로로 200px 늘리면 미디어 카드 윗칸만 +200, 다른 카드·조작줄 그대로",
+          big[0] - small[0] == 200 and big[1:4] == small[1:4] and big[4] - small[4] == 200,
+          f"(윗칸, 기기, 트랙, 재생 버튼, 미디어) {small} → {big}")
+
+
 def _gui_cases(check: Callable[[str, bool, str], None]) -> None:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")   # 창을 화면에 띄우지 않음
     _app = QApplication.instance() or QApplication([])
     for fn in (_conn_cases, _play_cases, _media_cases, _lost_cases, _log_slow_close_cases,
-               _ui_cases, _lang_cases):
+               _ui_cases, _lang_cases, _layout_cases):
         try:
             fn(check)
         except Exception as err:  # pylint: disable=broad-except

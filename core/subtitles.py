@@ -397,6 +397,9 @@ def _run_with_progress(cmd: list[str], duration: float,
             if pct != last:
                 last = pct
                 on_progress(pct)
+    except BaseException:
+        proc.kill()                            # 취소 등: 끝까지 읽지 않고 바로 멈춤 (D099)
+        raise
     finally:
         proc.stdout.close()
         rc = proc.wait()

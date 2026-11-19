@@ -8,6 +8,10 @@ import subprocess
 _LOGGER = logging.getLogger(__name__)
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
+
+class LoadCancelled(Exception):
+    """사용자가 불러오기를 취소함 (D099). 진행 알림(on_progress) 자리에서 던진다."""
+
 if os.name == "nt":
     import ctypes
     from ctypes import wintypes

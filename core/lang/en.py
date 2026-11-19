@@ -227,4 +227,7 @@ STRINGS: dict[str, str] = {
     '기본': 'default',
     '내장 {fmt}': 'embedded {fmt}',
     '{n}줄': '{n} lines',
+    # ---- 불러오기 취소 (F2-10, D099) ----
+    '취소': 'Cancel',
+    '불러오기를 취소했습니다.': 'Loading was cancelled.',
 }

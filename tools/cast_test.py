@@ -2113,6 +2113,37 @@ def _lang_cases(check: Callable[[str, bool, str], None]) -> None:
           not any(others.values()), f"{ {k: v[:3] for k, v in others.items() if v} }")
 
 
+def _cancel_cases(check: Callable[[str, bool, str], None]) -> None:
+    """F2-10 (D099): 불러오는 중 [취소]·Esc → 진행 줄 숨김, 파일 없음 화면, 상태줄 안내."""
+    for how in ("button", "esc"):
+        w, cm, _ctrl, bridge = _gui()
+        _connect(w, cm, bridge)
+        w._set_title("selftest.mkv")                      # pylint: disable=protected-access
+
+        def job():
+            for pct in range(1000):                       # 오래 걸리는 분석 흉내
+                w.tasks.report("키프레임 분석", pct % 100)
+                time.sleep(0.01)
+            return None
+
+        w.tasks.submit("load", job)
+        shown = _wait_for(w.load_box.isVisible)
+        if how == "button":
+            w.btn_cancel.click()
+        else:
+            QTest.keyClick(w, Qt.Key.Key_Escape)
+        _wait_for(lambda: w.tasks.busy is None and not w.load_box.isVisible())
+        state = (shown, w.load_box.isVisible(), w.media_slot.currentIndex(), w.tasks.busy,
+                 w.statusBar().currentMessage())
+        if w.tasks.busy:                               # 취소가 안 들었으면 닫기 확인 창이 뜨지 않게
+            w.tasks.cancel()
+            _wait_for(lambda: w.tasks.busy is None, 15.0)
+        _close(w)
+        check(f"F2-10 불러오는 중 {'[취소]' if how == 'button' else 'Esc'} → 진행 줄 숨김, "
+              "파일 없음 화면, 안내",
+              state == (True, False, 0, None, "불러오기를 취소했습니다."), f"{state}")
+
+
 def _track_text_cases(check: Callable[[str, bool, str], None]) -> None:
     """F9-11 (D092, D096): 음성·자막 목록은 사람이 읽는 형태, 트랙 제목은 풍선 도움말."""
     from core.i18n import N_
@@ -2183,7 +2214,7 @@ def _gui_cases(check: Callable[[str, bool, str], None]) -> None:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")   # 창을 화면에 띄우지 않음
     _app = QApplication.instance() or QApplication([])
     for fn in (_conn_cases, _play_cases, _media_cases, _lost_cases, _log_slow_close_cases,
-               _ui_cases, _lang_cases, _layout_cases, _track_text_cases):
+               _ui_cases, _lang_cases, _layout_cases, _track_text_cases, _cancel_cases):
         try:
             fn(check)
         except Exception as err:  # pylint: disable=broad-except
@@ -2219,6 +2250,27 @@ def _keyframe_index_cases(check: Callable[[str, bool, str], None]) -> None:
               same and len(got["mkv"][0]) == 5, f"{got}")
         check("F2-9 목차 없는 MKV(-live 1) → 목차 읽기 안 함(None) → 전체 읽기로 감",
               got["live"][1] is None and len(got["live"][0]) == 5, f"{got['live']}")
+
+        from core.proc import LoadCancelled
+
+        def cancel(_pct: int) -> None:
+            raise LoadCancelled()
+
+        saved = kf_mod.cache_dir
+        kf_mod.cache_dir = lambda: Path(tmp) / "cache"
+        try:
+            t0 = time.monotonic()
+            try:
+                kf_mod.keyframes(files["live"], 6.0, on_progress=cancel)
+                raised = False
+            except LoadCancelled:
+                raised = True
+            took = time.monotonic() - t0
+        finally:
+            kf_mod.cache_dir = saved
+        check("F2-10 전체 읽기 중 취소 → 취소 예외로 빠지고 캐시 파일 없음",
+              raised and not (Path(tmp) / "cache").exists() and took < 3,
+              f"예외 {raised}, 캐시 {(Path(tmp) / 'cache').exists()}, {took:.2f}초")
 
 
 # ===================== 화면 언어 (F10, D079~D086) =====================

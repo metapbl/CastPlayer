@@ -279,7 +279,8 @@ class MainWindow(QMainWindow):
         self.load_bar = QProgressBar()
         self.load_bar.setRange(0, 100)
         self.load_pct = label("", "sub", 40, right)
-        lh = hbox(self.load_stage, (self.load_bar, 1), self.load_pct)
+        self.btn_cancel = btn("", "Esc", 72)
+        lh = hbox(self.load_stage, (self.load_bar, 1), self.load_pct, self.btn_cancel)
         lh.setContentsMargins(0, 0, 0, 0)
         self.load_box.setLayout(lh)
         self.load_box.hide()
@@ -359,6 +360,7 @@ class MainWindow(QMainWindow):
         self.btn_rescan.setToolTip(tr("기기 다시 찾기 (F5)"))
         self.btn_open_big.setText(tr("파일 열기"))
         self.btn_open.setText(tr("파일 열기"))
+        self.btn_cancel.setText(tr("취소"))
         self.btn_open.setToolTip(tr("Ctrl+O · 끌어다 놓아도 됩니다"))
         self.btn_back.setToolTip(tr("{n}초 뒤로", n=f"{-SEEK_BACK:.0f}"))
         self.btn_play.setToolTip(tr("재생 / 일시정지 (Space)"))
@@ -393,6 +395,8 @@ class MainWindow(QMainWindow):
         self.tasks.progress.connect(self._on_progress)
         self.tasks.succeeded.connect(self._on_task_ok)
         self.tasks.failed.connect(self._on_task_fail)
+        self.tasks.cancelled.connect(self._on_task_cancel)
+        self.btn_cancel.clicked.connect(self.tasks.cancel)
         self.tasks.started.connect(lambda _k: self._update_ui())
 
         self.btn_connect.clicked.connect(self._connect_toggle)
@@ -439,7 +443,8 @@ class MainWindow(QMainWindow):
                         ("Up", lambda: self._vol_step(VOL_STEP)),
                         ("Down", lambda: self._vol_step(-VOL_STEP)),
                         ("M", lambda: self._connected and self.btn_mute.toggle()),
-                        ("S", lambda: self._connected and self._stop())):
+                        ("S", lambda: self._connected and self._stop()),
+                        ("Escape", self.tasks.cancel)):
             QShortcut(QKeySequence(key), self).activated.connect(fn)
 
     # ================= 상태 반영 =================
@@ -740,6 +745,7 @@ class MainWindow(QMainWindow):
             if was_active:
                 stop_and_wait(self.ctrl)
             info = self.ctrl.load(item, on_progress=self.tasks.report)
+            self.tasks.check()                  # 불러오기 직후에 취소했으면 재생하지 않음
             self.ctrl.play(0.0)
             return info
 
@@ -770,6 +776,18 @@ class MainWindow(QMainWindow):
                   else tr("음성 변경 실패: {msg}", msg=msg), error=True)
         if kind == "audio":
             self._fill_tracks()      # 콤보를 원래 트랙으로
+        self._update_ui()
+
+    def _on_task_cancel(self, kind: str) -> None:
+        """하던 작업을 버리고 그 전 상태로 (D099). 불러오기면 파일 열기 전 화면."""
+        self.load_box.hide()
+        if kind == "load":
+            info = self.ctrl.info
+            self._set_title(info.path.name if info else "")
+            self._show_plan()
+        else:
+            self._fill_tracks()      # 콤보를 원래 트랙으로
+        self._msg(tr("불러오기를 취소했습니다."))
         self._update_ui()
 
     # ================= 재생 제어 =================

@@ -12,6 +12,7 @@ from core.i18n import tr
 from core.planner import PlanError
 from core.player import PlaybackController
 from core.probe import ProbeError
+from core.proc import LoadCancelled
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,11 +22,13 @@ class TaskRunner(QObject):
     progress = Signal(str, int)        # 단계 이름, %
     succeeded = Signal(str, object)    # 종류, 결과
     failed = Signal(str, str)          # 종류, 메시지
+    cancelled = Signal(str)            # 종류 (D099)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._q: queue.Queue[tuple[str, Callable[[], Any]]] = queue.Queue()
         self._busy: str | None = None
+        self._cancel = threading.Event()
         threading.Thread(target=self._run, name="ui-task", daemon=True).start()
 
     @property
@@ -38,12 +41,24 @@ class TaskRunner(QObject):
         if self._busy:
             return False
         self._busy = kind
+        self._cancel.clear()
         self._q.put((kind, fn))
         self.started.emit(kind)
         return True
 
+    def cancel(self) -> None:
+        """실행 중인 작업을 멈추게 한다. 다음 진행 알림 자리에서 멈춘다 (D099)."""
+        if self._busy:
+            self._cancel.set()
+
+    def check(self) -> None:
+        """작업 스레드에서: 취소됐으면 LoadCancelled."""
+        if self._cancel.is_set():
+            raise LoadCancelled()
+
     def report(self, stage: str, pct: int) -> None:
-        """PlaybackController의 on_progress로 넘김 (작업 스레드에서 호출됨)."""
+        """PlaybackController의 on_progress로 넘김 (작업 스레드에서 호출됨). 취소됐으면 여기서 멈춤."""
+        self.check()
         self.progress.emit(stage, pct)
 
     def _run(self) -> None:
@@ -51,6 +66,10 @@ class TaskRunner(QObject):
             kind, fn = self._q.get()
             try:
                 result = fn()
+            except LoadCancelled:
+                _LOGGER.info("작업 취소: %s", kind)
+                self._busy = None
+                self.cancelled.emit(kind)
             except (ProbeError, PlanError) as err:
                 self._busy = None
                 self.failed.emit(kind, str(err))

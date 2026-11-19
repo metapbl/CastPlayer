@@ -345,4 +345,7 @@ STRINGS: dict[str, str] = {
     '기본': 'predeterminada',
     '내장 {fmt}': 'integrado {fmt}',
     '{n}줄': '{n} líneas',
+    # ---- 불러오기 취소 (F2-10, D099) ----
+    '취소': 'Cancelar',
+    '불러오기를 취소했습니다.': 'Se canceló la carga.',
 }

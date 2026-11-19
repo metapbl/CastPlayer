@@ -2589,6 +2589,11 @@ def make_shots(out: Path) -> int:
     subs = SubtitleSet([
         SubtitleTrack("ext:a", "Sample Movie (2024).en.srt", "en", True, cue, track_id=1, external=True),
         SubtitleTrack("ext:b", "Sample Movie (2024).ja.srt", "ja", True, cue, track_id=2, external=True)])
+    # 썸네일: 실제 영화 장면 대신 ffmpeg 시험 그림 (저작권 없음, D089)
+    thumb = subprocess.run([str(ffmpeg_path()), "-v", "error", "-f", "lavfi", "-i",
+                            "testsrc2=size=320x180", "-frames:v", "1", "-f", "image2pipe",
+                            "-vcodec", "mjpeg", "-"], capture_output=True, check=True,
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
 
     def window(mode: str) -> tuple[Any, _GuiCM, PlaybackController, CastBridge]:
         theme.apply_theme(app, mode)
@@ -2619,12 +2624,14 @@ def make_shots(out: Path) -> int:
         w.seek.set_position(pos)
         w.pos_label.setText(fmt_time(pos))
         w._update_ui()                      # pylint: disable=protected-access
+        w._show_thumb(thumb)                # pylint: disable=protected-access
 
     shots: list[Any] = []   # QPixmap. 높이가 장면마다 달라 끝에 같은 높이로 맞춤 (다르면 ffmpeg가 장면을 버림)
 
     def fit(w: Any) -> None:
+        """모든 장면을 같은 크기로: 미디어 윗칸이 최소의 2배가 넘어 썸네일이 보이는 높이 (D097)."""
         app.processEvents()
-        w.resize(680, w.minimumSizeHint().height())   # 아래 빈 공간 없이
+        w.resize(680, w.minimumSizeHint().height() + w.media_slot.minimumSizeHint().height() + 20)
         app.processEvents()
 
     def snap(w: Any, repeat: int = 1) -> None:
@@ -2643,8 +2650,8 @@ def make_shots(out: Path) -> int:
     playing(w, cm, ctrl, 754.0)
     w._msg(tr("재생 요청을 보냈습니다."))                         # pylint: disable=protected-access
     snap(w, 2)                                                  # 재생 중
-    playing(w, cm, ctrl, 784.0)
-    snap(w)                                                     # +30초
+    playing(w, cm, ctrl, 764.0)
+    snap(w)                                                     # +10초
     w.audio_combo.setCurrentIndex(1)
     w.sub_combo.setCurrentIndex(2)
     w._msg(tr("음성 트랙을 바꿨습니다."))                         # pylint: disable=protected-access
@@ -2658,7 +2665,7 @@ def make_shots(out: Path) -> int:
     w, cm, ctrl, bridge = window("light")
     cm.device = dev
     bridge.connected.emit(dev)
-    playing(w, cm, ctrl, 784.0)
+    playing(w, cm, ctrl, 764.0)
     w.statusBar().clearMessage()
     fit(w)
     w.grab().save(str(out / "main-light.png"))

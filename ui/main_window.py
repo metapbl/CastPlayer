@@ -267,6 +267,7 @@ class MainWindow(QMainWindow):
         self.plan_label = label("", "sub")
         for lb in (self.file_label, self.plan_label):
             lb.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.plan_label.setWordWrap(True)      # 긴 언어·좁은 창에서 잘리지 않고 다음 줄로
         self.btn_open = btn("")
         tv = QVBoxLayout()
         tv.setSpacing(2)
@@ -515,8 +516,9 @@ class MainWindow(QMainWindow):
             self.thumb_label.hide()
             return
         h = max(60, min(180, self.media_slot.height() - 40))
-        self.thumb_label.setPixmap(self._thumb.scaledToHeight(
-            h, Qt.TransformationMode.SmoothTransformation))
+        w = int(self.media_slot.width() * 0.35)          # 파일 이름·송출 방식 자리를 남김
+        self.thumb_label.setPixmap(self._thumb.scaled(
+            w, h, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         self.thumb_label.show()
 
     def _on_thumb(self, video: str, data: bytes) -> None:

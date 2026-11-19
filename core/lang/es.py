@@ -182,19 +182,19 @@ STRINGS: dict[str, str] = {
     '파일':
         'Archivo',
     '영상 그대로':
-        'vídeo tal cual',
+        'vídeo sin cambios',
     '자막 싱크 {sign} 0.5초 (Shift+클릭: 0.1초)':
         'Sincronía de subtítulos {sign}0,5 s (Mayús+clic: 0,1 s)',
     '{ext} 그대로 보냄':
-        '{ext} enviado tal cual',
+        '{ext} enviado directamente',
     '{ext} → HLS 변환':
         '{ext} → HLS',
     '{ext} → HLS 재인코딩':
         '{ext} → HLS recodificado',
     '음성 그대로':
-        'audio tal cual',
+        'audio sin cambios',
     '음성 AAC 2ch로 변환':
-        'audio convertido a AAC 2ch',
+        'audio convertido a AAC estéreo',
     '기기 다시 찾기 (F5)':
         'Buscar dispositivos de nuevo (F5)',
     'Ctrl+O · 끌어다 놓아도 됩니다':

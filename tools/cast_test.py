@@ -2352,6 +2352,135 @@ def count_buffering(paths: list[str]) -> int:
 
 
 # ===================== 실행 =====================
+# ===================== README 이미지 (D083, D089) =====================
+GIF_MAX = 2_000_000   # 첫 화면이 빨리 열리도록 (D089)
+
+
+def make_shots(out: Path) -> int:
+    """가짜 TV를 붙인 실제 창을 English로 찍어 demo.gif·main-dark.png·main-light.png를 만든다.
+    화면 없는 Qt는 글꼴이 없어 글자가 □로 나오므로 Windows 플랫폼에서 창을 띄우지 않고 찍는다."""
+    from PySide6.QtCore import Qt
+    from core import i18n
+    from core.i18n import N_, tr
+    from ui.widgets import fmt_time
+    app = QApplication.instance() or QApplication([])
+    out.mkdir(parents=True, exist_ok=True)
+    i18n.set_language("en")
+    player_mod.local_ip_for = lambda _host: "192.0.2.2"   # 로그에 실제 PC 주소를 남기지 않음
+    # 예시값만 (D041): 문서용 IP 192.0.2.x
+    dev = DeviceInfo(uuid=uuid4(), name="Living Room TV", model="Chromecast", host="192.0.2.10")
+    v = VideoStream(0, "hevc", "Main 10", 150, 3840, 2160, "yuv420p10le", Fraction(24), "hev1")
+    audio = (AudioStream(1, 0, "eac3", 6, "en", "", True), AudioStream(2, 1, "aac", 2, "ja", "", False))
+    info = MediaInfo(Path("Sample Movie (2024).mkv"), "matroska,webm", 7080.0, v, audio, ())
+    cue = tuple(Cue(i * 5.0, i * 5.0 + 2, "x") for i in range(1342))   # 영화 한 편쯤
+    subs = SubtitleSet([
+        SubtitleTrack("ext:a", "Sample Movie (2024).en.srt", "en", True, cue, track_id=1, external=True),
+        SubtitleTrack("ext:b", "Sample Movie (2024).ja.srt", "ja", True, cue, track_id=2, external=True)])
+
+    def window(mode: str) -> tuple[Any, _GuiCM, PlaybackController, CastBridge]:
+        theme.apply_theme(app, mode)
+        cm, bridge = _GuiCM(), CastBridge()
+        cm.device = dev
+        _cm, ctrl, _ = _fresh(cm, bridge.callbacks)     # 재생 중 상태 (가짜 TV)
+        ctrl.info = None
+        cfg = AppConfig(auto_connect=False)
+        cfg.save = lambda: None
+        w = mw_mod.MainWindow(cfg, cm, ctrl, bridge, set_log=lambda _on: None, log_error=None)
+        w.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen)
+        w.resize(680, 0)
+        w.show()
+        cm.device = None
+        bridge.devices_changed.emit([dev])
+        return w, cm, ctrl, bridge
+
+    def playing(w: Any, cm: _GuiCM, ctrl: PlaybackController, pos: float) -> None:
+        ctrl.info, ctrl.subs = info, subs
+        ctrl.plan = planner_mod.make_plan(info, 0)
+        w.load_box.hide()
+        w.seek.set_duration(info.duration)
+        w.dur_label.setText(fmt_time(info.duration))
+        w._fill_tracks()                    # pylint: disable=protected-access
+        w._show_plan()                      # pylint: disable=protected-access
+        w._state = "PLAYING"                # pylint: disable=protected-access
+        cm.pos = pos
+        w.seek.set_position(pos)
+        w.pos_label.setText(fmt_time(pos))
+        w._update_ui()                      # pylint: disable=protected-access
+
+    shots: list[Any] = []   # QPixmap. 높이가 장면마다 달라 끝에 같은 높이로 맞춤 (다르면 ffmpeg가 장면을 버림)
+
+    def fit(w: Any) -> None:
+        app.processEvents()
+        w.resize(680, w.minimumSizeHint().height())   # 아래 빈 공간 없이
+        app.processEvents()
+
+    def snap(w: Any, repeat: int = 1) -> None:
+        fit(w)
+        shots.extend([w.grab()] * repeat)
+
+    w, cm, ctrl, bridge = window("dark")
+    snap(w)                                                     # 미연결
+    cm.device = dev                                             # 연결된 기기 → 버튼 "Disconnect"
+    bridge.connected.emit(dev)
+    snap(w)                                                     # 연결됨, 파일 없음
+    w._set_title(info.path.name)                                # pylint: disable=protected-access
+    w._on_progress(N_("키프레임 분석"), 40)                      # pylint: disable=protected-access
+    w._update_ui()                                              # pylint: disable=protected-access
+    snap(w)                                                     # 불러오는 중
+    playing(w, cm, ctrl, 754.0)
+    w._msg(tr("재생 요청을 보냈습니다."))                         # pylint: disable=protected-access
+    snap(w, 2)                                                  # 재생 중
+    playing(w, cm, ctrl, 784.0)
+    snap(w)                                                     # +30초
+    w.audio_combo.setCurrentIndex(1)
+    w.sub_combo.setCurrentIndex(2)
+    w._msg(tr("음성 트랙을 바꿨습니다."))                         # pylint: disable=protected-access
+    snap(w, 2)                                                  # 음성·자막 바꿈
+    w.sub_combo.setCurrentIndex(1)
+    w.audio_combo.setCurrentIndex(0)
+    w.statusBar().clearMessage()
+    fit(w)
+    w.grab().save(str(out / "main-dark.png"))
+    _close(w)
+    w, cm, ctrl, bridge = window("light")
+    cm.device = dev
+    bridge.connected.emit(dev)
+    playing(w, cm, ctrl, 784.0)
+    w.statusBar().clearMessage()
+    fit(w)
+    w.grab().save(str(out / "main-light.png"))
+    _close(w)
+    theme.apply_theme(app, "dark")
+
+    from PySide6.QtGui import QImage, QPainter
+    frames: list[Path] = []
+    height = max(p.height() for p in shots)
+    for p in shots:
+        img = QImage(p.width(), height, QImage.Format.Format_RGB32)
+        img.fill(p.toImage().pixelColor(1, p.height() - 1))   # 상태줄 바탕색으로 아래를 채움
+        painter = QPainter(img)
+        painter.drawPixmap(0, 0, p)
+        painter.end()
+        frames.append(out / f"_frame{len(frames):02d}.png")
+        img.save(str(frames[-1]))
+
+    gif = out / "demo.gif"
+    cmd = [str(ffmpeg_path()), "-y", "-loglevel", "error", "-framerate", "0.8",
+           "-i", str(out / "_frame%02d.png"),
+           "-vf", "split[a][b];[a]palettegen=max_colors=64[p];[b][p]paletteuse=dither=none",
+           "-loop", "0", str(gif)]
+    r = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    for f in frames:
+        f.unlink()
+    if r.returncode != 0:
+        print("ffmpeg 실패:", r.stderr.strip())
+        return 1
+    size = gif.stat().st_size
+    print(f"{gif} {size / 1e6:.2f}MB (기준 {GIF_MAX / 1e6:.0f}MB 이하: {'예' if size <= GIF_MAX else '아니요'})")
+    print(out / "main-dark.png", out / "main-light.png", sep="\n")
+    return 0 if size <= GIF_MAX else 1
+
+
 def main() -> int:   # 인자 해석·로그 준비만 하고 본 실행은 run()
     ap = argparse.ArgumentParser()
     ap.add_argument("file", nargs="?")
@@ -2362,6 +2491,8 @@ def main() -> int:   # 인자 해석·로그 준비만 하고 본 실행은 run(
     ap.add_argument("--start", type=float, default=0.0, help="시작 위치(초)")
     ap.add_argument("--selftest", action="store_true", help="TV 없이 끊김·복구 자가검사")
     ap.add_argument("--droptest", action="store_true", help="실기기 연결 끊김 시험 (3장면 자동)")
+    ap.add_argument("--shots", action="store_true",
+                    help="README 스크린샷·작동 장면 GIF를 docs/images/에 만듦 (D083, D089)")
     ap.add_argument("--count-buffering", nargs="*", metavar="로그",
                     help="GUI 로그에서 PLAYING→BUFFERING 횟수 판정 (D050). "
                          "생략 시 logs/castplayer*.log")
@@ -2394,6 +2525,8 @@ def run(args: argparse.Namespace, ap: argparse.ArgumentParser) -> int:
         return selftest()
     if args.count_buffering is not None:
         return count_buffering(args.count_buffering)
+    if args.shots:
+        return make_shots(app_dir() / "docs" / "images")
     if not args.file:
         ap.error("파일을 지정하세요 (또는 --selftest)")
 

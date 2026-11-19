@@ -75,7 +75,7 @@ def _plan_text(plan: Plan, info: MediaInfo) -> str:
         video += f" {float(plan.fps_cap):.0f}fps"
     audio = (tr("음성 없음") if plan.audio is None
              else tr("음성 그대로") if plan.audio_copy else tr("음성 AAC 2ch로 변환"))
-    return " · ".join((how, video, audio))
+    return " | ".join((how, video, audio))   # 가운뎃점은 작은 글씨에서 구분이 안 보임
 
 
 class MainWindow(QMainWindow):
@@ -278,8 +278,8 @@ class MainWindow(QMainWindow):
         g = QGridLayout()
         g.setHorizontalSpacing(10)
         g.setVerticalSpacing(10)
-        self.lbl_audio, self.lbl_sub = label("", "field", 40), label("", "field", 40)
-        self.lbl_scale, self.lbl_sync = label("", "field", 40), label("", "field")
+        self.lbl_audio, self.lbl_sub = label("", "field"), label("", "field")   # 너비는 언어마다 다름
+        self.lbl_scale, self.lbl_sync = label("", "field"), label("", "field")
         g.addWidget(self.lbl_audio, 0, 0)
         g.addWidget(self.audio_combo, 0, 1, 1, 4)
         g.addWidget(self.lbl_sub, 1, 0)

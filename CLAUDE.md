@@ -12,7 +12,7 @@ Windows PC의 로컬 동영상을 Chromecast with Google TV로 보내는 PySide6
 
 ## 명령
 - 실행: `.venv\Scripts\python main.py -v` (TV 송출 → 실행 전 확인)
-- 전체 테스트 (작업마다, TV 불필요, 15초 이내): `.venv\Scripts\python -m tools.cast_test --selftest --log` (D064, D071)
+- 전체 테스트 (작업마다, TV 불필요, 20초 이내): `.venv\Scripts\python -m tools.cast_test --selftest --log` (D064, D071, D104)
 - 편집 때 자동 검사: `.claude/hooks/check.ps1`이 실행 (`.venv\Scripts\ruff.exe check` → `pyright`(전역 npm), 설정 `ruff.toml`·`pyrightconfig.json`, D063·D068)
 - 작업 끝 자동 검사: `.claude/hooks/finish.ps1`이 실행 (`.venv\Scripts\python -m tools.cast_test --selftest`, D078)
 - 콘솔 시험: `.venv\Scripts\python -m tools.cast_test "<파일>" -v --log` (TV 송출 → 실행 전 확인)

@@ -136,7 +136,6 @@ STRINGS: dict[str, str] = {
     "음성 그대로": "audio unchanged",
     "음성 AAC 2ch로 변환": "audio converted to AAC stereo",
     "기기 다시 찾기 (F5)": "Search for devices again (F5)",
-    "Ctrl+O · 끌어다 놓아도 됩니다": "Ctrl+O · or drag and drop",
     "{n}초 뒤로": "Back {n} s",
     "재생 / 일시정지 (Space)": "Play / Pause (Space)",
     "{n}초 앞으로": "Forward {n} s",

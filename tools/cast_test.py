@@ -2249,6 +2249,11 @@ def _layout_cases(check: Callable[[str, bool, str], None]) -> None:
     heights.append(w.media_card.height())                 # 재생 중
     check("F9-9 파일 없음·불러오는 중·재생 중 미디어 카드 높이 같음",
           len(set(heights)) == 1, f"{heights}")
+    from PySide6.QtWidgets import QPushButton
+    shown = [b.text() for b in w.findChildren(QPushButton) if b.isVisible()]
+    check("파일이 열린 화면에 [파일 열기] 버튼 없음, 메뉴 Ctrl+O는 있음 (D105)",
+          "파일 열기" not in shown and w.acts.open_file.shortcut().toString() == "Ctrl+O",
+          f"{shown}")
 
     def sizes() -> tuple[int, ...]:
         QApplication.processEvents()
@@ -2589,11 +2594,8 @@ def make_shots(out: Path) -> int:
     subs = SubtitleSet([
         SubtitleTrack("ext:a", "Sample Movie (2024).en.srt", "en", True, cue, track_id=1, external=True),
         SubtitleTrack("ext:b", "Sample Movie (2024).ja.srt", "ja", True, cue, track_id=2, external=True)])
-    # 썸네일: 실제 영화 장면 대신 ffmpeg 시험 그림 (저작권 없음, D089)
-    thumb = subprocess.run([str(ffmpeg_path()), "-v", "error", "-f", "lavfi", "-i",
-                            "testsrc2=size=320x180", "-frames:v", "1", "-f", "image2pipe",
-                            "-vcodec", "mjpeg", "-"], capture_output=True, check=True,
-                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
+    # 썸네일: 페르메이르 "진주 귀걸이를 한 소녀" (퍼블릭 도메인, D106)
+    thumb = (out / "thumb-sample.jpg").read_bytes()
 
     def window(mode: str) -> tuple[Any, _GuiCM, PlaybackController, CastBridge]:
         theme.apply_theme(app, mode)
@@ -2687,7 +2689,7 @@ def make_shots(out: Path) -> int:
     gif = out / "demo.gif"
     cmd = [str(ffmpeg_path()), "-y", "-loglevel", "error", "-framerate", "0.8",
            "-i", str(out / "_frame%02d.png"),
-           "-vf", "split[a][b];[a]palettegen=max_colors=64[p];[b][p]paletteuse=dither=none",
+           "-vf", "split[a][b];[a]palettegen=max_colors=256[p];[b][p]paletteuse=dither=sierra2_4a",
            "-loop", "0", str(gif)]
     r = subprocess.run(cmd, capture_output=True, text=True, check=False)
     for f in frames:

@@ -268,7 +268,6 @@ class MainWindow(QMainWindow):
         for lb in (self.file_label, self.plan_label):
             lb.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.plan_label.setWordWrap(True)      # 긴 언어·좁은 창에서 잘리지 않고 다음 줄로
-        self.btn_open = btn("")
         tv = QVBoxLayout()
         tv.setSpacing(2)
         tv.addWidget(self.file_label)
@@ -281,7 +280,6 @@ class MainWindow(QMainWindow):
         self._thumb: QPixmap | None = None
         ih.addWidget(self.thumb_label, 0, Qt.AlignmentFlag.AlignVCenter)
         ih.addLayout(tv, 1)
-        ih.addWidget(self.btn_open, 0, Qt.AlignmentFlag.AlignTop)
 
         self.load_box = QWidget()
         self.load_stage = label("", "sub")
@@ -368,9 +366,7 @@ class MainWindow(QMainWindow):
         """고정 글자를 현재 언어로 넣는다. 상태에 따라 바뀌는 글자는 _update_ui 등이 넣는다 (D085)."""
         self.btn_rescan.setToolTip(tr("기기 다시 찾기 (F5)"))
         self.btn_open_big.setText(tr("파일 열기"))
-        self.btn_open.setText(tr("파일 열기"))
         self.btn_cancel.setText(tr("취소"))
-        self.btn_open.setToolTip(tr("Ctrl+O · 끌어다 놓아도 됩니다"))
         self.btn_back.setToolTip(tr("{n}초 뒤로", n=f"{-SEEK_BACK:.0f}"))
         self.btn_play.setToolTip(tr("재생 / 일시정지 (Space)"))
         self.btn_fwd.setToolTip(tr("{n}초 앞으로", n=f"{SEEK_FWD:.0f}"))
@@ -412,7 +408,6 @@ class MainWindow(QMainWindow):
         self.btn_connect.clicked.connect(self._connect_toggle)
         self.dev_combo.currentIndexChanged.connect(lambda _i: self._update_ui())
         self.btn_rescan.clicked.connect(self._rescan)
-        self.btn_open.clicked.connect(self._open_dialog)
         self.btn_open_big.clicked.connect(self._open_dialog)
         self.btn_play.clicked.connect(self._toggle_play)
         self.btn_stop.clicked.connect(self._stop)
@@ -534,7 +529,6 @@ class MainWindow(QMainWindow):
         busy = self.tasks.busy is not None
         loaded = self.ctrl.info is not None
         ok = self._connected
-        self.btn_open.setEnabled(ok and not busy)
         self.btn_open_big.setEnabled(ok and not busy)
         has_file = loaded or bool(self._title)
         self.media_slot.setCurrentIndex(1 if has_file else 0)

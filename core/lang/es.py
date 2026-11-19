@@ -197,8 +197,6 @@ STRINGS: dict[str, str] = {
         'audio convertido a AAC estéreo',
     '기기 다시 찾기 (F5)':
         'Buscar dispositivos de nuevo (F5)',
-    'Ctrl+O · 끌어다 놓아도 됩니다':
-        'Ctrl+O · o arrastre y suelte',
     '{n}초 뒤로':
         'Atrás {n} s',
     '재생 / 일시정지 (Space)':

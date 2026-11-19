@@ -239,10 +239,10 @@ STRINGS: dict[str, str] = {
         'Audio',
     '자막':
         'Subtítulos',
-    '크기':
-        'Tamaño',
-    '싱크':
-        'Sincronía',
+    '자막 크기':
+        'Tamaño de subtítulos',
+    '자막 싱크':
+        'Sincronía de subtítulos',
     '동영상 파일을 여기에 끌어다 놓으세요':
         'Arrastre aquí un archivo de vídeo',
     '먼저 기기를 연결하세요':

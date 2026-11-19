@@ -1970,8 +1970,10 @@ def _ui_cases(check: Callable[[str, bool, str], None]) -> None:
             b.click()
             QTest.qWait(mw_mod.SEEK_COALESCE_MS + 150)
         got += _seeks(lines)
-    check("F9-5 [−10초]·[+30초] → 10초 뒤·30초 앞으로 탐색",
-          got == ["탐색: 90.0초", "탐색: 130.0초"], f"{got}")
+    check("F9-5 [−10초]·[+10초] → 10초 뒤·10초 앞으로 탐색 (D093), 줄 이름 자막 크기·자막 싱크 (D095)",
+          got == ["탐색: 90.0초", "탐색: 110.0초"]
+          and (w.lbl_scale.text(), w.lbl_sync.text()) == ("자막 크기", "자막 싱크"),
+          f"{got}, {w.lbl_scale.text()}, {w.lbl_sync.text()}")
     _close(w)
 
     with tempfile.TemporaryDirectory() as t:

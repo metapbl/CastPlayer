@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import Callable
 from uuid import UUID
 
-from PySide6.QtCore import QByteArray, QLocale, Qt, QTimer
-from PySide6.QtGui import QFont, QKeySequence, QShortcut
+from PySide6.QtCore import QByteArray, QLocale, QRectF, QSize, Qt, QTimer
+from PySide6.QtGui import QColor, QFont, QIcon, QKeySequence, QPainter, QPixmap, QShortcut
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QFrame, QGridLayout,
                                QHBoxLayout, QLabel, QMainWindow, QMessageBox, QProgressBar,
                                QPushButton, QSizePolicy, QSlider, QStackedWidget, QVBoxLayout,
@@ -43,7 +43,7 @@ VIDEO_EXTS = {".mp4", ".m4v", ".mkv", ".avi", ".ts", ".m2ts", ".mov", ".webm", "
 AUTO_HOST_FALLBACK_MS = 8000     # mDNS로 마지막 기기를 못 찾으면 저장된 IP로 검색
 RECONNECT_WINDOW = 30.0          # 끊긴 뒤 같은 UUID를 다시 찾는 시간(초)
 SEEK_STEP, SEEK_COALESCE_MS = 5.0, 300
-SEEK_BACK, SEEK_FWD = -10.0, 30.0   # 화면 버튼 (D076), 키 ←/→는 SEEK_STEP
+SEEK_BACK, SEEK_FWD = -10.0, 10.0   # 화면 버튼 (D093), 키 ←/→는 SEEK_STEP
 VOL_STEP = 5
 
 # 연결 상태: (표시 문구 키, 테마 색 이름)
@@ -53,8 +53,37 @@ ST_NONE, ST_BUSY, ST_OK, ST_LOST = (N_("미연결"), "muted"), (N_("연결 중")
 H = 32                                                     # 버튼·입력 높이 (D076)
 ICON_FONTS = ["Segoe Fluent Icons", "Segoe MDL2 Assets"]   # Windows 11, 없으면 10
 GLYPH = {"play": "", "pause": "", "stop": "", "vol": "",
-         "mute": "", "refresh": "", "back": "", "fwd": "",
+         "mute": "", "refresh": "", "back": "",
          "minus": "", "plus": "", "drop": ""}
+FWD_ICON = 20                                              # 앞으로 10초 아이콘 크기(논리 px)
+
+
+def _fwd_icon() -> QIcon:
+    """글꼴에 "10초 앞으로"가 없어(ED3D는 30초) "10초 뒤로"의 화살표만 좌우로 뒤집고 숫자는
+    그대로 그린다 (D093). 테마 글자색·꺼짐 색으로 두 벌."""
+    app = QApplication.instance()
+    dpr = app.devicePixelRatio() if isinstance(app, QApplication) else 1.0
+    font = QFont()
+    font.setFamilies(ICON_FONTS)
+    font.setPixelSize(14)                                  # 다른 아이콘 버튼과 같은 크기
+    rect, half = QRectF(0, 0, FWD_ICON, FWD_ICON), FWD_ICON / 2
+    icon = QIcon()
+    for mode, name in ((QIcon.Mode.Normal, "text"), (QIcon.Mode.Disabled, "faint")):
+        pm = QPixmap(round(FWD_ICON * dpr), round(FWD_ICON * dpr))
+        pm.setDevicePixelRatio(dpr)
+        pm.fill(Qt.GlobalColor.transparent)
+        p = QPainter(pm)
+        p.setFont(font)
+        p.setPen(QColor(theme.color(name)))
+        p.setClipRect(QRectF(0, half, FWD_ICON, half))     # 아래쪽 숫자 "10"은 그대로
+        p.drawText(rect, Qt.AlignmentFlag.AlignCenter, GLYPH["back"])
+        p.setClipRect(QRectF(0, 0, FWD_ICON, half))        # 위쪽 화살표는 좌우 반전
+        p.translate(FWD_ICON, 0)
+        p.scale(-1, 1)
+        p.drawText(rect, Qt.AlignmentFlag.AlignCenter, GLYPH["back"])
+        p.end()
+        icon.addPixmap(pm, mode)
+    return icon
 QSS = """
 QWidget#root { background: @base; }
 QFrame#card { background: @surface; border: 1px solid @line2; border-radius: 10px; }
@@ -274,7 +303,10 @@ class MainWindow(QMainWindow):
         self.btn_back = icon("back", "")
         self.btn_play = icon("play", "", 40, "primary")
         self.btn_play.setObjectName("big")
-        self.btn_fwd = icon("fwd", "")
+        self.btn_fwd = icon("back", "")
+        self.btn_fwd.setText("")                # 그림은 _fwd_icon (테마가 바뀌면 _restyle이 다시)
+        self.btn_fwd.setIconSize(QSize(FWD_ICON, FWD_ICON))
+        self.btn_fwd.setIcon(_fwd_icon())
         self.btn_stop = icon("stop", "")
         self.btn_mute = icon("vol", "")
         self.btn_mute.setCheckable(True)
@@ -339,7 +371,7 @@ class MainWindow(QMainWindow):
         self.btn_sync_dn.setToolTip(tr(tip, sign="−"))
         self.btn_sync_up.setToolTip(tr(tip, sign="+"))
         for lb, key in ((self.lbl_audio, N_("음성")), (self.lbl_sub, N_("자막")),
-                        (self.lbl_scale, N_("크기")), (self.lbl_sync, N_("싱크"))):
+                        (self.lbl_scale, N_("자막 크기")), (self.lbl_sync, N_("자막 싱크"))):
             lb.setText(tr(key))
         self._show_sync()
 
@@ -433,6 +465,7 @@ class MainWindow(QMainWindow):
     def _restyle(self) -> None:
         """테마가 바뀌면 이 창이 직접 넣은 색을 다시 칠한다."""
         self.setStyleSheet(theme.qss(QSS))
+        self.btn_fwd.setIcon(_fwd_icon())
         self._paint_status()
         self._set_conn(self._conn, self._conn_extra[0], **self._conn_extra[1])
 

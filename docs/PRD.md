@@ -1,6 +1,6 @@
 # PRD — CastPlayer
 
-Status: approved (2026-11-19) | 단계: 5 확정 | 갱신: 2026-11-19
+Status: changing (2026-11-19) | 단계: 5 확정 | 갱신: 2026-11-19
 <!-- 상태가 approved (YYYY-MM-DD)가 되기 전에는 코드·뼈대·의존성 설치를 하지 않는다. -->
 <!-- 모든 항목 끝에 출처를 단다: [U] 사용자 · [X] 기존 코드·문서 · [AI] AI 기본값. 근거 결정은 (D###). -->
 <!-- [X] 출처 약칭: C = docs/legacy/claude.md, P = docs/legacy/progress.md -->

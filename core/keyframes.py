@@ -14,6 +14,7 @@ from collections import deque
 from pathlib import Path
 from typing import Callable
 
+from .i18n import tr
 from .paths import cache_dir, ffprobe_path
 from .proc import NO_WINDOW, bind_to_job
 
@@ -87,7 +88,7 @@ def keyframes(path: Path, duration: float,
         proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE, creationflags=NO_WINDOW)
     except OSError as err:
-        raise KeyframeError(f"ffprobe 실행 실패: {err}") from err
+        raise KeyframeError(tr("ffprobe 실행 실패: {err}", err=err)) from err
     bind_to_job(proc)
     assert proc.stdout is not None   # PIPE로 열었음
     tail: deque[str] = deque(maxlen=5)
@@ -126,16 +127,17 @@ def keyframes(path: Path, duration: float,
         rc = proc.wait()
         drain.join(2)
 
-    err = tail[-1] if tail else f"종료 코드 {rc}"
+    err = tail[-1] if tail else tr("종료 코드 {rc}", rc=rc)
     if not out:
         _LOGGER.error("키프레임 0개. ffprobe 출력 앞부분:\n%s\nstderr:\n%s",
                       "\n".join(samples), "\n".join(tail))
-        raise KeyframeError(f"키프레임 분석 실패: {err}")
+        raise KeyframeError(tr("키프레임 분석 실패: {err}", err=err))
     if rc != 0:
         if duration > 0 and reached < duration * COMPLETE_RATIO:
             _LOGGER.error("ffprobe 오류:\n%s", "\n".join(tail))
             raise KeyframeError(
-                f"키프레임 분석 실패 ({reached:.0f}/{duration:.0f}초에서 중단): {err}")
+                tr("키프레임 분석 실패 ({reached}/{duration}초에서 중단): {err}",
+                   reached=f"{reached:.0f}", duration=f"{duration:.0f}", err=err))
         _LOGGER.warning("ffprobe 종료 코드 %d, %.0f/%.0f초까지 읽어 결과 사용: %s",
                         rc, reached, duration, err)
 

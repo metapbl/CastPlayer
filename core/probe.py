@@ -8,6 +8,7 @@ from dataclasses import dataclass, replace
 from fractions import Fraction
 from pathlib import Path
 
+from .i18n import tr
 from .paths import ffprobe_path
 from .proc import NO_WINDOW
 
@@ -69,7 +70,7 @@ class AudioStream:
         if self.title:
             parts.append(f"'{self.title}'")
         if self.default:
-            parts.append("(기본)")
+            parts.append(tr("(기본)"))
         return " ".join(parts)
 
 
@@ -89,11 +90,11 @@ class SubtitleStream:
 
     @property
     def label(self) -> str:
-        parts = [f"내장#{self.order + 1}", self.language or "und", self.codec]
+        parts = [tr("내장#{n}", n=self.order + 1), self.language or "und", self.codec]
         if self.title:
             parts.append(f"'{self.title}'")
         if self.is_image:
-            parts.append("(지원 안 함)")
+            parts.append(tr("(지원 안 함)"))
         return " ".join(parts)
 
 
@@ -150,13 +151,13 @@ def probe(path: Path, timeout: float = 30.0) -> MediaInfo:
         r = subprocess.run(cmd, capture_output=True, timeout=timeout,
                            creationflags=NO_WINDOW, check=False)
     except (OSError, subprocess.TimeoutExpired) as err:
-        raise ProbeError(f"ffprobe 실행 실패: {err}") from err
+        raise ProbeError(tr("ffprobe 실행 실패: {err}", err=err)) from err
     if r.returncode != 0:
-        raise ProbeError(r.stderr.decode("utf-8", "replace").strip() or "ffprobe 오류")
+        raise ProbeError(r.stderr.decode("utf-8", "replace").strip() or tr("ffprobe 오류"))
     try:
         data = json.loads(r.stdout.decode("utf-8", "replace"))
     except json.JSONDecodeError as err:
-        raise ProbeError("ffprobe 출력 해석 실패") from err
+        raise ProbeError(tr("ffprobe 출력 해석 실패")) from err
 
     fmt = data.get("format", {})
     video = None

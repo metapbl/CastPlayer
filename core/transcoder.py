@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Callable
 
 from .encoders import EncoderProfile
+from .i18n import tr
 from .planner import FULLHD_PIXELS, Plan
 from .proc import NO_WINDOW, bind_to_job
 from .probe import MediaInfo
@@ -64,7 +65,7 @@ def build_args(info: MediaInfo, plan: Plan, start: float,
             args += ["-tag:v", "hvc1"]
     else:
         if encoder is None:
-            raise RuntimeError("재인코딩용 인코더가 없습니다.")
+            raise RuntimeError(tr("재인코딩용 인코더가 없습니다."))
         fps_out = plan.fps_cap or v.fps or 24
         gop = max(1, round(float(fps_out) * 2))
         args += encoder.video_args(maxrate_k(info), gop)
@@ -142,7 +143,7 @@ class FFmpegProcess:
                 _LOGGER.debug("ffmpeg: %s", line)
         rc = self._proc.wait()
         if rc != 0 and not self._killed:
-            msg = tail[-1] if tail else f"종료 코드 {rc}"
+            msg = tail[-1] if tail else tr("종료 코드 {rc}", rc=rc)
             _LOGGER.error("ffmpeg 비정상 종료: %s", "\n".join(tail))
             if self._on_error:
-                self._on_error(f"ffmpeg 오류: {msg}")
+                self._on_error(tr("ffmpeg 오류: {msg}", msg=msg))

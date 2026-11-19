@@ -50,6 +50,8 @@ from pychromecast.socket_client import (
     SocketClient,
 )
 
+from .i18n import N_, tr
+
 _LOGGER = logging.getLogger(__name__)
 
 # 소켓 쓰기는 send_message 한 곳뿐인데 잠금이 없어, cast-worker와 소켓 스레드가 겹쳐 쓰면
@@ -87,7 +89,7 @@ class _StoppedNoiseFilter(logging.Filter):
             return True                       # 다른 오류는 그대로
         if not logging.getLogger(record.name).isEnabledFor(logging.DEBUG):
             return False                      # -v가 아니면 출력하지 않음
-        record.msg = f"{record.getMessage()} → 종료 중 heartbeat 경합 (무시)"
+        record.msg = f"{record.getMessage()} → 종료 중 heartbeat 경합 (무시)"   # 로그 전용
         record.args = None
         record.levelno, record.levelname = logging.DEBUG, "DEBUG"
         record.exc_info = record.exc_text = None
@@ -200,7 +202,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
         self._load_seek: float | None = None
         self._load_lock = threading.Lock()
         # (재생 상태, 바뀐 시각): 상태가 바뀔 때마다 INFO 한 줄 (버퍼링 횟수 판정용)
-        self._play_state: tuple[str, float] = ("없음", time.monotonic())
+        self._play_state: tuple[str, float] = ("없음", time.monotonic())   # 로그 전용
         self._lost_at = 0.0                   # 마지막 LOST 시각 (다시 연결 기한 계산)
         self._vol_lock = threading.Lock()
         self._pending_volume: float | None = None
@@ -325,9 +327,9 @@ class CastManager(MediaStatusListener, CastStatusListener):
             cast = self._cast
             alive, why = False, ""
             if cast is None:
-                why = "연결 없음"
+                why = "연결 없음"   # 로그 전용
             elif lost is None:
-                why = "기억된 요청 없음"
+                why = "기억된 요청 없음"   # 로그 전용
             else:
                 deadline = time.monotonic() + self.READY_WAIT
                 if not self._wait_rx_ready(cast, gen, deadline):
@@ -335,7 +337,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
                 if self._conn_gen == gen:
                     alive, why = self._judge(cast, lost[0], deadline)
                 if alive and cast is not self._cast:
-                    alive, why = False, "그 사이 연결이 바뀜"
+                    alive, why = False, "그 사이 연결이 바뀜"   # 로그 전용
             if self._conn_gen != gen:
                 _LOGGER.info("다시 연결 후 수신기 세션: 판정 보류 (확인 중 다시 끊김) "
                              "→ 다음 연결 때 다시 확인")
@@ -379,7 +381,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
                 try:
                     cast.set_volume_muted(muted, timeout=self.CMD_TIMEOUT)
                 except PyChromecastError as err:
-                    self._cmd_error("음소거", err)
+                    self._cmd_error(N_("음소거"), err)
         self._submit(job)
 
     def position(self) -> float:
@@ -452,11 +454,11 @@ class CastManager(MediaStatusListener, CastStatusListener):
                 job()
             except Exception as err:  # pylint: disable=broad-except
                 _LOGGER.exception("cast 작업 실패")
-                self._error(f"내부 오류: {err}")
+                self._error(tr("내부 오류: {err}", err=err))
 
     def _require(self) -> pychromecast.Chromecast | None:
         if self._cast is None:
-            self._error("연결된 기기가 없습니다.")
+            self._error(tr("연결된 기기가 없습니다."))
         return self._cast
 
     def _error(self, msg: str) -> None:
@@ -464,15 +466,15 @@ class CastManager(MediaStatusListener, CastStatusListener):
             self.cb.on_error(msg)
 
     def _cmd_error(self, what: str, err: PyChromecastError, notify: bool = True) -> None:
-        """명령 실패 처리. 준비 전 오류는 실패가 아니라 "연결 복구 중"으로 안내.
+        """명령 실패 처리. 준비 전 오류는 실패가 아니라 "연결 복구 중"으로 안내. what은 N_ 키.
         notify=False: 준비 전 오류면 로그만 (정지·종료 중처럼 안내가 필요 없을 때)."""
         if isinstance(err, _NOT_READY):
             _LOGGER.info("%s: 연결 복구 중이라 보내지 않음 (%s)", what, type(err).__name__)
             if notify:
-                self._error(f"연결 복구 중이라 {what} 명령을 보내지 못했습니다. "
-                            "잠시 후 다시 시도하세요.")
+                self._error(tr("연결 복구 중이라 {what} 명령을 보내지 못했습니다. "
+                               "잠시 후 다시 시도하세요.", what=tr(what)))
             return
-        self._error(f"{what} 실패: {err}")
+        self._error(tr("{what} 실패: {err}", what=tr(what), err=err))
 
     def _wait_rx_ready(self, cast: pychromecast.Chromecast, gen: int,
                        deadline: float) -> bool:
@@ -492,18 +494,18 @@ class CastManager(MediaStatusListener, CastStatusListener):
             return False, why
         apps = (r.get("status") or {}).get("applications") or []
         if not any(a.get("appId") == APP_MEDIA_RECEIVER for a in apps):
-            return False, "수신 앱 없음"
+            return False, "수신 앱 없음"   # 로그 전용
         r, why = self._ask(cast, cast.media_controller, deadline)
         if r is None:
             return False, why
-        why = "세션 없음"
+        why = "세션 없음"   # 로그 전용
         for s in r.get("status") or []:
             if s.get("playerState") not in _ACTIVE_STATES:
                 continue
             cid = (s.get("media") or {}).get("contentId")
             if cid in (None, req.url):
                 return True, ""
-            why = "다른 주소 재생 중"
+            why = "다른 주소 재생 중"   # 로그 전용
         return False, why
 
     def _ask(self, cast: pychromecast.Chromecast, ctl,
@@ -525,15 +527,15 @@ class CastManager(MediaStatusListener, CastStatusListener):
             except _NOT_READY as err:
                 if (time.monotonic() >= deadline or self._closed
                         or cast is not self._cast):
-                    return None, f"채널 준비 안 됨 ({type(err).__name__})"
+                    return None, f"채널 준비 안 됨 ({type(err).__name__})"   # 로그 전용
                 time.sleep(self.READY_POLL)
                 continue
             except PyChromecastError as err:
-                return None, f"오류 ({err})"
+                return None, f"오류 ({err})"   # 로그 전용
             if not done.wait(self.CMD_TIMEOUT):
-                return None, "응답 없음"
+                return None, "응답 없음"   # 로그 전용
             r = box.get("r")
-            return (r, "") if r is not None else (None, "응답 없음")
+            return (r, "") if r is not None else (None, "응답 없음")   # 로그 전용
 
     def _do_connect(self, uuid: UUID, keep_lost: bool = False) -> None:
         lost = self._lost
@@ -542,7 +544,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
         self._rx_ready.clear()
         ci = self._find_device(uuid)
         if ci is None:
-            self._fail_connect("기기 정보를 찾을 수 없습니다.")
+            self._fail_connect(tr("기기 정보를 찾을 수 없습니다."))
             return
         cast = None
         try:
@@ -555,7 +557,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
                     cast.disconnect(timeout=2)
                 except (PyChromecastError, TimeoutError):
                     pass
-            self._fail_connect(f"연결 실패: {err}")
+            self._fail_connect(tr("연결 실패: {err}", err=err))
             return
 
         cast.register_status_listener(self)
@@ -703,7 +705,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
                     time.sleep(self.READY_POLL)
             self._wait_loaded(cast, old_sid, loaded, box)
         except PyChromecastError as err:
-            self._cmd_error("재생 요청", err)
+            self._cmd_error(N_("재생 요청"), err)
         finally:
             self._load_wait = None
             # 새 세션 없이 끝남(실패·시간 초과·연결 변경) → 유지할 이유 없음
@@ -755,7 +757,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
         try:
             getattr(cast.media_controller, name)(*args, timeout=self.CMD_TIMEOUT)
         except PyChromecastError as err:
-            label = {"pause": "일시정지", "play": "재생", "seek": "이동"}.get(name, name)
+            label = {"pause": N_("일시정지"), "play": N_("재생"), "seek": N_("이동")}.get(name, name)
             self._cmd_error(label, err)
 
     def _do_edit_tracks(self, active: list[int] | None,
@@ -781,10 +783,10 @@ class CastManager(MediaStatusListener, CastStatusListener):
             mc.send_message(msg, inc_session_id=True,
                             callback_function=lambda *_: done.set())
         except PyChromecastError as err:
-            self._cmd_error("자막 설정", err)
+            self._cmd_error(N_("자막 설정"), err)
             return
         if not done.wait(self.CMD_TIMEOUT):
-            self._error("자막 설정 응답 없음")
+            self._error(tr("자막 설정 응답 없음"))
 
     def _do_stop(self) -> None:
         """정지 = 미디어 STOP + 기본 수신 앱 강제 종료."""
@@ -808,7 +810,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
             if cast.app_id in (APP_MEDIA_RECEIVER, None):
                 cast.quit_app(timeout=self.CMD_TIMEOUT)
         except PyChromecastError as err:
-            self._cmd_error("수신 앱 종료", err, notify=False)
+            self._cmd_error(N_("수신 앱 종료"), err, notify=False)
 
     def _do_disconnect(self, quit_app: bool) -> None:
         self._lost = None
@@ -835,7 +837,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
             try:
                 cast.set_volume(level, timeout=self.CMD_TIMEOUT)
             except PyChromecastError as err:
-                self._cmd_error("볼륨 설정", err)
+                self._cmd_error(N_("볼륨 설정"), err)
 
     # ================= 연결 감시 (pychromecast 소켓 스레드에서 호출) =================
     def _on_conn_status(self, cast: pychromecast.Chromecast,
@@ -965,7 +967,7 @@ class CastManager(MediaStatusListener, CastStatusListener):
                 and self._expect_app and not self._failed_fired
                 and req is not None and status.content_id == req.url):
             self._failed_fired = True
-            self._error("TV가 이 영상을 재생하지 못했습니다.")
+            self._error(tr("TV가 이 영상을 재생하지 못했습니다."))
 
     def load_media_failed(self, queue_item_id: int, error_code: int) -> None:
         self._failed_fired = True

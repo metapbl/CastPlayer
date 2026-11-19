@@ -2053,7 +2053,9 @@ def scan_i18n(root: Path) -> tuple[dict[str, str], list[str], list[str]]:
         rel = path.relative_to(root).as_posix()
         if rel in I18N_SKIP:
             continue
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        src = path.read_text(encoding="utf-8")
+        tree = ast.parse(src)
+        lines = src.splitlines()
         skip: set[int] = set()   # tr·로그 호출 안, 문서 문자열, assert 문구, help=
         for node in ast.walk(tree):
             if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant):
@@ -2079,7 +2081,8 @@ def scan_i18n(root: Path) -> tuple[dict[str, str], list[str], list[str]]:
             skip.update(id(n) for n in ast.walk(node))
         for node in ast.walk(tree):
             if (isinstance(node, ast.Constant) and isinstance(node.value, str)
-                    and id(node) not in skip and _HANGUL.search(node.value)):
+                    and id(node) not in skip and _HANGUL.search(node.value)
+                    and "# 로그 전용" not in lines[node.lineno - 1]):   # 로그로만 가는 문장 (D081)
                 loose.append(f"{rel}:{node.lineno} {node.value[:40]!r}")
     return keys, bad, loose
 
@@ -2101,7 +2104,8 @@ def _i18n_key_cases(check: Callable[[str, bool, str], None]) -> None:
             'D = N_("상수")\n'
             'assert c, "단언 문구"\n'
             'ap.add_argument("-v", help="도움말")\n'
-            'e = tr(D)\n', encoding="utf-8")
+            'e = tr(D)\n'
+            'why = "이유"   # 로그 전용\n', encoding="utf-8")
         got = scan_i18n(Path(tmp))
     check("검사기 자체: tr·N_ 키, f-문자열 키, 로그·문서 문자열·assert·help 제외, 감싸지 않은 한글",
           got == ({"열기 {n}": "main.py:2", "상수": "main.py:6"}, ["main.py:3"],
@@ -2117,11 +2121,8 @@ def _i18n_key_cases(check: Callable[[str, bool, str], None]) -> None:
               not (missing or unused or fmt),
               f"키 {len(keys)}개, 번역 {len(table)}개, 빠짐 {missing[:3]}, 남음 {unused[:3]}, "
               f"불일치 {fmt[:3]}")
-    core_n = sum(s.startswith("core/") for s in loose)
-    ui_loose = [s for s in loose if not s.startswith("core/")]
-    check("ui·main.py: tr()·로그 밖 한글 문자열 0개", not ui_loose, ", ".join(ui_loose[:5]))
-    # shortcut: core 감싸기(작업 4) 전이라 개수만 알린다. 0개가 되면 실패 조건으로 바꾼다
-    check("core: tr()·로그 밖 한글 문자열 (기준값)", True, f"{core_n}개")
+    check("tr()·N_·로그 밖 한글 문자열 0개 (로그로만 가면 줄 끝에 '# 로그 전용')", not loose,
+          ", ".join(loose[:5]))
 
 
 def _i18n_cases(check: Callable[[str, bool, str], None]) -> None:

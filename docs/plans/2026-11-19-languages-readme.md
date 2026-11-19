@@ -34,9 +34,11 @@ Status: active | 시작: 2026-11-19 | 근거: PRD F10, §2.1 README (D079~D089)
   - 확인: selftest 통과 (기존 한국어 문장 시험이 바뀌지 않고 통과), (나)에서 `ui/`·`main.py` 0개
   - 결과: 2026-11-19 통과 — 자가검사 97/97, 13.5초, 기존 GUI 시험 기대값 변경 없음. 키 103개. ui·main.py 감싸지 않은 한글 0개를 실패 조건으로 고정
   - 계획과 다른 점: 상수 키는 `core.i18n.N_()`로 표시하고 보일 때 `tr(변수)` (연결 상태·단축키 표·메뉴). 검사기는 변수 키를 허용하고 f-문자열·이어 붙인 키만 막음. 아직 빈 사전은 빠진 키를 세지 않음(작업 5·7에서 엄격). `ui/theme.py`(QSS 주석)·assert 문구·명령줄 help는 검사 대상에서 뺌
-- [ ] 4. core 화면 문장 감싸기 (구조 변경, 동작 같음) — `core/`에서 콜백(`on_error`·`on_connection_failed` 등)으로 가는 문장, 화면에 보이는 예외 문장, `AudioStream.label`·`SubtitleStream.label`·`SubtitleTrack.display`·`Plan.summary`와 `ui/main_window.py > _plan_text`가 쓰는 문장만 `tr()`. 로그만 가는 문장은 그대로 (after: 2)
+- [x] 4. core 화면 문장 감싸기 (구조 변경, 동작 같음) — `core/`에서 콜백(`on_error`·`on_connection_failed` 등)으로 가는 문장, 화면에 보이는 예외 문장, `AudioStream.label`·`SubtitleStream.label`·`SubtitleTrack.display`·`Plan.summary`와 `ui/main_window.py > _plan_text`가 쓰는 문장만 `tr()`. 로그만 가는 문장은 그대로 (after: 2)
   - 확인: selftest 통과, (나)에서 `core/`에 남은 한글 상수는 모두 로그 전용임을 목록으로 보임
   - (나)가 0개(로그 제외)가 되면 검사기를 "개수 출력"에서 "0개가 아니면 실패"로 바꾼다
+  - 결과: 2026-11-19 통과 — 자가검사 96/96, 14.0·14.3초, 기존 시험 기대값 변경 없음. 키 161개, 감싸지 않은 한글 0개를 실패 조건으로 고정
+  - 계획과 다른 점: 로그로만 가는 문장(재연결 판정 이유, 내부 자막 오류 등 17줄)은 줄 끝 `# 로그 전용` 표시로 검사에서 뺌. 즉시 적용을 위해 `Plan.reasons`를 (키, 값) 튜플로, 내장 자막 `label`은 "#번호 …"로 두고 `SubtitleTrack.title`이 보여 줄 때 "내장"을 붙임(TV 자막 이름도 같음), 불러오기 단계 이름은 N_ 키로 보내 화면이 번역
 - [ ] 5. 영어 사전 — `core/lang/en.py`에 3·4에서 나온 모든 키 (after: 3, 4)
   - 확인: selftest의 키 검사기가 en에 대해 통과
 - [ ] 6. 언어 메뉴·감지·즉시 적용 (F10-1·F10-2·F10-3) — `main.py`에서 `cfg.language`가 `system`이면 `QLocale.system().uiLanguages()` → `pick_language`, 아니면 그 값으로 `set_language` (ffmpeg 확인 대화상자보다 먼저). `ui/menus.py`: 옵션 → 언어(맨 위 "시스템 설정 따르기", 6개는 `LANGUAGES`의 자기 이름, 테마처럼 하나만 체크). `MainWindow._set_language(code)`: 저장 → `set_language` → `_retranslate()`·`retranslate_menus()`·`_update_ui`·`_fill_tracks`·`_show_plan`·`_show_sync`·연결 상태 글 다시 그리기 (after: 5)

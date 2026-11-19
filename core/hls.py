@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Callable, Iterator
 
 from .encoders import EncoderProfile
+from .i18n import tr
 from .planner import Plan
 from .probe import MediaInfo, VideoStream
 from .transcoder import FFmpegProcess, build_args, maxrate_k
@@ -340,7 +341,7 @@ class HlsSession:
             self._failures = MAX_FAILURES
             _LOGGER.error("ffmpeg 실행 실패: %s", err)
             if self._on_error:
-                self._on_error(f"ffmpeg 실행 실패: {err}")
+                self._on_error(tr("ffmpeg 실행 실패: {err}", err=err))
             return
         self._proc, self._alive, self._prod_next = proc, True, i
         _LOGGER.info("HLS 생산 시작: 조각 %d/%d (%.3f초)", i, self.tl.count, start)

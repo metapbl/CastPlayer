@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+from .i18n import N_, tr
 from .paths import cache_dir, ffmpeg_path
 from .probe import MediaInfo, SubtitleStream
 from .proc import NO_WINDOW, bind_to_job
@@ -79,12 +80,17 @@ class SubtitleTrack:
     cues: tuple[Cue, ...] = ()
     track_id: int = 0            # Cast trackId (지원 트랙만 1부터)
     external: bool = False
-    note: str = ""               # 지원 안 함 / 읽기 실패 / 추출 실패 / 비어 있음
+    note: str = ""               # N_ 키: 지원 안 함 / 읽기 실패 / 추출 실패 / 비어 있음
+
+    @property
+    def title(self) -> str:
+        """내장 자막 label은 "#번호 …"라 "내장"을 보여 줄 때 붙인다 (D085). TV 자막 이름도 이것."""
+        return self.label if self.external else tr("내장") + self.label
 
     @property
     def display(self) -> str:
-        parts = [self.label, f"({self.language})"]
-        parts.append(f"({self.note})" if self.note else f"{len(self.cues)}개")
+        parts = [self.title, f"({self.language})"]
+        parts.append(f"({tr(self.note)})" if self.note else tr("{n}개", n=len(self.cues)))
         return " ".join(parts)
 
 
@@ -327,7 +333,7 @@ def _external_tracks(video: Path) -> list[SubtitleTrack]:
             if ext in (".smi", ".sami"):
                 classes = parse_smi(text)
                 if not classes:
-                    raise ValueError("자막 없음")
+                    raise ValueError("자막 없음")   # 로그 전용
                 for cls, (lang, _name, cues) in classes.items():
                     tracks.append(SubtitleTrack(
                         key=f"ext:{path.name}:{cls}",
@@ -337,13 +343,13 @@ def _external_tracks(video: Path) -> list[SubtitleTrack]:
                 continue
             cues = parse_ass(text) if ext in (".ass", ".ssa") else parse_timed_text(text)
             if not cues:
-                raise ValueError("자막 없음")
+                raise ValueError("자막 없음")   # 로그 전용
             tracks.append(SubtitleTrack(f"ext:{path.name}", path.name, flang, True,
                                         tuple(cues), external=True))
         except (OSError, ValueError) as err:
             _LOGGER.warning("외부 자막 읽기 실패: %s (%s)", path.name, err)
             tracks.append(SubtitleTrack(f"ext:{path.name}", path.name, flang, False,
-                                        external=True, note="읽기 실패"))
+                                        external=True, note=N_("읽기 실패")))
     return tracks
 
 
@@ -368,7 +374,7 @@ def _run_with_progress(cmd: list[str], duration: float,
         proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE, creationflags=NO_WINDOW)
     except OSError as err:
-        raise SubtitleError(f"ffmpeg 실행 실패: {err}") from err
+        raise SubtitleError(f"ffmpeg 실행 실패: {err}") from err   # 로그 전용
     bind_to_job(proc)
     assert proc.stdout is not None   # PIPE로 열었음
     tail: deque[str] = deque(maxlen=5)
@@ -394,7 +400,7 @@ def _run_with_progress(cmd: list[str], duration: float,
         rc = proc.wait()
         drain.join(2)
     if rc != 0:
-        raise SubtitleError(f"자막 추출 실패: {tail[-1] if tail else f'종료 코드 {rc}'}")
+        raise SubtitleError(f"자막 추출 실패: {tail[-1] if tail else f'종료 코드 {rc}'}")   # 로그 전용
     if on_progress:
         on_progress(100)
 
@@ -405,7 +411,7 @@ def extract_embedded(info: MediaInfo, streams: list[SubtitleStream],
     try:
         cf = _cache_file(info.path)
     except OSError as err:
-        raise SubtitleError(f"파일 정보 읽기 실패: {err}") from err
+        raise SubtitleError(f"파일 정보 읽기 실패: {err}") from err   # 로그 전용
     cached: dict[int, list[Cue]] = {}
     try:
         data = json.loads(cf.read_text(encoding="utf-8"))
@@ -495,7 +501,7 @@ class SubtitleSet:
         """MediaInformation.tracks."""
         return [{"trackId": t.track_id, "type": "TEXT", "subtype": "SUBTITLES",
                  "trackContentId": f"{base_url}/{t.track_id}.vtt",
-                 "trackContentType": VTT_MIME, "name": t.label, "language": t.language}
+                 "trackContentType": VTT_MIME, "name": t.title, "language": t.language}
                 for t in self.supported]
 
 
@@ -509,16 +515,16 @@ def load_subtitles(info: MediaInfo, on_progress: ProgressFn | None = None) -> Su
         except SubtitleError as err:
             _LOGGER.warning("%s", err)
     for s in info.subtitles:
-        label = f"내장#{s.order + 1} {s.language or 'und'} {s.codec}"
+        label = f"#{s.order + 1} {s.language or 'und'} {s.codec}"
         if s.title:
             label += f" '{s.title}'"
         lang, key = norm_lang(s.language), f"emb:{s.index}"
         if s.codec not in TEXT_SUB_CODECS:
-            tracks.append(SubtitleTrack(key, label, lang, False, note="지원 안 함"))
+            tracks.append(SubtitleTrack(key, label, lang, False, note=N_("지원 안 함")))
         elif s.index not in cues_by_index:
-            tracks.append(SubtitleTrack(key, label, lang, False, note="추출 실패"))
+            tracks.append(SubtitleTrack(key, label, lang, False, note=N_("추출 실패")))
         elif not cues_by_index[s.index]:
-            tracks.append(SubtitleTrack(key, label, lang, False, note="비어 있음"))
+            tracks.append(SubtitleTrack(key, label, lang, False, note=N_("비어 있음")))
         else:
             tracks.append(SubtitleTrack(key, label, lang, True, tuple(cues_by_index[s.index])))
     next_id = 1

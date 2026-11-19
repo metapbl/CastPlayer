@@ -17,6 +17,7 @@ from typing import Any, Callable
 
 from .cast_manager import CastCallbacks, CastManager, MediaRequest
 from .encoders import EncoderDetector, EncoderProfile
+from .i18n import N_, tr
 from .hls import (HLS_MEDIA_INFO, HLS_MIME, HlsSession, Timeline, fixed_timeline,
                   keyframe_timeline)
 from .keyframes import KeyframeError, keyframes
@@ -97,7 +98,7 @@ class PlaybackController:
         info = probe(item.path)                       # ProbeError 전파
         plan = make_plan(info, item.audio_stream)     # PlanError 전파
         timeline, encoder = self._prepare(info, plan, None, on_progress)
-        subs = load_subtitles(info, _stage(on_progress, "자막 추출"))
+        subs = load_subtitles(info, _stage(on_progress, N_("자막 추출")))
         if item.subtitle_key is None:
             sub = subs.auto_select()
         elif item.subtitle_key == SUB_OFF:
@@ -119,16 +120,16 @@ class PlaybackController:
         if plan.mode is Mode.DIRECT:
             return timeline, self.encoder
         if info.duration <= 0:
-            raise PlanError("전체 길이를 알 수 없어 HLS로 보낼 수 없습니다.")
+            raise PlanError(tr("전체 길이를 알 수 없어 HLS로 보낼 수 없습니다."))
         if not plan.video_copy:
             encoder = self.detector.get()
             if encoder is None:
-                raise PlanError("사용 가능한 H.264 인코더가 없습니다.")
+                raise PlanError(tr("사용 가능한 H.264 인코더가 없습니다."))
             return timeline or fixed_timeline(info.duration), encoder
         if timeline is None:
             try:
                 kf = keyframes(info.path, info.duration,
-                               _stage(on_progress, "키프레임 분석"))
+                               _stage(on_progress, N_("키프레임 분석")))
             except KeyframeError as err:
                 raise PlanError(str(err)) from err
             timeline = keyframe_timeline(kf, info.duration)
@@ -140,14 +141,14 @@ class PlaybackController:
         새로 송출을 시작하므로 끊김 기억·복구 대기 표시를 지운다."""
         with self._lock:
             if not (self.item and self.info and self.plan):
-                self._error("불러온 파일이 없습니다.")
+                self._error(tr("불러온 파일이 없습니다."))
                 return
             dev = self.cm.device
             if dev is None or not dev.host:
-                self._error("연결된 기기가 없습니다.")
+                self._error(tr("연결된 기기가 없습니다."))
                 return
             if self.plan.mode is not Mode.DIRECT and self.timeline is None:
-                self._error("HLS 준비가 되지 않았습니다.")
+                self._error(tr("HLS 준비가 되지 않았습니다."))
                 return
             self.forget_lost()
             ip = local_ip_for(dev.host)
@@ -238,14 +239,14 @@ class PlaybackController:
         """number: 0=끄기, 1부터=자막 목록 번호. 고를 수 없으면 PlanError."""
         with self._lock:
             if not (self.item and self.subs):
-                raise PlanError("불러온 파일이 없습니다.")
+                raise PlanError(tr("불러온 파일이 없습니다."))
             track = None
             if number != 0:
                 if not 1 <= number <= len(self.subs.tracks):
-                    raise PlanError(f"자막 #{number}이 없습니다.")
+                    raise PlanError(tr("자막 #{n}이 없습니다.", n=number))
                 track = self.subs.tracks[number - 1]
                 if not track.supported:
-                    raise PlanError(f"자막 #{number}은 고를 수 없습니다 ({track.note}).")
+                    raise PlanError(tr("자막 #{n}은 고를 수 없습니다 ({why}).", n=number, why=tr(track.note)))
             self._sub_id = track.track_id if track else None
             self.item.subtitle_key = track.key if track else SUB_OFF
             if self.active:
@@ -259,7 +260,7 @@ class PlaybackController:
         wait > 0이면 마지막 변경 후 wait초 뒤 한 번만 다시 불러옴 (콘솔 0, GUI 1.5)."""
         with self._lock:
             if not (self.subs and self._sub_id):
-                raise PlanError("켜진 자막이 없습니다.")
+                raise PlanError(tr("켜진 자막이 없습니다."))
             new = 0.0 if delta == 0 else self.subs.delay(self._sub_id) + delta
             self.subs.set_delay(self._sub_id, new)
             if self.active:

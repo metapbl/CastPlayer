@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import BinaryIO, Callable, Literal
 from urllib.parse import parse_qs, urlsplit
 
+from .i18n import tr
+
 _LOGGER = logging.getLogger(__name__)
 
 CHUNK = 256 * 1024
@@ -103,7 +105,7 @@ class MediaServer:
         try:
             self._httpd = _Server((self._bind, self.port), _make_handler(self))
         except OSError as err:
-            raise RuntimeError(f"포트 {self.port}를 열 수 없습니다: {err}") from err
+            raise RuntimeError(tr("포트 {port}를 열 수 없습니다: {err}", port=self.port, err=err)) from err
         self._thread = threading.Thread(
             target=self._httpd.serve_forever, kwargs={"poll_interval": 0.5},
             name="media-server", daemon=True,

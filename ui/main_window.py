@@ -682,7 +682,7 @@ class MainWindow(QMainWindow):
         self.tasks.submit("load", job)
 
     def _on_progress(self, stage: str, pct: int) -> None:
-        self.load_stage.setText(stage)
+        self.load_stage.setText(tr(stage))   # core가 N_ 키로 보냄
         self.load_bar.setValue(pct)
         self.load_pct.setText(f"{pct}%")
         self.load_box.show()

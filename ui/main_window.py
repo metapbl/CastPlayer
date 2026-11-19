@@ -8,12 +8,13 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import threading
 import time
 from pathlib import Path
 from typing import Callable
 from uuid import UUID
 
-from PySide6.QtCore import QByteArray, QLocale, QRectF, QSize, Qt, QTimer
+from PySide6.QtCore import QByteArray, QLocale, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QIcon, QKeySequence, QPainter, QPixmap, QShortcut
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QFrame, QGridLayout,
                                QHBoxLayout, QLabel, QMainWindow, QMessageBox, QProgressBar,
@@ -28,6 +29,7 @@ from core.planner import Mode, Plan, PlanError
 from core.player import PlaybackController
 from core.playlist import Playlist, PlaylistItem
 from core.probe import MediaInfo
+from core.thumbs import thumbnail
 from ui import theme
 from ui.bridge import CastBridge
 from ui.dialogs import (APP_NAME, ask_ip, confirm, show_about, show_formats,
@@ -111,6 +113,8 @@ def _plan_text(plan: Plan, info: MediaInfo) -> str:
 
 
 class MainWindow(QMainWindow):
+    thumb_ready = Signal(str, str)     # 영상 경로, 썸네일 경로("" = 실패) — 작업 스레드에서 보냄
+
     def __init__(self, cfg: AppConfig, cm: CastManager, ctrl: PlaybackController,
                  bridge: CastBridge, set_log: Callable[[bool], str | None],
                  log_error: str | None) -> None:
@@ -271,6 +275,10 @@ class MainWindow(QMainWindow):
         ih = QHBoxLayout(self.info_box)
         ih.setContentsMargins(0, 0, 0, 0)
         ih.setSpacing(8)
+        self.thumb_label = QLabel()          # 창이 클 때만 보임 (D097)
+        self.thumb_label.hide()
+        self._thumb: QPixmap | None = None
+        ih.addWidget(self.thumb_label, 0, Qt.AlignmentFlag.AlignVCenter)
         ih.addLayout(tv, 1)
         ih.addWidget(self.btn_open, 0, Qt.AlignmentFlag.AlignTop)
 
@@ -396,6 +404,7 @@ class MainWindow(QMainWindow):
         self.tasks.succeeded.connect(self._on_task_ok)
         self.tasks.failed.connect(self._on_task_fail)
         self.tasks.cancelled.connect(self._on_task_cancel)
+        self.thumb_ready.connect(self._on_thumb)
         self.btn_cancel.clicked.connect(self.tasks.cancel)
         self.tasks.started.connect(lambda _k: self._update_ui())
 
@@ -491,7 +500,29 @@ class MainWindow(QMainWindow):
             self.file_label.setProperty("big", big)
             self.file_label.style().unpolish(self.file_label)
             self.file_label.style().polish(self.file_label)
+        self._fit_thumb(big)
         self._elide_title()
+
+    def _show_thumb(self, path: str) -> None:
+        """썸네일 그림을 바꾼다 ("" = 없음). 보일지는 창 크기로 정함."""
+        pm = QPixmap(path) if path else None
+        self._thumb = pm if pm is not None and not pm.isNull() else None
+        self._fit_thumb(self.media_slot.height() >= 2 * self.media_slot.minimumSizeHint().height())
+
+    def _fit_thumb(self, big: bool) -> None:
+        """윗칸이 최소 높이의 2배 이상일 때만 썸네일을 칸 높이에 맞춰 보인다 (D097)."""
+        if not (big and self._thumb is not None):
+            self.thumb_label.hide()
+            return
+        h = max(60, min(180, self.media_slot.height() - 40))
+        self.thumb_label.setPixmap(self._thumb.scaledToHeight(
+            h, Qt.TransformationMode.SmoothTransformation))
+        self.thumb_label.show()
+
+    def _on_thumb(self, video: str, path: str) -> None:
+        info = self.ctrl.info
+        if info is not None and str(info.path) == video:    # 그사이 다른 파일을 열었으면 버림
+            self._show_thumb(path)
 
     @property
     def _connected(self) -> bool:
@@ -740,6 +771,7 @@ class MainWindow(QMainWindow):
         self.cfg.save()
         self._set_title(path.name)
         self.plan_label.setText("")
+        self._show_thumb("")
 
         def job():
             if was_active:
@@ -765,6 +797,10 @@ class MainWindow(QMainWindow):
             self.dur_label.setText(fmt_time(result.duration))
             self._fill_tracks()
             self._msg(tr("재생 요청을 보냈습니다."))
+            info = result
+            threading.Thread(       # 재생을 기다리게 하지 않음 (D097)
+                target=lambda: self.thumb_ready.emit(str(info.path), str(thumbnail(info) or "")),
+                name="thumb", daemon=True).start()
         elif kind == "audio":
             self._msg(tr("음성 트랙을 바꿨습니다."))
         self._show_plan()

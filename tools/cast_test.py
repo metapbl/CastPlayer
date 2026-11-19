@@ -2113,6 +2113,61 @@ def _lang_cases(check: Callable[[str, bool, str], None]) -> None:
           not any(others.values()), f"{ {k: v[:3] for k, v in others.items() if v} }")
 
 
+def _thumb_cases(check: Callable[[str, bool, str], None]) -> None:
+    """F9-12 (D097, D101): 표지가 있으면 표지, 없으면 10% 지점 장면. 창이 크면 보이고 작으면 숨김."""
+    from PySide6.QtGui import QImage
+    import core.probe as probe_mod
+    import core.thumbs as thumbs_mod
+    run = lambda *a: subprocess.run([str(ffmpeg_path()), "-v", "error", "-y", *a], check=True,  # noqa: E731
+                                    capture_output=True,
+                                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    with tempfile.TemporaryDirectory() as tmp:
+        t = Path(tmp)
+        run("-f", "lavfi", "-i", "color=red:s=64x64", "-frames:v", "1", str(t / "cover.png"))
+        # 앞 0.3초 파랑, 그 뒤 초록 → 10% 지점(0.6초)은 초록
+        scene = "color=blue:s=160x90:d=0.3[a];color=green:s=160x90:d=5.7[b];[a][b]concat"
+        run("-f", "lavfi", "-i", scene, "-c:v", "libx264", "-preset", "ultrafast", str(t / "plain.mkv"))
+        run("-f", "lavfi", "-i", scene, "-i", str(t / "cover.png"), "-map", "0", "-map", "1",
+            "-c:v:0", "libx264", "-preset", "ultrafast", "-c:v:1", "png",
+            "-disposition:v:1", "attached_pic", str(t / "cover.mp4"))
+        saved = thumbs_mod.cache_dir
+        thumbs_mod.cache_dir = lambda: t / "cache"
+        try:
+            got = {}
+            for name in ("plain.mkv", "cover.mp4"):
+                info = probe_mod.probe(t / name)
+                out = thumbs_mod.thumbnail(info)
+                img = QImage(str(out)) if out else QImage()
+                c = img.pixelColor(img.width() // 2, img.height() // 2) if not img.isNull() else None
+                got[name] = (info.cover, img.width(), c.name() if c else None)
+        finally:
+            thumbs_mod.cache_dir = saved
+
+        def tone(hexcol: str | None) -> str:
+            if not hexcol:
+                return "?"
+            r, g, b = (int(hexcol[i:i + 2], 16) for i in (1, 3, 5))
+            return max((r, "red"), (g, "green"), (b, "blue"))[1]
+
+        check("F9-12 표지 있는 MP4 → 표지(빨강), 없는 MKV → 10% 지점 장면(초록), 가로 320px",
+              got["plain.mkv"][0] is None and tone(got["plain.mkv"][2]) == "green"
+              and got["cover.mp4"][0] is not None and tone(got["cover.mp4"][2]) == "red"
+              and got["plain.mkv"][1] == got["cover.mp4"][1] == 320,
+              f"{got}")
+
+        w, *_ = _gui()
+        w._show_thumb(str(t / "cover.png"))                 # pylint: disable=protected-access
+        w._set_title("selftest.mkv")                        # pylint: disable=protected-access
+        w._update_ui()                                      # pylint: disable=protected-access
+        w.resize(680, w.minimumSizeHint().height())
+        small = _wait_for(lambda: not w.thumb_label.isVisible(), 1.0)
+        w.resize(680, w.minimumSizeHint().height() * 3)
+        big = _wait_for(w.thumb_label.isVisible, 1.0)
+        _close(w)
+        check("F9-12 창이 작으면 썸네일 숨김, 윗칸이 최소의 2배 이상이면 보임", small and big,
+              f"작을 때 숨김 {small}, 클 때 보임 {big}")
+
+
 def _cancel_cases(check: Callable[[str, bool, str], None]) -> None:
     """F2-10 (D099): 불러오는 중 [취소]·Esc → 진행 줄 숨김, 파일 없음 화면, 상태줄 안내."""
     for how in ("button", "esc"):
@@ -2214,7 +2269,8 @@ def _gui_cases(check: Callable[[str, bool, str], None]) -> None:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")   # 창을 화면에 띄우지 않음
     _app = QApplication.instance() or QApplication([])
     for fn in (_conn_cases, _play_cases, _media_cases, _lost_cases, _log_slow_close_cases,
-               _ui_cases, _lang_cases, _layout_cases, _track_text_cases, _cancel_cases):
+               _ui_cases, _lang_cases, _layout_cases, _track_text_cases, _cancel_cases,
+               _thumb_cases):
         try:
             fn(check)
         except Exception as err:  # pylint: disable=broad-except

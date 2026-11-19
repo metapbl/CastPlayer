@@ -106,6 +106,7 @@ class MediaInfo:
     video: VideoStream | None
     audio: tuple[AudioStream, ...]
     subtitles: tuple[SubtitleStream, ...]
+    cover: int | None = None      # 표지 그림 스트림 index (attached_pic, 썸네일용 D097)
 
 
 def check_pts_order(path: Path, timeout: float = 15.0) -> bool:
@@ -160,14 +161,16 @@ def probe(path: Path, timeout: float = 30.0) -> MediaInfo:
         raise ProbeError(tr("ffprobe 출력 해석 실패")) from err
 
     fmt = data.get("format", {})
-    video = None
+    video, cover = None, None
     audio: list[AudioStream] = []
     subs: list[SubtitleStream] = []
     for s in data.get("streams", []):
         kind = s.get("codec_type")
         tags = s.get("tags", {}) or {}
         disp = s.get("disposition", {}) or {}
-        if kind == "video" and video is None and not disp.get("attached_pic"):
+        if kind == "video" and disp.get("attached_pic"):
+            cover = s["index"] if cover is None else cover
+        elif kind == "video" and video is None:
             fps = _frac(s.get("avg_frame_rate")) or _frac(s.get("r_frame_rate"))
             video = VideoStream(
                 index=s["index"], codec=s.get("codec_name", ""),
@@ -200,4 +203,4 @@ def probe(path: Path, timeout: float = 30.0) -> MediaInfo:
         duration = 0.0
     return MediaInfo(path=path, format_name=fmt.get("format_name", ""),
                      duration=duration, video=video,
-                     audio=tuple(audio), subtitles=tuple(subs))
+                     audio=tuple(audio), subtitles=tuple(subs), cover=cover)

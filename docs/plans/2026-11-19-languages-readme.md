@@ -1,7 +1,7 @@
-# 화면 언어 6개·README 개편 (F10, D079~D089)
-Status: active | 시작: 2026-11-19 | 근거: PRD F10, §2.1 README (D079~D089)
+# 화면 언어 6개·UI 정리·README 개편 (F10, F9, D079~D096)
+Status: active | 시작: 2026-11-19 | 근거: PRD F10, F9, §2.1 README (D079~D089, UI 정리 D090~D096 2026-11-19 추가)
 
-목표: 화면·알림·대화상자가 English·한국어·简体中文·日本語·Español·Русский로 보이고, 처음에는 Windows 표시 언어를 따르며, 옵션 → 언어로 바꾸면 다시 켜지 않아도 바로 바뀐다. GitHub README가 영어 기본 + 5개 번역이고, 맨 위에 자동 생성한 작동 장면 GIF가 있다. 1.2.0 zip에 README 6개가 들어간다.
+목표: 화면·알림·대화상자가 English·한국어·简体中文·日本語·Español·Русский로 보이고, 처음에는 Windows 표시 언어를 따르며, 옵션 → 언어로 바꾸면 다시 켜지 않아도 바로 바뀐다. GitHub README가 영어 기본 + 5개 번역이고, 맨 위에 자동 생성한 작동 장면 GIF가 있다. 창을 세로로 늘리면 미디어 카드 윗칸만 커지고 상태가 바뀌어도 카드 높이가 같으며, 음성·자막 목록이 사람이 읽는 말로 나온다(UI 정리, D090). 1.2.0 zip에 README 6개가 들어간다.
 구조:
 - `core/i18n.py` (새 파일) — `tr(key, **kw)`, `set_language(code)`, `language()`, `pick_language(ui_langs) -> code`, `LANGUAGES`(코드 → 자기 이름). Qt 비의존
 - `core/lang/en.py`·`zh_CN.py`·`ja.py`·`es.py`·`ru.py` (새 파일) — 각각 `STRINGS: dict[str, str]` (키 = 코드의 한국어 문장)
@@ -14,6 +14,8 @@ Status: active | 시작: 2026-11-19 | 근거: PRD F10, §2.1 README (D079~D089)
 - `tools/cast_test.py` — F10 자가검사, `--shots` (스크린샷·GIF 생성)
 - `README.md`(영어)·`README.ko.md`·`README.zh-CN.md`·`README.ja.md`·`README.es.md`·`README.ru.md`, `docs/images/` — `README.en.md`는 지움
 - `CastPlayer.spec` — zip에 `README*.md` 6개 (D087), `ui/dialogs.py > APP_VERSION` 1.2.0
+- `ui/main_window.py > _build_ui` — 미디어 카드 윗칸을 `QStackedWidget`(끌어다 놓기 / 파일 정보·불러오기 줄)로, 윗칸만 세로로 늘어남, 고정 너비 버튼을 최소 너비로 (UI 정리)
+- `ui/tracks.py` (새 파일) — 음성·자막 목록 글자와 풍선 도움말 (언어 이름 15개·코덱 이름 표, D096)
 전역 제약:
 - 로그 문구(`log.*`)와 콘솔 시험 도구 출력은 `tr()`로 감싸지 않는다 (D081, D086)
 - `tr()`는 표시하는 순간에 부른다. 모듈 수준 상수·기본 인수 안에서 부르지 않는다 (즉시 적용이 깨짐, D085)
@@ -50,21 +52,30 @@ Status: active | 시작: 2026-11-19 | 근거: PRD F10, §2.1 README (D079~D089)
 - [x] 7. 4개 언어 사전 (F10-4) — `core/lang/zh_CN.py`·`ja.py`·`es.py`·`ru.py`를 en과 같은 키로 채움 (AI 번역) (after: 5)
   - 확인: selftest의 키 검사기가 5개 사전 모두 통과(누락·남는 키·자리표시 불일치 0). F10-3 시험을 5개 언어 각각으로 돌려 한글 0
   - 결과: 2026-11-19 통과 — 5개 사전 모두 162/162, 누락·남음·자리표시 불일치 0. F10-3 영어 + 4개 언어 화면 한글 0. 자가검사 99/99, 14.0초. 4개 사전은 영어판과 같은 순서의 표 하나에서 만들고 줄마다 영어 앞부분이 맞는지 확인함
-- [ ] 8. 스크린샷·작동 장면 GIF — `tools/cast_test.py --shots` (예시 기기 이름·파일 이름, English). 먼저 화면 없는 Qt(offscreen)가 아이콘 글꼴(Segoe Fluent Icons)과 본문 글꼴을 실제 창과 같게 그리는지 캡처를 보고 판단. 다르면 Windows 기본 플랫폼으로 창을 화면 밖 좌표에 두고 `grab()`. 장면: 미연결 → 연결됨·파일 없음 → 불러오기 진행 막대 → 재생 중 → 탐색 → 음성·자막 바꾸기. ffmpeg로 `docs/images/demo.gif`(팔레트 생성, 약 2MB 이하), 정지 화면 `docs/images/main-dark.png`·`main-light.png` (after: 6)
+- [ ] 8. 미디어 카드 배치 (F9-9·F9-10) — `ui/main_window.py > _build_ui`: 윗칸을 `QStackedWidget`(0: 끌어다 놓기 영역, 1: 파일 이름·송출 방식 + 불러오기 진행 줄)로 묶어 세 상태 높이를 같게 하고, 미디어 카드에서 윗칸만 세로로 늘어나게(`root.addStretch` 제거). 최소 높이는 지금 창, 너비는 레이아웃 최소 너비(고정 너비 버튼 `setFixedSize` → 높이만 고정·너비는 최소값, 글자가 길면 넓어짐). 창이 클 때 파일 정보는 윗칸 가운데, 파일 이름 조금 크게 (after: 7)
+  - 먼저 실패하는 시험: F9-9 — `_gui()` 연결·파일 없음 → 불러오는 중(`_on_progress`) → 재생 중에서 미디어 카드 `height()`가 같음. F9-10 — 최소 크기에서 창을 세로로 200px 늘리면 윗칸 높이 +200, 기기·트랙 카드·조작줄 높이 그대로
+  - 확인: selftest 통과 (F9-3·F9-4 등 기존 시험 그대로)
+- [ ] 9. 트랙 목록 표기 (F9-11) — 새 `ui/tracks.py`의 `audio_text`·`subtitle_text`·`track_tip`, `ui/main_window.py > _fill_tracks`가 씀(항목 풍선 도움말 = 트랙 제목). 언어 이름 15개·"언어 정보 없음"·형식 문장은 N_ 키로 6개 사전에 추가. 코덱 이름·채널 표는 번역하지 않는 상수 (after: 7)
+  - 먼저 실패하는 시험: F9-11 — D096 예시(음성 eac3 6ch kor 기본 제목 있음 / aac 2ch eng, 자막 내장 subrip ko 2352줄 / 외부 srt en / 내장 PGS)를 넣으면 목록이 "한국어 · Dolby Digital Plus 5.1 · 기본", "English · AAC stereo", "한국어 · 내장 SRT · 2352줄", "English · {파일 이름} · 1342줄", "한국어 · 내장 PGS · 지원 안 함"(회색)이고 첫 음성의 풍선 도움말이 트랙 제목
+  - 확인: selftest 통과, 키 검사기 6개 사전 모두 통과
+- [ ] 10. 앞뒤 10초·자막 줄 이름 — `ui/main_window.py`의 `SEEK_FWD` 30 → 10, 줄 이름 "크기"·"싱크" → "자막 크기"·"자막 싱크"(6개 사전 키 바꿈) (after: 8)
+  - 먼저 고치는 시험: F9-5 기대값을 +10초로 (PRD 변경 D093에 따른 기대값 변경)
+  - 확인: selftest 통과
+- [ ] 11. 스크린샷·작동 장면 GIF — `tools/cast_test.py --shots` (예시 기기 이름·파일 이름, English). 먼저 화면 없는 Qt(offscreen)가 아이콘 글꼴(Segoe Fluent Icons)과 본문 글꼴을 실제 창과 같게 그리는지 캡처를 보고 판단. 다르면 Windows 기본 플랫폼으로 창을 화면 밖 좌표에 두고 `grab()`. 장면: 미연결 → 연결됨·파일 없음 → 불러오기 진행 막대 → 재생 중 → 탐색 → 음성·자막 바꾸기. ffmpeg로 `docs/images/demo.gif`(팔레트 생성, 약 2MB 이하), 정지 화면 `docs/images/main-dark.png`·`main-light.png` (after: 10)
   - 확인: 명령이 끝나고 세 파일이 생김, GIF 크기 2MB 이하 출력. 사람: 세 이미지를 보고 글꼴·아이콘이 실제 창과 같고 개인정보가 없음
   - 진행: 2026-11-19 `--shots` 도구 커밋(1e39f18). offscreen은 글꼴이 없어 Windows 플랫폼에서 창을 띄우지 않고 찍음. 영어 "Subtitles" 라벨 잘림(40px 고정) 수정, 송출 방식 줄 문구(video unchanged 등)·구분자 `|`로 바꿈(사용자 선택)
-  - 보류: 사용자가 이미지 확인 중 UI 문제(상태에 따라 카드 높이 변함, 창 크기를 따라가지 않음 등)를 지적 → UI 정리를 PRD F9 변경으로 먼저 하고 이미지는 그 뒤 다시 만듦 (D090). 작업 8~11은 UI 정리 뒤
-- [ ] 9. README 개편 — `README.md`(영어 기본)를 readme 표준 §2~§4로 다시 쓰고 `README.ko.md`(지금 한국어판 기반)·`zh-CN`·`ja`·`es`·`ru` 작성, `README.en.md` 지움. 맨 위 언어 줄 → 번역 안내 한 줄(번역판) → 제목 → 배지(버전·라이선스·Python·Windows 11) → 한 줄 소개 → `demo.gif`. 본문에 다크·라이트 정지 화면, 화면 언어 안내, 설치·사용법·한계·파일 위치·이슈·라이선스(MIT) (after: 7, 8)
+  - 보류: 사용자가 이미지 확인 중 UI 문제(상태에 따라 카드 높이 변함, 창 크기를 따라가지 않음 등)를 지적 → UI 정리를 PRD F9 변경으로 먼저 하고 이미지는 그 뒤 다시 만듦 (D090). 2026-11-19 계획 고침: UI 정리를 작업 8~10으로 넣고 이 작업은 11로 옮김
+- [ ] 12. README 개편 — `README.md`(영어 기본)를 readme 표준 §2~§4로 다시 쓰고 `README.ko.md`(지금 한국어판 기반)·`zh-CN`·`ja`·`es`·`ru` 작성, `README.en.md` 지움. 맨 위 언어 줄 → 번역 안내 한 줄(번역판) → 제목 → 배지(버전·라이선스·Python·Windows 11) → 한 줄 소개 → `demo.gif`. 본문에 다크·라이트 정지 화면, 화면 언어 안내, 설치·사용법·한계·파일 위치·이슈·라이선스(MIT) (after: 11)
   - 확인 (readme 표준 §6): 6개 파일 존재, 각 번역의 `##` 제목 수·배지 수가 영어판과 같음, 상대 링크가 가리키는 파일이 모두 있음, 배지 이미지가 열림(`logo=` 아이콘 보임), 쪽 안 링크가 각 번역의 제목을 씀, 설치·사용 명령은 실제로 실행(위험 명령은 있는지만), 공개 전 점검 패턴(PRD §6) `git grep` 0건
-- [ ] 10. 배포 준비 — `CastPlayer.spec`가 `README*.md` 6개를 복사(D087), `APP_VERSION = "1.2.0"`, `THIRD_PARTY_NOTICES.md` 버전 문구, CLAUDE.md 규칙에 "화면 문장은 `tr()`로 감싸고 6개 사전을 같은 커밋에서 바꾼다" 한 줄 (after: 9)
+- [ ] 13. 배포 준비 — `CastPlayer.spec`가 `README*.md` 6개를 복사(D087), `APP_VERSION = "1.2.0"`, `THIRD_PARTY_NOTICES.md` 버전 문구, CLAUDE.md 규칙에 "화면 문장은 `tr()`로 감싸고 6개 사전을 같은 커밋에서 바꾼다" 한 줄 (after: 12)
   - 확인: selftest 통과, 빌드(실행 전 확인) 뒤 `dist\CastPlayer`에 README 6개와 LICENSE·THIRD_PARTY_NOTICES.md가 있고 시험 흔적(`bin`·`logs`·`cache`·`config.json`) 없음, `pip-audit -r requirements.lock.txt` 결과
-- [ ] 11. 인수 — 이 계획의 F10 인수 기준 전부
-  - 확인: 전체 테스트 `.venv\Scripts\python -m tools.cast_test --selftest --log` 통과 (F10-1~4 포함)
-  - 실기기: F10-5 — exe에서 옵션 → 언어로 简体中文·日本語·Español·Русский를 차례로 고르고, 다시 켜지 않아도 바뀌며 글자 깨짐(□)과 버튼·메뉴 글자 잘림이 없음. "시스템 설정 따르기"로 돌아오면 Windows 언어. 한국어로 TV 재생 한 번 (기존 동작 그대로)
-  - 명세 검토: 대화 맥락 없는 서브에이전트에 이 계획, PRD F10·§2.1, `git diff {계획 시작 커밋}..`을 주고 빠진 것·요청 없이 더한 것·잘못 구현한 것을 받음
+- [ ] 14. 인수 — 이 계획의 F10·F9 인수 기준 전부
+  - 확인: 전체 테스트 `.venv\Scripts\python -m tools.cast_test --selftest --log` 통과 (F10-1~4, F9-1~7·F9-9~11 포함)
+  - 실기기: F10-5 — exe에서 옵션 → 언어로 简体中文·日本語·Español·Русский를 차례로 고르고, 다시 켜지 않아도 바뀌며 글자 깨짐(□)과 버튼·메뉴 글자 잘림이 없음. "시스템 설정 따르기"로 돌아오면 Windows 언어. 창을 최소 너비로 줄여도 잘림 없음. 한국어로 TV 재생 한 번 (기존 동작 그대로). F9-8 — 새 배치의 어둡게·밝게 화면 정렬·대비
+  - 명세 검토: 대화 맥락 없는 서브에이전트에 이 계획, PRD F10·F9·§2.1, `git diff {계획 시작 커밋}..`을 주고 빠진 것·요청 없이 더한 것·잘못 구현한 것을 받음
 
 ## 자기 검토
-- 빠진 PRD 기능: 없음 (F10 전체, §2.1 README·스크린샷·GIF·zip 구성)
-- 시험으로 바꾸지 않은 인수 기준: F10-5 → 글자 깨짐·잘림은 눈으로만 판단 가능 (§6)
-- 순서: 2는 1 뒤, 3·4는 2 뒤(서로 독립), 5는 3·4 뒤, 6·7은 5 뒤, 8은 6 뒤(English 화면만 씀), 9는 7·8 뒤, 10은 9 뒤
+- 빠진 PRD 기능: 없음 (F10 전체, F9 UI 정리 D091~D096, §2.1 README·스크린샷·GIF·zip 구성)
+- 시험으로 바꾸지 않은 인수 기준: F10-5·F9-8 → 글자 깨짐·잘림·정렬은 눈으로만 판단 가능, 화면 없는 Qt에는 글꼴이 없음 (§6)
+- 순서: 2는 1 뒤, 3·4는 2 뒤(서로 독립), 5는 3·4 뒤, 6·7은 5 뒤, 8·9는 7 뒤(서로 독립), 10은 8 뒤(같은 파일), 11은 10 뒤(최종 화면을 찍음), 12는 11 뒤, 13은 12 뒤
 - 구조 변경(3·4)과 동작 변경(6)을 나눔. 3·4 동안 화면은 한국어 그대로

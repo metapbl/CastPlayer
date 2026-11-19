@@ -1,12 +1,12 @@
 # PROGRESS — CastPlayer
 
 ## 상태
-- 단계: 8 구현 · 계획 `docs/plans/2026-11-19-languages-readme.md` (화면 6개 언어·README 개편, F10·D079~D089) 작업 1~7 완료, 8~11 보류 · PRD 변경 중(F9 UI 정리, D090) · metarche upgrade U1·U6·U7 적용 · 1.1.1 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.1.1)
+- 단계: 8 구현 · 계획 `docs/plans/2026-11-19-languages-readme.md` (화면 6개 언어·README 개편, F10·D079~D089) 작업 1~7 완료, UI 정리 8~10 → 이미지·README·배포 11~14 · PRD 변경 승인(2026-11-19, F9 UI 정리 D091~D096) · metarche upgrade U1·U6·U7 적용 · 1.1.1 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.1.1)
 - 갱신: 2026-11-19
 - 히스토리를 새로 시작함(D041). 아래 완료 기록의 옛 커밋 해시는 저장소 밖 로컬 백업 `../CastPlayer-git-backup-2026-10-27`에만 있다
 
 ## 다음 할 일
-1. PRD 변경(F9 UI 정리, D090): OPEN O122~O126 질의 → 되짚기 → 승인 → 계획에 UI 정리 작업을 작업 8 앞에 넣음. 작업 8은 도구만 커밋(1e39f18), 이미지는 UI 정리 뒤 다시 만듦
+1. 계획 작업 8: 미디어 카드 배치 — `ui/main_window.py > _build_ui` 윗칸 QStackedWidget, F9-9·F9-10 시험부터 (UI 정리 D090~D096, 작업 1~7 완료)
 2. 화면 멈춤 감시(D077)는 1.1.1부터 exe에 있음. 다시 멈추면 강제 종료 뒤 다시 켜기 전에 `logs/castplayer.log`의 `Timeout` 아래 스택으로 원인 판단 (로그 기록 켜 두기)
 3. 보류 질문: O103·O106·O109. O106(읽기·쓰기 겹침, 거짓 "재생 실패")은 다음 `-v` 로그가 생기면 판단
 

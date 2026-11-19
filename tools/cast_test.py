@@ -2035,35 +2035,45 @@ def _gui_cases(check: Callable[[str, bool, str], None]) -> None:
 
 # ===================== 화면 언어 (F10, D079~D086) =====================
 _HANGUL = re.compile(r"[가-힣]")
-I18N_SOURCES = ("core", "ui", "main.py")   # core/i18n.py·core/lang/은 뺌 (언어 이름·사전)
+I18N_SOURCES = ("core", "ui", "main.py")
+# 언어 이름·사전, 테마(QSS 주석만 한글)는 화면 글자가 아님
+I18N_SKIP = ("core/i18n.py", "ui/theme.py")
 
 
 def scan_i18n(root: Path) -> tuple[dict[str, str], list[str], list[str]]:
-    """소스를 읽어 (tr 키 → 처음 나온 곳, 키가 문자열 상수가 아닌 tr 호출, tr·로그 밖 한글 문자열)."""
+    """소스를 읽어 (tr·N_ 키 → 처음 나온 곳, 키가 문자열 상수가 아닌 호출,
+    tr·N_·로그·assert·명령줄 help 밖 한글 문자열)."""
     keys: dict[str, str] = {}
     bad: list[str] = []
     loose: list[str] = []
     files = [p for s in I18N_SOURCES for p in ((root / s).rglob("*.py") if (root / s).is_dir()
                                                  else [root / s])
-             if p.is_file() and p.name != "i18n.py" and p.parent.name != "lang"]
+             if p.is_file() and p.parent.name != "lang"]
     for path in sorted(files):
         rel = path.relative_to(root).as_posix()
+        if rel in I18N_SKIP:
+            continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
-        skip: set[int] = set()   # tr·로그 호출 안, 문서 문자열
+        skip: set[int] = set()   # tr·로그 호출 안, 문서 문자열, assert 문구, help=
         for node in ast.walk(tree):
             if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant):
                 skip.add(id(node.value))
+            if isinstance(node, ast.Assert) and node.msg:
+                skip.update(id(n) for n in ast.walk(node.msg))
+            if isinstance(node, ast.keyword) and node.arg == "help":
+                skip.update(id(n) for n in ast.walk(node.value))
             if not isinstance(node, ast.Call):
                 continue
             f = node.func
             name = f.id if isinstance(f, ast.Name) else f.attr if isinstance(f, ast.Attribute) else ""
             owner = f.value.id if isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name) else ""
-            if name == "tr":
+            if name in ("tr", "N_"):
                 arg = node.args[0] if node.args else None
                 if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
                     keys.setdefault(arg.value, f"{rel}:{node.lineno}")
-                else:
-                    bad.append(f"{rel}:{node.lineno}")
+                elif not isinstance(arg, (ast.Name, ast.Subscript, ast.Attribute)):
+                    bad.append(f"{rel}:{node.lineno}")   # f-문자열·이어 붙이기: 키가 사전과 안 맞음
+                # 변수 키(tr(st[0]) 등)는 N_로 표시한 상수에서 온다
             elif owner != "_LOGGER":
                 continue
             skip.update(id(n) for n in ast.walk(node))
@@ -2087,23 +2097,31 @@ def _i18n_key_cases(check: Callable[[str, bool, str], None]) -> None:
             'a = tr("열기 {n}", n=1)\n'
             'b = i18n.tr(f"{a}개")\n'
             '_LOGGER.info("로그 %s", "한글 인수")\n'
-            'c = "감싸지 않음"\n', encoding="utf-8")
+            'c = "감싸지 않음"\n'
+            'D = N_("상수")\n'
+            'assert c, "단언 문구"\n'
+            'ap.add_argument("-v", help="도움말")\n'
+            'e = tr(D)\n', encoding="utf-8")
         got = scan_i18n(Path(tmp))
-    check("검사기 자체: tr 키·변수 키·로그·문서 문자열·감싸지 않은 한글 구분",
-          got == ({"열기 {n}": "main.py:2"}, ["main.py:3"], ["main.py:5 '감싸지 않음'"]), f"{got}")
+    check("검사기 자체: tr·N_ 키, f-문자열 키, 로그·문서 문자열·assert·help 제외, 감싸지 않은 한글",
+          got == ({"열기 {n}": "main.py:2", "상수": "main.py:6"}, ["main.py:3"],
+                  ["main.py:5 '감싸지 않음'"]), f"{got}")
     keys, bad, loose = scan_i18n(Path(__file__).resolve().parent.parent)
-    check("F10-4 tr() 키는 문자열 상수", not bad, ", ".join(bad[:5]))
+    check("F10-4 tr() 키는 문자열 상수나 N_ 상수", not bad, ", ".join(bad[:5]))
     for code, table in i18n._TABLES.items():   # pyright: ignore[reportPrivateUsage]  # 사전 목록은 시험만 봄
-        missing = [k for k in keys if k not in table]
+        # shortcut: 아직 비어 있는 사전(작업 5·7 전)은 빠진 키를 세기만 한다. 채우기 시작하면 엄격
+        missing = [k for k in keys if k not in table] if table else []
         unused = [k for k in table if k not in keys]
         fmt = [k for k in keys if k in table and _fields(k) != _fields(table[k])]
         check(f"F10-4 사전 {code}: 빠진 키·남는 키·{{이름}} 불일치 없음",
               not (missing or unused or fmt),
-              f"키 {len(keys)}개, 빠짐 {missing[:3]}, 남음 {unused[:3]}, 불일치 {fmt[:3]}")
+              f"키 {len(keys)}개, 번역 {len(table)}개, 빠짐 {missing[:3]}, 남음 {unused[:3]}, "
+              f"불일치 {fmt[:3]}")
     core_n = sum(s.startswith("core/") for s in loose)
-    # shortcut: 감싸기(작업 3·4) 전이라 개수만 알린다. 0개가 되면 실패 조건으로 바꾼다
-    check("tr()·로그 밖 한글 문자열 (기준값)", True,
-          f"core {core_n}개, ui·main.py {len(loose) - core_n}개")
+    ui_loose = [s for s in loose if not s.startswith("core/")]
+    check("ui·main.py: tr()·로그 밖 한글 문자열 0개", not ui_loose, ", ".join(ui_loose[:5]))
+    # shortcut: core 감싸기(작업 4) 전이라 개수만 알린다. 0개가 되면 실패 조건으로 바꾼다
+    check("core: tr()·로그 밖 한글 문자열 (기준값)", True, f"{core_n}개")
 
 
 def _i18n_cases(check: Callable[[str, bool, str], None]) -> None:

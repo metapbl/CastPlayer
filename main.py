@@ -24,6 +24,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 from core.cast_manager import CastManager
 from core.config import AppConfig
 from core.encoders import EncoderDetector
+from core.i18n import tr
 from core.media_server import MediaServer
 from core.paths import app_dir, asset_path, bin_dir, ffmpeg_path, ffprobe_path
 from core.player import PlaybackController
@@ -75,7 +76,8 @@ class FileLog:
                     old.unlink()
             fh = RotatingFileHandler(path, maxBytes=1_000_000, backupCount=3, encoding="utf-8")
         except OSError as err:
-            return f"로그 파일을 만들 수 없습니다: {path} ({err.strerror or err})"
+            return tr("로그 파일을 만들 수 없습니다: {path} ({err})", path=path,
+                      err=err.strerror or err)
         self._cleared = True
         fh.namer = _rotated_name
         fh.setFormatter(logging.Formatter(LOG_FORMAT))
@@ -123,11 +125,12 @@ def main() -> int:
     missing = [p.name for p in (ffmpeg_path(), ffprobe_path()) if not p.is_file()]
     if missing:
         box = QMessageBox(QMessageBox.Icon.Critical, APP_NAME,
-                          f"{', '.join(missing)}을(를) 찾지 못했습니다.\n\n"
-                          f"찾아본 곳:\n- {bin_dir()}\n- PATH 환경 변수\n\n"
-                          "PowerShell이나 명령 프롬프트에서 설치할 수 있습니다:\n"
-                          "winget install Gyan.FFmpeg\n\n"
-                          "설치한 뒤 CastPlayer를 다시 실행해 주세요.")
+                          tr("{names}을(를) 찾지 못했습니다.\n\n"
+                             "찾아본 곳:\n- {folder}\n- PATH 환경 변수\n\n"
+                             "PowerShell이나 명령 프롬프트에서 설치할 수 있습니다:\n"
+                             "winget install Gyan.FFmpeg\n\n"
+                             "설치한 뒤 CastPlayer를 다시 실행해 주세요.",
+                             names=", ".join(missing), folder=bin_dir()))
         box.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)  # 명령 복사용
         box.exec()
         return 2
@@ -139,9 +142,10 @@ def main() -> int:
         server.start()
     except RuntimeError as err:
         QMessageBox.critical(None, APP_NAME,
-                             f"{err}\n\nCastPlayer가 이미 실행 중이거나 다른 프로그램이 "
-                             f"포트 {cfg.server_port}를 쓰고 있습니다.\n"
-                             "config.json의 server_port로 포트를 바꿀 수 있습니다.")
+                             tr("{err}\n\nCastPlayer가 이미 실행 중이거나 다른 프로그램이 "
+                                "포트 {port}를 쓰고 있습니다.\n"
+                                "config.json의 server_port로 포트를 바꿀 수 있습니다.",
+                                err=err, port=cfg.server_port))
         return 2
 
     bridge = CastBridge()

@@ -8,6 +8,7 @@ from typing import Any, Callable
 
 from PySide6.QtCore import QObject, Signal
 
+from core.i18n import tr
 from core.planner import PlanError
 from core.player import PlaybackController
 from core.probe import ProbeError
@@ -56,7 +57,7 @@ class TaskRunner(QObject):
             except Exception as err:  # pylint: disable=broad-except
                 _LOGGER.exception("작업 실패: %s", kind)
                 self._busy = None
-                self.failed.emit(kind, f"내부 오류: {err}")
+                self.failed.emit(kind, tr("내부 오류: {err}", err=err))
             else:
                 self._busy = None
                 self.succeeded.emit(kind, result)

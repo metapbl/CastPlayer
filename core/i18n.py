@@ -20,6 +20,11 @@ def tr(key: str, **kw: object) -> str:
     return text.format(**kw) if kw else text
 
 
+def N_(key: str) -> str:
+    """번역 키 표시만 한다 (상수용). 보여 줄 때 tr()로 바꾼다. 키 검사기가 tr()처럼 읽는다."""
+    return key
+
+
 def set_language(code: str) -> None:
     global _lang
     _lang = code if code in LANGUAGES else "en"

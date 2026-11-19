@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QFrame, QGr
 
 from core.cast_manager import CastManager, DeviceInfo, PlaybackState
 from core.config import AppConfig
+from core.i18n import N_, tr
 from core.paths import app_dir, cache_dir
 from core.planner import Mode, Plan, PlanError
 from core.player import PlaybackController
@@ -43,9 +44,9 @@ SEEK_STEP, SEEK_COALESCE_MS = 5.0, 300
 SEEK_BACK, SEEK_FWD = -10.0, 30.0   # 화면 버튼 (D076), 키 ←/→는 SEEK_STEP
 VOL_STEP = 5
 
-# 연결 상태: (표시 문구, 테마 색 이름)
-ST_NONE, ST_BUSY, ST_OK, ST_LOST = ("미연결", "muted"), ("연결 중", "warn"), \
-    ("연결됨", "success"), ("끊김", "danger")
+# 연결 상태: (표시 문구 키, 테마 색 이름)
+ST_NONE, ST_BUSY, ST_OK, ST_LOST = (N_("미연결"), "muted"), (N_("연결 중"), "warn"), \
+    (N_("연결됨"), "success"), (N_("끊김"), "danger")
 
 H = 32                                                     # 버튼·입력 높이 (D076)
 ICON_FONTS = ["Segoe Fluent Icons", "Segoe MDL2 Assets"]   # Windows 11, 없으면 10
@@ -65,14 +66,15 @@ QPushButton#big { border-radius: 20px; }
 
 def _plan_text(plan: Plan, info: MediaInfo) -> str:
     """송출 방식을 읽기 쉬운 한 줄로. 자세한 이유는 풍선 도움말(plan.summary)."""
-    ext = info.path.suffix.lstrip(".").upper() or "파일"
-    how = {Mode.DIRECT: f"{ext} 그대로 보냄", Mode.REMUX: f"{ext} → HLS 변환",
-           Mode.TRANSCODE: f"{ext} → HLS 재인코딩"}[plan.mode]
-    video = "영상 그대로" if plan.video_copy else "영상 재인코딩"
+    ext = info.path.suffix.lstrip(".").upper() or tr("파일")
+    how = {Mode.DIRECT: tr("{ext} 그대로 보냄", ext=ext),
+           Mode.REMUX: tr("{ext} → HLS 변환", ext=ext),
+           Mode.TRANSCODE: tr("{ext} → HLS 재인코딩", ext=ext)}[plan.mode]
+    video = tr("영상 그대로") if plan.video_copy else tr("영상 재인코딩")
     if plan.fps_cap:
         video += f" {float(plan.fps_cap):.0f}fps"
-    audio = ("음성 없음" if plan.audio is None
-             else "음성 그대로" if plan.audio_copy else "음성 AAC 2ch로 변환")
+    audio = (tr("음성 없음") if plan.audio is None
+             else tr("음성 그대로") if plan.audio_copy else tr("음성 AAC 2ch로 변환"))
     return " · ".join((how, video, audio))
 
 
@@ -94,7 +96,7 @@ class MainWindow(QMainWindow):
         self._reconnect_uuid: UUID | None = None
         self._seek_acc = 0.0
         self._vol_updating = False
-        self._conn_extra = ""
+        self._conn_extra: tuple[str, dict] = ("", {})   # 연결 상태 뒤 글 (키, 채울 값)
         self._err = False                  # 상태줄 글이 오류 → 경고색
         self._title = ""                   # 연 파일 이름 (줄이기 전)
 
@@ -102,6 +104,7 @@ class MainWindow(QMainWindow):
         self.setAcceptDrops(True)
         self.resize(680, 0)
         self._build_ui()
+        self._retranslate()
         self.acts = build_menus(self, cfg.auto_connect, cfg.log_file, cfg.theme)
         self._wire()
         if cfg.window_geometry:
@@ -191,8 +194,8 @@ class MainWindow(QMainWindow):
         self.conn_label = label()
         self.dev_combo = combo()
         self.dev_combo.setMinimumWidth(160)
-        self.btn_rescan = icon("refresh", "기기 다시 찾기 (F5)")
-        self.btn_connect = btn("연결")
+        self.btn_rescan = icon("refresh", "")
+        self.btn_connect = btn("")
         card(root).addLayout(hbox(self.conn_label, (self.dev_combo, 1), self.btn_rescan,
                                   self.btn_connect))
 
@@ -209,7 +212,7 @@ class MainWindow(QMainWindow):
         f.setPixelSize(28)
         drop_icon.setFont(f)
         self.drop_hint = label("", "sub", align=center)
-        self.btn_open_big = btn("파일 열기", "Ctrl+O", 112, "primary")
+        self.btn_open_big = btn("", "Ctrl+O", 112, "primary")
         dv.addWidget(drop_icon)
         dv.addWidget(self.drop_hint)
         dv.addLayout(hbox(None, self.btn_open_big, None))
@@ -220,7 +223,7 @@ class MainWindow(QMainWindow):
         self.plan_label = label("", "sub")
         for lb in (self.file_label, self.plan_label):
             lb.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
-        self.btn_open = btn("파일 열기", "Ctrl+O · 끌어다 놓아도 됩니다")
+        self.btn_open = btn("")
         tv = QVBoxLayout()
         tv.setSpacing(2)
         tv.addWidget(self.file_label)
@@ -249,12 +252,12 @@ class MainWindow(QMainWindow):
         self.seek.setFixedHeight(H)
         mv.addLayout(hbox(self.pos_label, (self.seek, 1), self.dur_label, spacing=10))
 
-        self.btn_back = icon("back", f"{-SEEK_BACK:.0f}초 뒤로")
-        self.btn_play = icon("play", "재생 / 일시정지 (Space)", 40, "primary")
+        self.btn_back = icon("back", "")
+        self.btn_play = icon("play", "", 40, "primary")
         self.btn_play.setObjectName("big")
-        self.btn_fwd = icon("fwd", f"{SEEK_FWD:.0f}초 앞으로")
-        self.btn_stop = icon("stop", "정지 (S) · TV 플레이어 종료")
-        self.btn_mute = icon("vol", "음소거 (M)")
+        self.btn_fwd = icon("fwd", "")
+        self.btn_stop = icon("stop", "")
+        self.btn_mute = icon("vol", "")
         self.btn_mute.setCheckable(True)
         self.vol = QSlider(Qt.Orientation.Horizontal)
         self.vol.setRange(0, 100)
@@ -266,25 +269,26 @@ class MainWindow(QMainWindow):
 
         # 트랙
         self.audio_combo, self.sub_combo = combo(), combo()
-        self.btn_scale_dn = icon("minus", "자막 작게")
-        self.btn_scale_up = icon("plus", "자막 크게")
+        self.btn_scale_dn = icon("minus", "")
+        self.btn_scale_up = icon("plus", "")
         self.scale_label = label("", "", 64, center)
-        tip = "자막 싱크 {} 0.5초 (Shift+클릭: 0.1초)"
-        self.btn_sync_dn = icon("minus", tip.format("−"))
-        self.btn_sync_up = icon("plus", tip.format("+"))
-        self.sync_label = label("+0.0초", "", 64, center)
+        self.btn_sync_dn = icon("minus", "")
+        self.btn_sync_up = icon("plus", "")
+        self.sync_label = label("", "", 64, center)
         g = QGridLayout()
         g.setHorizontalSpacing(10)
         g.setVerticalSpacing(10)
-        g.addWidget(label("음성", "field", 40), 0, 0)
+        self.lbl_audio, self.lbl_sub = label("", "field", 40), label("", "field", 40)
+        self.lbl_scale, self.lbl_sync = label("", "field", 40), label("", "field")
+        g.addWidget(self.lbl_audio, 0, 0)
         g.addWidget(self.audio_combo, 0, 1, 1, 4)
-        g.addWidget(label("자막", "field", 40), 1, 0)
+        g.addWidget(self.lbl_sub, 1, 0)
         g.addWidget(self.sub_combo, 1, 1, 1, 4)
-        g.addWidget(label("크기", "field", 40), 2, 0)
+        g.addWidget(self.lbl_scale, 2, 0)
         g.addLayout(hbox(self.btn_scale_dn, self.scale_label, self.btn_scale_up, spacing=6),
                     2, 1)
         g.setColumnStretch(2, 1)
-        g.addWidget(label("싱크", "field"), 2, 3)
+        g.addWidget(self.lbl_sync, 2, 3)
         g.addLayout(hbox(self.btn_sync_dn, self.sync_label, self.btn_sync_up, spacing=6),
                     2, 4)
         card(root).addLayout(g)
@@ -298,6 +302,27 @@ class MainWindow(QMainWindow):
         self.scale_label.setText(f"{self.ctrl.subtitle_scale:.1f}")
         self._set_volume_ui(self.cfg.volume, False)
 
+    def _retranslate(self) -> None:
+        """고정 글자를 현재 언어로 넣는다. 상태에 따라 바뀌는 글자는 _update_ui 등이 넣는다 (D085)."""
+        self.btn_rescan.setToolTip(tr("기기 다시 찾기 (F5)"))
+        self.btn_open_big.setText(tr("파일 열기"))
+        self.btn_open.setText(tr("파일 열기"))
+        self.btn_open.setToolTip(tr("Ctrl+O · 끌어다 놓아도 됩니다"))
+        self.btn_back.setToolTip(tr("{n}초 뒤로", n=f"{-SEEK_BACK:.0f}"))
+        self.btn_play.setToolTip(tr("재생 / 일시정지 (Space)"))
+        self.btn_fwd.setToolTip(tr("{n}초 앞으로", n=f"{SEEK_FWD:.0f}"))
+        self.btn_stop.setToolTip(tr("정지 (S) · TV 플레이어 종료"))
+        self.btn_mute.setToolTip(tr("음소거 (M)"))
+        self.btn_scale_dn.setToolTip(tr("자막 작게"))
+        self.btn_scale_up.setToolTip(tr("자막 크게"))
+        tip = N_("자막 싱크 {sign} 0.5초 (Shift+클릭: 0.1초)")
+        self.btn_sync_dn.setToolTip(tr(tip, sign="−"))
+        self.btn_sync_up.setToolTip(tr(tip, sign="+"))
+        for lb, key in ((self.lbl_audio, N_("음성")), (self.lbl_sub, N_("자막")),
+                        (self.lbl_scale, N_("크기")), (self.lbl_sync, N_("싱크"))):
+            lb.setText(tr(key))
+        self._show_sync()
+
     def _wire(self) -> None:
         b, a = self.bridge, self.acts
         b.devices_changed.connect(self._on_devices)
@@ -307,9 +332,10 @@ class MainWindow(QMainWindow):
         b.connection_lost.connect(self._on_lost)
         b.media_status.connect(self._on_status)
         b.volume.connect(self._on_volume)
-        b.finished.connect(lambda: self._on_playback_end("재생 완료"))
-        b.app_closed.connect(lambda: self._on_playback_end("TV에서 플레이어가 종료됨"))
-        b.load_failed.connect(lambda c, n: self._msg(f"불러오기 실패: {n} ({c})", error=True))
+        b.finished.connect(lambda: self._on_playback_end(N_("재생 완료")))
+        b.app_closed.connect(lambda: self._on_playback_end(N_("TV에서 플레이어가 종료됨")))
+        b.load_failed.connect(lambda c, n: self._msg(tr("불러오기 실패: {name} ({code})",
+                                                        name=n, code=c), error=True))
         b.error.connect(lambda m: self._msg(m, error=True))
 
         self.tasks.progress.connect(self._on_progress)
@@ -374,17 +400,19 @@ class MainWindow(QMainWindow):
         self.statusBar().setStyleSheet(
             theme.qss("QStatusBar { color: @danger; }") if self._err else "")
 
-    def _set_conn(self, st: tuple[str, str], extra: str = "") -> None:
-        self._conn, self._conn_extra = st, extra
+    def _set_conn(self, st: tuple[str, str], extra: str = "", **kw: object) -> None:
+        """extra는 번역 키, kw는 채울 값. 언어가 바뀌면 같은 값으로 다시 그린다."""
+        self._conn, self._conn_extra = st, (extra, kw)
+        text = tr(st[0]) + (tr(extra, **kw) if extra else "")
         self.conn_label.setText(
-            f"<span style='color:{theme.color(st[1])}'>●</span>&nbsp;{st[0]}{extra}")
+            f"<span style='color:{theme.color(st[1])}'>●</span>&nbsp;{text}")
         self._update_ui()
 
     def _restyle(self) -> None:
         """테마가 바뀌면 이 창이 직접 넣은 색을 다시 칠한다."""
         self.setStyleSheet(theme.qss(QSS))
         self._paint_status()
-        self._set_conn(self._conn, self._conn_extra)
+        self._set_conn(self._conn, self._conn_extra[0], **self._conn_extra[1])
 
     def _set_title(self, name: str) -> None:
         self._title = name
@@ -413,11 +441,11 @@ class MainWindow(QMainWindow):
         has_file = loaded or bool(self._title)
         self.drop.setVisible(not has_file)
         self.info_box.setVisible(has_file)
-        self.drop_hint.setText("동영상 파일을 여기에 끌어다 놓으세요" if ok
-                               else "먼저 기기를 연결하세요")
+        self.drop_hint.setText(tr("동영상 파일을 여기에 끌어다 놓으세요") if ok
+                               else tr("먼저 기기를 연결하세요"))
         dev = self.cm.device
         here = dev is not None and self.dev_combo.currentData() == dev.uuid
-        self.btn_connect.setText("연결 해제" if here else "연결")
+        self.btn_connect.setText(tr("연결 해제") if here else tr("연결"))
         self.acts.open_file.setEnabled(ok and not busy)
         self.acts.disconnect.setEnabled(self.cm.device is not None)
         self.acts.clear_cache.setEnabled(not self.ctrl.active and not busy)
@@ -442,7 +470,7 @@ class MainWindow(QMainWindow):
         if plan and plan.audio is not None:
             self.audio_combo.setCurrentIndex(plan.audio.order)
         self.sub_combo.clear()
-        self.sub_combo.addItem("끄기", 0)
+        self.sub_combo.addItem(tr("끄기"), 0)
         subs, cur = self.ctrl.subs, self.ctrl.subtitle
         for n, t in enumerate(subs.tracks if subs else [], 1):
             self.sub_combo.addItem(t.display, n)
@@ -462,7 +490,7 @@ class MainWindow(QMainWindow):
     def _show_sync(self) -> None:
         t, subs = self.ctrl.subtitle, self.ctrl.subs
         d = subs.delay(t.track_id) if (t and subs) else 0.0
-        self.sync_label.setText(f"{d:+.1f}초")
+        self.sync_label.setText(tr("{n}초", n=f"{d:+.1f}"))
 
     # ================= 기기 =================
     def _on_devices(self, devs: list[DeviceInfo]) -> None:
@@ -502,15 +530,16 @@ class MainWindow(QMainWindow):
         host = self.cfg.last_device_host
         if self._auto_tried or self.cm.device is not None or not host:
             return
-        self._msg(f"{self.cfg.last_device_name or '마지막 기기'}을(를) mDNS로 찾지 못해 "
-                  f"{host}로 확인합니다…")
+        self._msg(tr("{name}을(를) mDNS로 찾지 못해 {host}로 확인합니다…",
+                     name=self.cfg.last_device_name or tr("마지막 기기"), host=host))
         self.cm.add_known_host(host)
         QTimer.singleShot(AUTO_HOST_FALLBACK_MS, self._auto_give_up)
 
     def _auto_give_up(self) -> None:
         if not self._auto_tried and self.cm.device is None:
             self._auto_tried = True
-            self._msg(f"{self.cfg.last_device_name or '마지막 기기'}을(를) 찾지 못했습니다.")
+            self._msg(tr("{name}을(를) 찾지 못했습니다.",
+                         name=self.cfg.last_device_name or tr("마지막 기기")))
 
     def _connect(self, uuid: UUID) -> None:
         same = uuid == self._reconnect_uuid   # 끊긴 기기 → 송출·끊김 기억 유지 (D033 ②)
@@ -523,7 +552,7 @@ class MainWindow(QMainWindow):
     def _connect_selected(self) -> None:
         uuid = self.dev_combo.currentData()
         if uuid is None:
-            self._msg("기기를 먼저 찾으세요 (F5).")
+            self._msg(tr("기기를 먼저 찾으세요 (F5)."))
             return
         self._connect(uuid)
 
@@ -537,7 +566,7 @@ class MainWindow(QMainWindow):
 
     def _rescan(self) -> None:
         self.cm.rescan()
-        self._msg("기기를 찾는 중…")
+        self._msg(tr("기기를 찾는 중…"))
 
     def _add_ip(self) -> None:
         ip = ask_ip(self)
@@ -547,7 +576,7 @@ class MainWindow(QMainWindow):
             self.cfg.known_hosts.append(ip)
             self.cfg.save()
         self.cm.add_known_host(ip)
-        self._msg(f"{ip} 확인 중… 목록에 나타나면 [연결]을 누르세요.")
+        self._msg(tr("{ip} 확인 중… 목록에 나타나면 [연결]을 누르세요.", ip=ip))
 
     def _user_disconnect(self) -> None:
         self._expect_disconnect = True
@@ -565,9 +594,9 @@ class MainWindow(QMainWindow):
         self.cfg.save()
         self._set_conn(ST_OK)
         if resume and self.ctrl.recover():              # 자동 이어 재생
-            self._msg("다시 연결됨. 끊긴 위치부터 이어 갑니다.")
+            self._msg(tr("다시 연결됨. 끊긴 위치부터 이어 갑니다."))
         elif self.ctrl.info and not self.ctrl.active:
-            self._msg("연결됨. 재생 버튼을 누르면 이어서 재생합니다.")
+            self._msg(tr("연결됨. 재생 버튼을 누르면 이어서 재생합니다."))
 
     def _on_connect_failed(self, msg: str) -> None:
         self._set_conn(ST_NONE)
@@ -578,7 +607,7 @@ class MainWindow(QMainWindow):
         self.ctrl.mark_lost()            # 송출 유지 (shutdown하면 TV가 404를 받음)
         self._state = "IDLE"
         self._reconnect_uuid = dev.uuid
-        self._set_conn(ST_LOST, " — 다시 연결 중…")
+        self._set_conn(ST_LOST, N_(" — 다시 연결 중…"))
 
     def _on_disconnected(self) -> None:
         self._state = "IDLE"
@@ -591,7 +620,7 @@ class MainWindow(QMainWindow):
         if self._reconnect_uuid is None and self.cfg.last_device_uuid:
             self._reconnect_uuid = self._saved_uuid()
         self._reconnect_until = time.monotonic() + RECONNECT_WINDOW
-        self._set_conn(ST_LOST, f" — {int(RECONNECT_WINDOW)}초 동안 다시 찾는 중…")
+        self._set_conn(ST_LOST, N_(" — {n}초 동안 다시 찾는 중…"), n=int(RECONNECT_WINDOW))
         # 검색을 새로 띄우면 목록이 비어 mDNS 응답까지 기기가 안 보임 → 목록 유지 (D033 ③)
         QTimer.singleShot(int(RECONNECT_WINDOW * 1000), self._reconnect_timeout)
 
@@ -601,7 +630,7 @@ class MainWindow(QMainWindow):
             self.ctrl.shutdown()
             self.ctrl.forget_lost()
             self._set_conn(ST_NONE)
-            self._msg("기기에 다시 연결하지 못했습니다. [연결]을 눌러 주세요.", error=True)
+            self._msg(tr("기기에 다시 연결하지 못했습니다. [연결]을 눌러 주세요."), error=True)
 
     # ================= 파일 =================
     def _open_dialog(self) -> None:
@@ -609,8 +638,8 @@ class MainWindow(QMainWindow):
             return
         exts = " ".join(f"*{e}" for e in sorted(VIDEO_EXTS))
         start = self.cfg.last_folder if Path(self.cfg.last_folder or ".").is_dir() else ""
-        path, _ = QFileDialog.getOpenFileName(self, "동영상 열기", start,
-                                              f"동영상 ({exts});;모든 파일 (*)")
+        path, _ = QFileDialog.getOpenFileName(self, tr("동영상 열기"), start,
+                                              f"{tr('동영상')} ({exts});;{tr('모든 파일')} (*)")
         if path:
             self._open(Path(path))
 
@@ -619,7 +648,7 @@ class MainWindow(QMainWindow):
             e.acceptProposedAction()
         else:
             if not self._connected:
-                self._msg("먼저 기기를 연결하세요.")
+                self._msg(tr("먼저 기기를 연결하세요."))
             e.ignore()
 
     def dropEvent(self, e) -> None:
@@ -629,11 +658,12 @@ class MainWindow(QMainWindow):
 
     def _open(self, path: Path) -> None:
         if not path.is_file():
-            self._msg(f"파일이 없습니다: {path}", error=True)
+            self._msg(tr("파일이 없습니다: {path}", path=path), error=True)
             return
         was_active = self.ctrl.active
         if was_active and not confirm(
-                self, f"지금 재생 중인 파일을 멈추고 새 파일로 바꾸겠습니까?\n\n{path.name}"):
+                self, tr("지금 재생 중인 파일을 멈추고 새 파일로 바꾸겠습니까?\n\n{name}",
+                         name=path.name)):
             return
         item = PlaylistItem(path)
         self.playlist.set_single(item)
@@ -664,16 +694,16 @@ class MainWindow(QMainWindow):
             self.seek.set_duration(result.duration)
             self.dur_label.setText(fmt_time(result.duration))
             self._fill_tracks()
-            self._msg("재생 요청을 보냈습니다.")
+            self._msg(tr("재생 요청을 보냈습니다."))
         elif kind == "audio":
-            self._msg("음성 트랙을 바꿨습니다.")
+            self._msg(tr("음성 트랙을 바꿨습니다."))
         self._show_plan()
         self._update_ui()
 
     def _on_task_fail(self, kind: str, msg: str) -> None:
         self.load_box.hide()
-        self._msg(("불러오기 실패: " if kind == "load" else "음성 변경 실패: ") + msg,
-                  error=True)
+        self._msg(tr("불러오기 실패: {msg}", msg=msg) if kind == "load"
+                  else tr("음성 변경 실패: {msg}", msg=msg), error=True)
         if kind == "audio":
             self._fill_tracks()      # 콤보를 원래 트랙으로
         self._update_ui()
@@ -693,7 +723,7 @@ class MainWindow(QMainWindow):
         if self.ctrl.active:
             self._last_pos = 0.0
             self.ctrl.stop()
-            self._msg("정지 (TV 플레이어 종료)")
+            self._msg(tr("정지 (TV 플레이어 종료)"))
 
     def _seek_to(self, sec: float) -> None:
         if self.ctrl.info:
@@ -735,9 +765,9 @@ class MainWindow(QMainWindow):
 
     def _on_playback_end(self, text: str) -> None:
         self._state = "IDLE"
-        if text == "재생 완료":
+        if text == N_("재생 완료"):
             self._last_pos = 0.0
-        self._msg(text)
+        self._msg(tr(text))
         self._update_ui()
 
     # ---- 볼륨 ----
@@ -824,7 +854,7 @@ class MainWindow(QMainWindow):
         if err:
             self._msg(err, error=True)
         else:
-            self._msg("로그 기록 " + ("켬" if on else "끔"))
+            self._msg(tr("로그 기록 켬") if on else tr("로그 기록 끔"))
 
     def _open_logs(self) -> None:
         d = app_dir() / "logs"
@@ -833,21 +863,21 @@ class MainWindow(QMainWindow):
 
     def _clear_cache(self) -> None:
         if self.ctrl.active or not confirm(
-                self, "키프레임 분석·자막 추출 캐시를 지우겠습니까?\n(다음에 열 때 다시 만듭니다)"):
+                self, tr("키프레임 분석·자막 추출 캐시를 지우겠습니까?\n(다음에 열 때 다시 만듭니다)")):
             return
         for sub in ("keyframes", "subtitles"):
             shutil.rmtree(cache_dir() / sub, ignore_errors=True)
-        self._msg("캐시를 비웠습니다.")
+        self._msg(tr("캐시를 비웠습니다."))
 
     # ================= 종료 =================
     def closeEvent(self, e) -> None:
         if self.tasks.busy == "load" and QMessageBox.question(
-                self, APP_NAME, "파일을 불러오는 중입니다. 종료하겠습니까?") \
+                self, APP_NAME, tr("파일을 불러오는 중입니다. 종료하겠습니까?")) \
                 != QMessageBox.StandardButton.Yes:
             e.ignore()
             return
         self.cfg.window_geometry = bytes(self.saveGeometry().toBase64().data()).decode()
         self.cfg.save()
         self._poll.stop()
-        self.statusBar().showMessage("종료 중… (정지 → TV 플레이어 종료 → 연결 해제)")
+        self.statusBar().showMessage(tr("종료 중… (정지 → TV 플레이어 종료 → 연결 해제)"))
         e.accept()          # 실제 정리는 main.py finally

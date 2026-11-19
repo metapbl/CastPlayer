@@ -30,8 +30,10 @@ Status: active | 시작: 2026-11-19 | 근거: PRD F10, §2.1 README (D079~D089)
 - [x] 2. 키 검사기 (F10-4 틀) — `tools/cast_test.py`: `core/`·`ui/`·`main.py`를 ast로 읽어 (가) `tr("문자열")`의 키 목록, (나) `tr()`·`log.*` 밖에 있는 한글 문자열 상수 목록을 만든다. (가)의 키가 각 사전에 있는지, 자리표시가 같은지 확인하고, 사전에만 있는 키(안 쓰는 키)를 실패로 본다. (나)는 이 단계에서 개수만 출력 (after: 1)
   - 확인: selftest 통과, (나)의 개수가 출력됨 (감싸기 전 기준값)
   - 결과: 2026-11-19 통과 — 자가검사 96/96, 14.1초. 기준값: core 91개, ui·main.py 121개. 검사기 자체 시험(임시 폴더의 표본 코드) 포함
-- [ ] 3. 화면 글자 감싸기 (구조 변경, 동작 같음) — `ui/*.py`·`main.py`의 화면 문장을 `tr()`로. 고정 글자(버튼·툴팁·라벨·창 제목)는 `MainWindow._retranslate()`로 옮기고 `__init__`에서 한 번 부름. 메뉴 글자는 `menus.retranslate_menus(acts)`로. `dialogs.py`의 단축키 표는 키만 상수로 두고 설명은 표시할 때 `tr()` (after: 2)
+- [x] 3. 화면 글자 감싸기 (구조 변경, 동작 같음) — `ui/*.py`·`main.py`의 화면 문장을 `tr()`로. 고정 글자(버튼·툴팁·라벨·창 제목)는 `MainWindow._retranslate()`로 옮기고 `__init__`에서 한 번 부름. 메뉴 글자는 `menus.retranslate_menus(acts)`로. `dialogs.py`의 단축키 표는 키만 상수로 두고 설명은 표시할 때 `tr()` (after: 2)
   - 확인: selftest 통과 (기존 한국어 문장 시험이 바뀌지 않고 통과), (나)에서 `ui/`·`main.py` 0개
+  - 결과: 2026-11-19 통과 — 자가검사 97/97, 13.5초, 기존 GUI 시험 기대값 변경 없음. 키 103개. ui·main.py 감싸지 않은 한글 0개를 실패 조건으로 고정
+  - 계획과 다른 점: 상수 키는 `core.i18n.N_()`로 표시하고 보일 때 `tr(변수)` (연결 상태·단축키 표·메뉴). 검사기는 변수 키를 허용하고 f-문자열·이어 붙인 키만 막음. 아직 빈 사전은 빠진 키를 세지 않음(작업 5·7에서 엄격). `ui/theme.py`(QSS 주석)·assert 문구·명령줄 help는 검사 대상에서 뺌
 - [ ] 4. core 화면 문장 감싸기 (구조 변경, 동작 같음) — `core/`에서 콜백(`on_error`·`on_connection_failed` 등)으로 가는 문장, 화면에 보이는 예외 문장, `AudioStream.label`·`SubtitleStream.label`·`SubtitleTrack.display`·`Plan.summary`와 `ui/main_window.py > _plan_text`가 쓰는 문장만 `tr()`. 로그만 가는 문장은 그대로 (after: 2)
   - 확인: selftest 통과, (나)에서 `core/`에 남은 한글 상수는 모두 로그 전용임을 목록으로 보임
   - (나)가 0개(로그 제외)가 되면 검사기를 "개수 출력"에서 "0개가 아니면 실패"로 바꾼다

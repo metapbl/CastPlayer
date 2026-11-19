@@ -2190,6 +2190,37 @@ def _gui_cases(check: Callable[[str, bool, str], None]) -> None:
             check(f"GUI {fn.__name__}", False, f"예외: {err!r}")
 
 
+# ===================== 키프레임 목차 (F2-9, D098) =====================
+def _keyframe_index_cases(check: Callable[[str, bool, str], None]) -> None:
+    """ffmpeg로 키프레임 간격이 불규칙한 작은 MKV·MP4(B프레임 포함)와 목차 없는 MKV를 만들어,
+    목차로 읽은 시각이 ffprobe로 파일 전체를 읽은 결과와 같은지 본다."""
+    import core.keyframes as kf_mod
+    with tempfile.TemporaryDirectory() as tmp:
+        files = {"mkv": Path(tmp) / "kf.mkv", "mp4": Path(tmp) / "kf.mp4",
+                 "live": Path(tmp) / "kf_live.mkv"}
+        for name, path in files.items():
+            cmd = [str(ffmpeg_path()), "-v", "error", "-y", "-f", "lavfi",
+                   "-i", "testsrc=size=160x90:rate=24", "-t", "6", "-c:v", "libx264",
+                   "-preset", "ultrafast", "-bf", "2", "-g", "1000", "-sc_threshold", "0",
+                   "-force_key_frames", "0,1.5,2.7,4,5.2"]
+            cmd += (["-live", "1"] if name == "live" else []) + [str(path)]
+            subprocess.run(cmd, check=True, capture_output=True,
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        got = {}
+        for name, path in files.items():
+            base = kf_mod._start_time(path)                       # pylint: disable=protected-access
+            scan = kf_mod._scan_keyframes(path, base, 6.0, None)  # pylint: disable=protected-access
+            idx = kf_mod.index_keyframes(path, base, 6.0)
+            got[name] = (scan, idx)
+        same = all(idx is not None and len(idx) == len(scan)
+                   and all(abs(a - b) < 0.001 for a, b in zip(idx, scan))
+                   for name, (scan, idx) in got.items() if name != "live")
+        check("F2-9 MKV Cues·MP4 stss 목차로 읽은 키프레임 = 파일 전체를 읽은 결과 (B프레임·불규칙 간격)",
+              same and len(got["mkv"][0]) == 5, f"{got}")
+        check("F2-9 목차 없는 MKV(-live 1) → 목차 읽기 안 함(None) → 전체 읽기로 감",
+              got["live"][1] is None and len(got["live"][0]) == 5, f"{got['live']}")
+
+
 # ===================== 화면 언어 (F10, D079~D086) =====================
 _HANGUL = re.compile(r"[가-힣]")
 I18N_SOURCES = ("core", "ui", "main.py")
@@ -2352,6 +2383,11 @@ def selftest() -> int:
         _plan_style_cases(check)
         print("[자가검사] main.py — GUI 로그 기록 옵션 (D070)")
         _log_cases(check)
+        print("[자가검사] keyframes.py — 키프레임 목차 읽기 (F2-9)")
+        try:
+            _keyframe_index_cases(check)
+        except Exception as err:  # pylint: disable=broad-except
+            check("F2-9 키프레임 목차", False, f"예외: {err!r}")
         print("[자가검사] i18n.py — 화면 언어 (F10)")
         try:
             _i18n_cases(check)

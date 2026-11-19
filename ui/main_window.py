@@ -988,7 +988,7 @@ class MainWindow(QMainWindow):
 
     def _clear_cache(self) -> None:
         if self.ctrl.active or not confirm(
-                self, tr("키프레임 분석·자막 추출 캐시를 지우겠습니까?\n(다음에 열 때 다시 만듭니다)")):
+                self, tr("자막 추출 캐시를 지우겠습니까?\n(다음에 열 때 다시 만듭니다)")):
             return
         for sub in ("keyframes", "subtitles"):
             shutil.rmtree(cache_dir() / sub, ignore_errors=True)

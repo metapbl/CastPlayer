@@ -285,8 +285,8 @@ STRINGS: dict[str, str] = {
         'Registro activado',
     '로그 기록 끔':
         'Registro desactivado',
-    '키프레임 분석·자막 추출 캐시를 지우겠습니까?\n(다음에 열 때 다시 만듭니다)':
-        '¿Vaciar la caché de fotogramas clave y subtítulos?\n(Se vuelve a crear la próxima vez que se abra un archivo)',
+    '자막 추출 캐시를 지우겠습니까?\n(다음에 열 때 다시 만듭니다)':
+        '¿Vaciar la caché de subtítulos?\n(Se vuelve a crear la próxima vez que se abra un archivo)',
     '파일을 불러오는 중입니다. 종료하겠습니까?':
         'Se está cargando un archivo. ¿Salir de todos modos?',
     '마지막 기기':

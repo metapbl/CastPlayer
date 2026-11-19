@@ -185,8 +185,8 @@ STRINGS: dict[str, str] = {
     "음성 트랙을 바꿨습니다.": "Audio track changed.",
     "로그 기록 켬": "Logging on",
     "로그 기록 끔": "Logging off",
-    "키프레임 분석·자막 추출 캐시를 지우겠습니까?\n(다음에 열 때 다시 만듭니다)":
-        "Clear the keyframe and subtitle cache?\n(It is rebuilt the next time a file is opened)",
+    "자막 추출 캐시를 지우겠습니까?\n(다음에 열 때 다시 만듭니다)":
+        "Clear the subtitle cache?\n(It is rebuilt the next time a file is opened)",
     "파일을 불러오는 중입니다. 종료하겠습니까?": "A file is loading. Quit anyway?",
     "마지막 기기": "The last device",
     # ---- ui/menus.py ----

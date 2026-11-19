@@ -2377,6 +2377,25 @@ def _keyframe_index_cases(check: Callable[[str, bool, str], None]) -> None:
         check("F2-10 불러오기 마지막(자막 추출) 중 취소 → 취소 예외, 이전 파일 그대로",
               raised and kept == "kf.mkv", f"예외 {raised}, 파일 {kept}")
 
+        import core.subtitles as subs_mod
+        srt, withsub = Path(tmp) / "s.srt", Path(tmp) / "kf_sub.mkv"
+        srt.write_text("1\n00:00:01,000 --> 00:00:02,000\nhello\n", encoding="utf-8")
+        subprocess.run([str(ffmpeg_path()), "-v", "error", "-y", "-i", str(files["mkv"]),
+                        "-i", str(srt), "-map", "0", "-map", "1", "-c", "copy", "-c:s", "srt",
+                        str(withsub)], check=True, capture_output=True,
+                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        info = probe_mod.probe(withsub)
+        sub_dir = cache_dir() / "subtitles"
+        before = set(sub_dir.iterdir()) if sub_dir.exists() else set()
+        try:
+            subs_mod.extract_embedded(info, list(info.subtitles), on_progress=cancel)
+            raised = False
+        except LoadCancelled:
+            raised = True
+        after = set(sub_dir.iterdir()) if sub_dir.exists() else set()
+        check("F2-10 자막 추출 중 취소 → 취소 예외, 자막 캐시 파일 없음 (D099)",
+              raised and after == before, f"예외 {raised}, 새 파일 {len(after - before)}개")
+
 
 # ===================== 화면 언어 (F10, D079~D086) =====================
 _HANGUL = re.compile(r"[가-힣]")

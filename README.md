@@ -1,43 +1,70 @@
-# CastPlayer
+<p align="center">
+  <strong>Language:</strong>
+  <a href="README.md">English</a> |
+  <a href="README.ko.md">한국어</a> |
+  <a href="README.zh-CN.md">简体中文</a> |
+  <a href="README.ja.md">日本語</a> |
+  <a href="README.es.md">Español</a> |
+  <a href="README.ru.md">Русский</a>
+</p>
 
-[English](README.en.md)
+<h1 align="center">CastPlayer</h1>
 
-Windows PC의 로컬 동영상을 Chromecast with Google TV로 보내는 가벼운 프로그램입니다.
-PC는 제어 화면만 띄우고, 재생은 TV가 합니다.
+<p align="center">
+  <a href="https://github.com/metapbl/CastPlayer/releases"><img alt="Release" src="https://img.shields.io/github/v/release/metapbl/CastPlayer?style=flat-square"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square"></a>
+  <a href="#from-source"><img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white"></a>
+  <a href="#requirements"><img alt="Windows 11" src="https://img.shields.io/badge/Windows-11-0078D4?style=flat-square"></a>
+</p>
 
-- mp4, mkv, avi, ts, mov 등을 열면 TV가 재생할 수 있는 형태를 골라 보냅니다. 필요할 때만 변환합니다.
-- TV와 PC 양쪽 탐색 바가 처음부터 전체 길이를 보이고, TV 리모컨으로도 탐색할 수 있습니다.
-- 음성 트랙 선택, 자막(srt, smi, ass/ssa, vtt, 영상에 들어 있는 텍스트 자막), 자막 크기·싱크 조절.
-- 네트워크가 잠시 끊겨도(랜선을 뽑았다 꽂는 정도) 손대지 않으면 그 자리에서 이어 재생합니다.
+<p align="center">A lightweight Windows app that casts local videos to Chromecast with Google TV. The PC is the remote; the TV plays.</p>
 
-## 요구 사항
+<p align="center"><img src="docs/images/demo.gif" alt="Connecting to a TV, opening a video, loading it, then seeking and changing audio and subtitles"></p>
 
-- Windows 11 (Windows 10은 동작할 수 있으나 시험하지 않았습니다)
-- 같은 네트워크(서브넷)에 있는 Chromecast with Google TV
-- ffmpeg·ffprobe (아래 설치 참고. 이 프로그램에 들어 있지 않습니다)
+## Features
 
-## 설치
+- Opens mp4, mkv, avi, ts, mov and more, and picks a form the TV can play. It converts only when needed.
+- The seek bar on both the TV and the PC shows the full length from the start, and you can seek with the TV remote.
+- Audio track selection, subtitles (srt, smi, ass/ssa, vtt, and text subtitles inside the video), subtitle size and sync.
+- If the network drops for a while (such as unplugging and replugging the cable), playback resumes where it was without you touching anything.
+- The interface is available in English, 한국어, 简体中文, 日本語, Español and Русский.
 
-### 실행 파일 (권장)
+## Screenshots
 
-1. GitHub Releases에서 zip을 받아 원하는 폴더에 풉니다.
-2. ffmpeg를 설치합니다. PowerShell이나 명령 프롬프트에서:
+| Dark | Light |
+|---|---|
+| <img src="docs/images/main-dark.png" alt="Main window, dark theme"> | <img src="docs/images/main-light.png" alt="Main window, light theme"> |
+
+Sample thumbnail: Johannes Vermeer, Girl with a Pearl Earring (c. 1665), public domain.
+
+## Requirements
+
+- Windows 11 (Windows 10 may work but is not tested)
+- A Chromecast with Google TV on the same network (subnet)
+- ffmpeg and ffprobe (see [Installation](#installation); they are not included)
+
+## Installation
+
+### Executable (recommended)
+
+1. Download the zip from [GitHub Releases](https://github.com/metapbl/CastPlayer/releases) and extract it to any folder.
+2. Install ffmpeg. In PowerShell or Command Prompt:
 
    ```
    winget install Gyan.FFmpeg
    ```
 
-3. `CastPlayer.exe`를 실행합니다.
+3. Run `CastPlayer.exe`.
 
-ffmpeg는 `CastPlayer.exe` 옆의 `bin\` 폴더(`bin\ffmpeg.exe`, `bin\ffprobe.exe`)를 먼저 찾고, 없으면 PATH에서 찾습니다.
-둘 다 없으면 시작할 때 안내창을 띄우고 종료합니다.
+The app looks for ffmpeg first in the `bin\` folder next to `CastPlayer.exe` (`bin\ffmpeg.exe`, `bin\ffprobe.exe`), then on PATH.
+If neither has it, the app shows a message on startup and exits.
 
-처음 실행할 때 Windows 방화벽이 허용 여부를 물으면 개인 네트워크에서 허용해 주세요.
-TV가 PC의 포트 8765로 동영상을 받아 갑니다.
+If Windows Firewall asks on first run, allow access on private networks.
+The TV fetches the video from port 8765 on the PC.
 
-### 소스에서 실행
+### From source
 
-Python 3.11 이상이 필요합니다.
+Requires Python 3.11 or later.
 
 ```
 python -m venv .venv
@@ -45,60 +72,65 @@ python -m venv .venv
 .venv\Scripts\python main.py
 ```
 
-`-v`를 붙이면 이번 실행만 자세한 로그(DEBUG)를 남깁니다.
+Add `-v` to write a detailed (DEBUG) log for that run only.
 
-## 사용법
+## Usage
 
-1. 실행하면 기기를 찾아 마지막에 쓴 기기에 자동으로 연결합니다. 처음이면 목록에서 기기를 고르고 [연결]을 누릅니다.
-2. 동영상 파일을 창에 끌어다 놓거나 `Ctrl+O`로 엽니다.
-3. 재생 제어는 창의 버튼이나 아래 단축키, 또는 TV 리모컨으로 합니다.
+1. On start, the app finds devices and connects to the one you used last. The first time, pick a device from the list and press **Connect**.
+2. Drag a video file onto the window, or open one with `Ctrl+O`. To stop loading a large file, press **Cancel** or `Esc`.
+3. Control playback with the window's buttons, the shortcuts below, or the TV remote.
 
-기기가 목록에 나오지 않으면 **메뉴 → IP로 기기 추가**에 TV의 IP 주소(예: `192.0.2.10`)를 넣어 보세요.
+If your device does not appear, use **Menu → Add device by IP…** and enter the TV's IP address (for example `192.0.2.10`).
 
-### 단축키
+### Interface language
 
-| 키 | 동작 |
+On first start the app follows the Windows display language, and uses English if that language is not one of the six.
+Change it in **Options → Language**. The change applies at once, without restarting.
+
+### Shortcuts
+
+| Key | Action |
 |---|---|
-| Space | 재생 / 일시정지 |
-| ← / → | 5초 뒤로 / 앞으로 (연타하면 모아서 한 번에 이동) |
-| ↑ / ↓ | 볼륨 ±5% |
-| M | 음소거 전환 |
-| S | 정지 (TV 플레이어 종료) |
-| Ctrl+O | 파일 열기 |
-| F5 | 기기 다시 찾기 |
-| Ctrl+Q | 프로그램 종료 |
-| Shift+클릭 | 자막 싱크 버튼을 0.1초 단위로 |
+| Space | Play / pause |
+| ← / → | Back / forward 5 seconds (repeated presses are combined into one jump) |
+| ↑ / ↓ | Volume ±5% |
+| M | Toggle mute |
+| S | Stop (closes the player on the TV) |
+| Ctrl+O | Open file |
+| F5 | Search for devices again |
+| Ctrl+Q | Quit |
+| Shift+click | Subtitle sync buttons in 0.1-second steps |
 
-### 송출 방식
+### Casting modes
 
-| 방식 | 언제 | 하는 일 |
+| Mode | When | What it does |
 |---|---|---|
-| DIRECT | mp4 + H.264/HEVC + AAC/MP3, 기본 음성 트랙 | 파일을 그대로 보냄 |
-| REMUX | 영상은 TV가 재생할 수 있으나 컨테이너·음성 코덱이 맞지 않거나 다른 음성 트랙 선택 | 영상은 복사, HLS로 보냄 |
-| TRANSCODE | TV가 재생할 수 없는 영상(XviD, H.264 10bit 등) | H.264로 다시 인코딩해 HLS로 보냄 |
+| DIRECT | mp4 + H.264/HEVC + AAC/MP3, default audio track | Sends the file as is |
+| REMUX | The TV can play the video, but the container or audio codec does not fit, or another audio track is chosen | Copies the video and sends it as HLS |
+| TRANSCODE | Video the TV cannot play (XviD, 10-bit H.264, etc.) | Re-encodes to H.264 and sends it as HLS |
 
-음성은 AAC면 그대로, 나머지는 AAC 2채널로 변환합니다.
+Audio is sent as is when it is AAC; anything else is converted to 2-channel AAC.
 
-## 한계
+## Limitations
 
-- 그림으로 된 자막(PGS, VobSub)은 지원하지 않습니다. 목록에 회색으로 보입니다.
-- Chromecast의 기본 미디어 수신 앱만 씁니다. 정지하면 그 앱만 종료하므로 다른 앱(유튜브 등)은 건드리지 않습니다. 다만 유튜브를 보던 중에 이 프로그램으로 동영상을 보내면 유튜브 자리를 대신하므로, 정지한 뒤에는 TV 홈 화면으로 돌아갑니다.
-- 화면은 한국어만 있습니다.
+- Image-based subtitles (PGS, VobSub) are not supported. They appear greyed out in the list.
+- Only the Chromecast's Default Media Receiver is used. Stopping closes only that app, so other apps (such as YouTube) are left alone. However, casting a video while YouTube is playing replaces YouTube, so after you stop, the TV returns to its home screen.
 
-## 파일 위치
+## Files
 
-실행 파일(또는 소스 폴더) 옆에 다음이 생깁니다.
+These are created next to the executable (or the source folder):
 
-- `config.json` — 마지막 기기, 볼륨, 자막 크기 등 설정 (`server_port`로 포트 변경 가능)
-- `logs\castplayer.log` — 로그. 기본은 남기지 않고, **옵션 → 로그 기록**을 켜면 남깁니다. 실행할 때마다 새로 씁니다 (1MB씩 최대 4개). 터미널에서 `-v`를 붙여 실행하면 이번 실행만 자세한(DEBUG) 로그를 남깁니다
-- `cache\` — 키프레임 분석·자막 캐시 (**옵션 → 캐시 비우기**로 지움)
+- `config.json` — last device, volume, subtitle size, language and other settings (change the port with `server_port`)
+- `logs\castplayer.log` — log. Off by default; turn it on with **Options → Logging**. It starts fresh on every run (1 MB each, up to 4 files). Running from a terminal with `-v` writes a detailed (DEBUG) log for that run only
+- `cache\` — subtitle cache (cleared with **Options → Clear cache…**)
 
-## 이슈와 기여
+## Issues and contributions
 
-이슈와 풀 리퀘스트는 환영하지만, 답변이나 반영을 보장하지는 않습니다.
+Report bugs and ask questions in [GitHub Issues](https://github.com/metapbl/CastPlayer/issues).
+Issues and pull requests are welcome, but there is no guarantee of a response or a merge.
 
-## 라이선스
+## License
 
-MIT License, Copyright (c) 2026 META PUBLIC. [LICENSE](LICENSE)를 보세요.
-사용한 라이브러리의 라이선스는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)에 있습니다.
-ffmpeg는 이 프로그램에 포함되지 않으며, 사용자가 따로 설치합니다.
+`MIT` — Copyright (c) 2026 META PUBLIC. See [LICENSE](LICENSE).
+Licenses of the libraries used are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+ffmpeg is not included; users install it separately.

@@ -89,8 +89,10 @@ Status: active | 시작: 2026-11-19 | 근거: PRD F10, F9, §2.1 README (D079~D0
   - 확인 (readme 표준 §6): 6개 파일 존재, 각 번역의 `##` 제목 수·배지 수가 영어판과 같음, 상대 링크가 가리키는 파일이 모두 있음, 배지 이미지가 열림(`logo=` 아이콘 보임), 쪽 안 링크가 각 번역의 제목을 씀, 설치·사용 명령은 실제로 실행(위험 명령은 있는지만), 공개 전 점검 패턴(PRD §6) `git grep` 0건
   - 결과: 2026-11-20 통과 — 6개 파일, `##` 9·`###` 5·배지 4개 모두 같음, 상대·쪽 안 링크 깨짐 0, 배지 4개 열림(Python 아이콘 보임), `python -m venv` 실행·`winget show Gyan.FFmpeg` 있음(pip install·winget install·main.py는 있는지만), 공개 전 점검 0건(점검 규칙을 적은 문서 줄만), 자가검사 112/112
   - 계획과 다른 점: Shields에 Windows 아이콘이 없어(simple-icons에서 빠짐) Windows 배지는 아이콘 없이. 버전 배지는 GitHub 릴리스 동적 배지(공개 저장소). 한 줄 소개는 120자 안으로 새로 써서 GitHub About(지금 더 김)과 다름. 메뉴 이름은 각 언어 사전 값, 불러오기 취소(`Esc`) 한 줄과 `cache\`는 자막 캐시만(D102·D103)으로 고침. `CastPlayer.spec`은 아직 `README.en.md`를 복사하므로 작업 17 전에는 빌드가 실패함
-- [ ] 17. 배포 준비 — `CastPlayer.spec`가 `README*.md` 6개를 복사(D087), `APP_VERSION = "1.2.0"`, `THIRD_PARTY_NOTICES.md` 버전 문구, CLAUDE.md 규칙에 "화면 문장은 `tr()`로 감싸고 6개 사전을 같은 커밋에서 바꾼다" 한 줄 (after: 16)
+- [x] 17. 배포 준비 — `CastPlayer.spec`가 `README*.md` 6개를 복사(D087), `APP_VERSION = "1.2.0"`, `THIRD_PARTY_NOTICES.md` 버전 문구, CLAUDE.md 규칙에 "화면 문장은 `tr()`로 감싸고 6개 사전을 같은 커밋에서 바꾼다" 한 줄 (after: 16)
   - 확인: selftest 통과, 빌드(실행 전 확인) 뒤 `dist\CastPlayer`에 README 6개와 LICENSE·THIRD_PARTY_NOTICES.md가 있고 시험 흔적(`bin`·`logs`·`cache`·`config.json`) 없음, `pip-audit -r requirements.lock.txt` 결과
+  - 결과: 2026-11-20 통과 — 자가검사 112/112, 빌드 성공, `dist\CastPlayer`에 `CastPlayer.exe`·`_internal`·LICENSE·THIRD_PARTY_NOTICES.md·README 6개만(시험 흔적 없음), pip-audit 취약점 0건. 고지 문서의 라이브러리 버전은 설치본과 모두 같아 버전 문구만 1.2.0으로. zip은 아직 안 만듦
+  - 계획과 다른 점: spec은 `glob('README*.md')`로 복사. CLAUDE.md 줄에 "README를 바꾸면 6개 언어를 같은 커밋에서"도 함께 적음(readme 표준 §1)
 - [ ] 18. 인수 — 이 계획의 F10·F9·F2 인수 기준 전부
   - 확인: 전체 테스트 `.venv\Scripts\python -m tools.cast_test --selftest --log` 통과 (F10-1~4, F9-1~7·F9-9~12, F2-9·F2-10 포함)
   - 실기기: F10-5 — exe에서 옵션 → 언어로 简体中文·日本語·Español·Русский를 차례로 고르고, 다시 켜지 않아도 바뀌며 글자 깨짐(□)과 버튼·메뉴 글자 잘림이 없음. "시스템 설정 따르기"로 돌아오면 Windows 언어. 창을 최소 너비로 줄여도 잘림 없음. 한국어로 TV 재생 한 번 (기존 동작 그대로). F9-8 — 새 배치의 어둡게·밝게 화면 정렬·대비. F2-11 — 전에 오래 걸리던 큰 MKV(캐시 없음)의 분석 시간이 눈에 띄게 짧음 (형식·크기·위치 기록)

@@ -346,4 +346,6 @@ STRINGS: dict[str, str] = {
     # ---- 불러오기 취소 (F2-10, D099) ----
     '취소': 'Cancelar',
     '불러오기를 취소했습니다.': 'Se canceló la carga.',
+    '정보 읽기': 'Leyendo información del archivo',
+    '음성 변경을 취소했습니다.': 'Se canceló el cambio de audio.',
 }

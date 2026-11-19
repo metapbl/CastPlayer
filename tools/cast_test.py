@@ -2198,6 +2198,19 @@ def _cancel_cases(check: Callable[[str, bool, str], None]) -> None:
               "파일 없음 화면, 안내",
               state == (True, False, 0, None, "불러오기를 취소했습니다."), f"{state}")
 
+    w, cm, _ctrl, bridge = _gui()
+    _connect(w, cm, bridge)
+    w.tasks.submit("audio", lambda: [w.tasks.report("키프레임 분석", 0) or time.sleep(0.01)
+                                     for _ in range(1000)])
+    _wait_for(lambda: w.tasks.busy == "audio")
+    w.tasks.cancel()
+    _wait_for(lambda: w.tasks.busy is None, 15.0)
+    _wait_for(lambda: bool(w.statusBar().currentMessage()))   # 취소 신호는 큐로 늦게 옴
+    msg = w.statusBar().currentMessage()
+    _close(w)
+    check("F2-10 음성 변경 중 취소 → \"음성 변경을 취소했습니다.\"",
+          msg == "음성 변경을 취소했습니다.", msg)
+
 
 def _track_text_cases(check: Callable[[str, bool, str], None]) -> None:
     """F9-11 (D092, D096): 음성·자막 목록은 사람이 읽는 형태, 트랙 제목은 풍선 도움말."""
@@ -2333,6 +2346,36 @@ def _keyframe_index_cases(check: Callable[[str, bool, str], None]) -> None:
         took = time.monotonic() - t0
         check("F2-10 전체 읽기 중 취소 → 취소 예외로 바로 빠짐",
               raised and took < 3, f"예외 {raised}, {took:.2f}초")
+
+        import core.probe as probe_mod
+        try:
+            probe_mod.probe(files["mkv"], on_progress=cancel)
+            raised = False
+        except LoadCancelled:
+            raised = True
+        check("F2-10 정보 읽기(ffprobe) 중 취소 → 취소 예외로 빠짐 (D099)", raised, f"예외 {raised}")
+
+        # 마지막 진행 알림 뒤(자막 추출 중) 취소 → 새 파일로 바꾸지 않음 (D099)
+        ctrl = PlaybackController(_FakeCM(), _FakeServer(), None, CastCallbacks())
+        ctrl.load(PlaylistItem(files["mkv"]))
+        flag = threading.Event()
+
+        def report(_stage: str, _pct: int) -> None:
+            if flag.is_set():
+                raise LoadCancelled()
+
+        real_subs = player_mod.load_subtitles
+        player_mod.load_subtitles = lambda info, cb=None: (flag.set(), real_subs(info, cb))[1]
+        try:
+            ctrl.load(PlaylistItem(files["mp4"]), on_progress=report)
+            raised = False
+        except LoadCancelled:
+            raised = True
+        finally:
+            player_mod.load_subtitles = real_subs
+        kept = ctrl.info.path.name if ctrl.info else None
+        check("F2-10 불러오기 마지막(자막 추출) 중 취소 → 취소 예외, 이전 파일 그대로",
+              raised and kept == "kf.mkv", f"예외 {raised}, 파일 {kept}")
 
 
 # ===================== 화면 언어 (F10, D079~D086) =====================

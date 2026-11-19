@@ -95,7 +95,7 @@ class PlaybackController:
 
     # ---- 준비 (시간이 걸릴 수 있음: 키프레임 분석, 인코더 확인, 자막 추출) ----
     def load(self, item: PlaylistItem, on_progress: ProgressFn | None = None) -> MediaInfo:
-        info = probe(item.path)                       # ProbeError 전파
+        info = probe(item.path, on_progress=_stage(on_progress, N_("정보 읽기")))  # ProbeError 전파
         plan = make_plan(info, item.audio_stream)     # PlanError 전파
         timeline, encoder = self._prepare(info, plan, None, on_progress)
         subs = load_subtitles(info, _stage(on_progress, N_("자막 추출")))
@@ -105,6 +105,8 @@ class PlaybackController:
             sub = None
         else:
             sub = subs.find(item.subtitle_key)
+        if on_progress:      # 마지막 취소 자리: 취소됐으면 새 파일로 바꾸지 않음 (D099)
+            on_progress(N_("자막 추출"), 100)
         with self._lock:
             self.forget_lost()                        # 새 파일에 옛 끊김 위치를 쓰지 않음
             self.item, self.info, self.plan = item, info, plan

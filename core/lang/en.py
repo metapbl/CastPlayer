@@ -229,4 +229,6 @@ STRINGS: dict[str, str] = {
     # ---- 불러오기 취소 (F2-10, D099) ----
     '취소': 'Cancel',
     '불러오기를 취소했습니다.': 'Loading was cancelled.',
+    '정보 읽기': 'Reading file info',
+    '음성 변경을 취소했습니다.': 'Audio change was cancelled.',
 }

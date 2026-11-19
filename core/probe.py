@@ -4,13 +4,15 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
+import time
 from dataclasses import dataclass, replace
 from fractions import Fraction
 from pathlib import Path
+from typing import Callable
 
 from .i18n import tr
 from .paths import ffprobe_path
-from .proc import NO_WINDOW
+from .proc import NO_WINDOW, bind_to_job
 
 _LOGGER = logging.getLogger(__name__)
 IMAGE_SUB_CODECS = {"hdmv_pgs_subtitle", "dvd_subtitle", "dvb_subtitle", "xsub"}
@@ -145,18 +147,36 @@ def check_pts_order(path: Path, timeout: float = 15.0) -> bool:
     return broken
 
 
-def probe(path: Path, timeout: float = 30.0) -> MediaInfo:
+def probe(path: Path, timeout: float = 30.0,
+          on_progress: Callable[[int], None] | None = None) -> MediaInfo:
+    """on_progress는 기다리는 동안 0.2초마다 0으로 불림. 취소면 거기서 예외 → ffprobe 종료 (D099)."""
     cmd = [str(ffprobe_path()), "-v", "error", "-print_format", "json",
            "-show_format", "-show_streams", str(path)]
     try:
-        r = subprocess.run(cmd, capture_output=True, timeout=timeout,
-                           creationflags=NO_WINDOW, check=False)
-    except (OSError, subprocess.TimeoutExpired) as err:
+        proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, creationflags=NO_WINDOW)
+    except OSError as err:
         raise ProbeError(tr("ffprobe 실행 실패: {err}", err=err)) from err
-    if r.returncode != 0:
-        raise ProbeError(r.stderr.decode("utf-8", "replace").strip() or tr("ffprobe 오류"))
+    bind_to_job(proc)
+    deadline = time.monotonic() + timeout
     try:
-        data = json.loads(r.stdout.decode("utf-8", "replace"))
+        while True:
+            if on_progress:
+                on_progress(0)
+            try:
+                out, err_out = proc.communicate(timeout=0.2)
+                break
+            except subprocess.TimeoutExpired as err:
+                if time.monotonic() > deadline:
+                    raise ProbeError(tr("ffprobe 실행 실패: {err}", err=err)) from err
+    except BaseException:
+        proc.kill()
+        proc.communicate()
+        raise
+    if proc.returncode != 0:
+        raise ProbeError(err_out.decode("utf-8", "replace").strip() or tr("ffprobe 오류"))
+    try:
+        data = json.loads(out.decode("utf-8", "replace"))
     except json.JSONDecodeError as err:
         raise ProbeError(tr("ffprobe 출력 해석 실패")) from err
 

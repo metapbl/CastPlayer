@@ -113,7 +113,7 @@ def _plan_text(plan: Plan, info: MediaInfo) -> str:
 
 
 class MainWindow(QMainWindow):
-    thumb_ready = Signal(str, str)     # 영상 경로, 썸네일 경로("" = 실패) — 작업 스레드에서 보냄
+    thumb_ready = Signal(str, bytes)   # 영상 경로, 썸네일 JPEG(b"" = 실패) — 작업 스레드에서 보냄
 
     def __init__(self, cfg: AppConfig, cm: CastManager, ctrl: PlaybackController,
                  bridge: CastBridge, set_log: Callable[[bool], str | None],
@@ -503,10 +503,10 @@ class MainWindow(QMainWindow):
         self._fit_thumb(big)
         self._elide_title()
 
-    def _show_thumb(self, path: str) -> None:
-        """썸네일 그림을 바꾼다 ("" = 없음). 보일지는 창 크기로 정함."""
-        pm = QPixmap(path) if path else None
-        self._thumb = pm if pm is not None and not pm.isNull() else None
+    def _show_thumb(self, data: bytes) -> None:
+        """썸네일 그림을 바꾼다 (b"" = 없음). 보일지는 창 크기로 정함. 파일로 남기지 않음 (D102)."""
+        pm = QPixmap()
+        self._thumb = pm if data and pm.loadFromData(data) else None
         self._fit_thumb(self.media_slot.height() >= 2 * self.media_slot.minimumSizeHint().height())
 
     def _fit_thumb(self, big: bool) -> None:
@@ -519,10 +519,10 @@ class MainWindow(QMainWindow):
             h, Qt.TransformationMode.SmoothTransformation))
         self.thumb_label.show()
 
-    def _on_thumb(self, video: str, path: str) -> None:
+    def _on_thumb(self, video: str, data: bytes) -> None:
         info = self.ctrl.info
         if info is not None and str(info.path) == video:    # 그사이 다른 파일을 열었으면 버림
-            self._show_thumb(path)
+            self._show_thumb(data)
 
     @property
     def _connected(self) -> bool:
@@ -771,7 +771,7 @@ class MainWindow(QMainWindow):
         self.cfg.save()
         self._set_title(path.name)
         self.plan_label.setText("")
-        self._show_thumb("")
+        self._show_thumb(b"")
 
         def job():
             if was_active:
@@ -799,7 +799,7 @@ class MainWindow(QMainWindow):
             self._msg(tr("재생 요청을 보냈습니다."))
             info = result
             threading.Thread(       # 재생을 기다리게 하지 않음 (D097)
-                target=lambda: self.thumb_ready.emit(str(info.path), str(thumbnail(info) or "")),
+                target=lambda: self.thumb_ready.emit(str(info.path), thumbnail(info) or b""),
                 name="thumb", daemon=True).start()
         elif kind == "audio":
             self._msg(tr("음성 트랙을 바꿨습니다."))

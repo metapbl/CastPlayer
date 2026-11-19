@@ -5,9 +5,7 @@ ffmpeg -ss, -copyts -start_at_zero 출력도 같은 기준이므로 그대로 �
 """
 from __future__ import annotations
 
-import hashlib
 import io
-import json
 import logging
 import subprocess
 import threading
@@ -16,24 +14,16 @@ from pathlib import Path
 from typing import Callable
 
 from .i18n import tr
-from .paths import cache_dir, ffprobe_path
+from .paths import ffprobe_path
 from .proc import NO_WINDOW, bind_to_job
 
 _LOGGER = logging.getLogger(__name__)
-_CACHE_VERSION = 1
 # ffprobe가 오류로 끝나도 전체 길이의 이 비율 이상 읽었으면 결과 사용 (TS 끝 손상 등)
 COMPLETE_RATIO = 0.98
 
 
 class KeyframeError(RuntimeError):
     pass
-
-
-def _cache_file(path: Path) -> Path:
-    st = path.stat()
-    key = f"{_CACHE_VERSION}|{path.resolve()}|{st.st_size}|{st.st_mtime_ns}"
-    name = hashlib.sha1(key.encode("utf-8")).hexdigest() + ".json"
-    return cache_dir() / "keyframes" / name
 
 
 def _num(s: str | None) -> float | None:
@@ -70,27 +60,13 @@ def _drain(stream, tail: deque[str]) -> None:
 
 def keyframes(path: Path, duration: float,
               on_progress: Callable[[int], None] | None = None) -> list[float]:
-    """키프레임 시각 목록. 캐시가 있으면 즉시, MKV·MP4는 파일 안 목차만 읽고(D098),
-    목차가 없거나 못 믿으면 파일 전체를 읽어 분석."""
-    cf = _cache_file(path)
-    try:
-        cached = json.loads(cf.read_text(encoding="utf-8"))
-        if isinstance(cached, list) and cached:
-            _LOGGER.debug("키프레임 캐시 사용: %s (%d개)", cf.name, len(cached))
-            return [float(x) for x in cached]
-    except (OSError, ValueError):
-        pass
-
+    """키프레임 시각 목록. MKV·MP4는 파일 안 목차만 읽고(D098), 목차가 없거나 못 믿으면
+    파일 전체를 읽어 분석. 결과는 캐시에 남기지 않는다 (D103: 1GB 전체 읽기도 디스크 속도만큼)."""
     base = _start_time(path)
     out = index_keyframes(path, base, duration)
     how = "목차"   # 로그 전용
     if out is None:
         out, how = _scan_keyframes(path, base, duration, on_progress), "전체 읽기"   # 로그 전용
-    try:
-        cf.parent.mkdir(parents=True, exist_ok=True)
-        cf.write_text(json.dumps(out), encoding="utf-8")
-    except OSError:
-        _LOGGER.warning("키프레임 캐시 저장 실패", exc_info=True)
     if on_progress:
         on_progress(100)
     _LOGGER.info("키프레임 %d개, %s (시작 시각 보정 %.3f초)", len(out), how, base)

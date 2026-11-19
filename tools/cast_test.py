@@ -52,7 +52,7 @@ from core.cast_manager import (CastCallbacks, CastManager, DeviceInfo, MediaRequ
 from core.config import AppConfig
 from core.encoders import EncoderDetector
 from core.media_server import HlsResource, MediaServer
-from core.paths import app_dir, ffmpeg_path, ffprobe_path   # app_dir 추가
+from core.paths import app_dir, cache_dir, ffmpeg_path, ffprobe_path   # app_dir 추가
 from core.planner import Mode, PlanError
 from core.player import PlaybackController
 from core.playlist import PlaylistItem
@@ -2130,18 +2130,18 @@ def _thumb_cases(check: Callable[[str, bool, str], None]) -> None:
         run("-f", "lavfi", "-i", scene, "-i", str(t / "cover.png"), "-map", "0", "-map", "1",
             "-c:v:0", "libx264", "-preset", "ultrafast", "-c:v:1", "png",
             "-disposition:v:1", "attached_pic", str(t / "cover.mp4"))
-        saved = thumbs_mod.cache_dir
-        thumbs_mod.cache_dir = lambda: t / "cache"
-        try:
-            got = {}
-            for name in ("plain.mkv", "cover.mp4"):
-                info = probe_mod.probe(t / name)
-                out = thumbs_mod.thumbnail(info)
-                img = QImage(str(out)) if out else QImage()
-                c = img.pixelColor(img.width() // 2, img.height() // 2) if not img.isNull() else None
-                got[name] = (info.cover, img.width(), c.name() if c else None)
-        finally:
-            thumbs_mod.cache_dir = saved
+        got = {}
+        thumbs_dir = cache_dir() / "thumbs"
+        before = set(thumbs_dir.iterdir()) if thumbs_dir.exists() else set()
+        for name in ("plain.mkv", "cover.mp4"):
+            info = probe_mod.probe(t / name)
+            out = thumbs_mod.thumbnail(info)
+            img = QImage.fromData(out) if isinstance(out, bytes) else QImage()
+            c = img.pixelColor(img.width() // 2, img.height() // 2) if not img.isNull() else None
+            got[name] = (info.cover, img.width(), c.name() if c else None)
+        after = set(thumbs_dir.iterdir()) if thumbs_dir.exists() else set()
+        check("F9-12 썸네일은 메모리(바이트)로만, 캐시 폴더에 새 파일을 남기지 않음 (D102)",
+              after == before, f"새 파일 {len(after - before)}개")
 
         def tone(hexcol: str | None) -> str:
             if not hexcol:
@@ -2156,7 +2156,7 @@ def _thumb_cases(check: Callable[[str, bool, str], None]) -> None:
               f"{got}")
 
         w, *_ = _gui()
-        w._show_thumb(str(t / "cover.png"))                 # pylint: disable=protected-access
+        w._show_thumb((t / "cover.png").read_bytes())       # pylint: disable=protected-access
         w._set_title("selftest.mkv")                        # pylint: disable=protected-access
         w._update_ui()                                      # pylint: disable=protected-access
         w.resize(680, w.minimumSizeHint().height())
@@ -2306,27 +2306,28 @@ def _keyframe_index_cases(check: Callable[[str, bool, str], None]) -> None:
               same and len(got["mkv"][0]) == 5, f"{got}")
         check("F2-9 목차 없는 MKV(-live 1) → 목차 읽기 안 함(None) → 전체 읽기로 감",
               got["live"][1] is None and len(got["live"][0]) == 5, f"{got['live']}")
+        kf_dir = cache_dir() / "keyframes"
+        before = set(kf_dir.iterdir()) if kf_dir.exists() else set()
+        for path in files.values():
+            kf_mod.keyframes(path, 6.0)
+        after = set(kf_dir.iterdir()) if kf_dir.exists() else set()
+        check("F2-9 목차 읽기·전체 읽기 모두 키프레임 캐시 파일을 새로 남기지 않음 (D103)",
+              after == before, f"새 파일 {len(after - before)}개")
 
         from core.proc import LoadCancelled
 
         def cancel(_pct: int) -> None:
             raise LoadCancelled()
 
-        saved = kf_mod.cache_dir
-        kf_mod.cache_dir = lambda: Path(tmp) / "cache"
+        t0 = time.monotonic()
         try:
-            t0 = time.monotonic()
-            try:
-                kf_mod.keyframes(files["live"], 6.0, on_progress=cancel)
-                raised = False
-            except LoadCancelled:
-                raised = True
-            took = time.monotonic() - t0
-        finally:
-            kf_mod.cache_dir = saved
-        check("F2-10 전체 읽기 중 취소 → 취소 예외로 빠지고 캐시 파일 없음",
-              raised and not (Path(tmp) / "cache").exists() and took < 3,
-              f"예외 {raised}, 캐시 {(Path(tmp) / 'cache').exists()}, {took:.2f}초")
+            kf_mod.keyframes(files["live"], 6.0, on_progress=cancel)
+            raised = False
+        except LoadCancelled:
+            raised = True
+        took = time.monotonic() - t0
+        check("F2-10 전체 읽기 중 취소 → 취소 예외로 바로 빠짐",
+              raised and took < 3, f"예외 {raised}, {took:.2f}초")
 
 
 # ===================== 화면 언어 (F10, D079~D086) =====================

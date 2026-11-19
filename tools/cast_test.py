@@ -2087,6 +2087,12 @@ def _lang_cases(check: Callable[[str, bool, str], None]) -> None:
         QApplication.processEvents()
         left = _hangul_texts(w)
         plan_text, connect = w.plan_label.toolTip(), w.btn_connect.text()
+        others = {}
+        for code in ("zh_CN", "ja", "es", "ru"):
+            w.acts.languages[code].trigger()
+            QApplication.processEvents()
+            others[code] = _hangul_texts(w)
+        w.acts.languages["en"].trigger()       # 아래 "다시 켬" 확인은 en 기준
         _close(w)
         i18n.set_language("ko")
         i18n.set_language(main_mod.startup_language(cfg.language, ["ko-KR"]))   # 다시 켠 것처럼
@@ -2101,6 +2107,8 @@ def _lang_cases(check: Callable[[str, bool, str], None]) -> None:
           and again == ("Open file", True),
           f"전 {before}개, 남음 {left[:5]}, {plan_text!r}, {connect_ko!r}→{connect!r}, "
           f"{cfg.language}, {again}")
+    check("F10-3 简体中文·日本語·Español·Русский로 바꿔도 화면에 한글 없음",
+          not any(others.values()), f"{ {k: v[:3] for k, v in others.items() if v} }")
 
 
 def _gui_cases(check: Callable[[str, bool, str], None]) -> None:

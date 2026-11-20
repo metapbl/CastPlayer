@@ -2570,6 +2570,25 @@ def _until(cond: Callable[[], bool], sec: float) -> bool:
     return cond()
 
 
+def _hold_subtitles(sec: float) -> None:
+    """실험: 수신기가 응답을 오래 기다려 주는지 (뒤에서 추출한 자막을 끊김 없이 붙일 수 있는지).
+    첫 자막 요청 시각 + sec까지 모든 자막 응답을 붙잡는다. 콘솔 시험 전용."""
+    orig, lock, start = SubtitleSet.get, threading.Lock(), []
+
+    def held(self: SubtitleSet, name: str):
+        with lock:
+            if not start:
+                start.append(time.monotonic())
+        wait = start[0] + sec - time.monotonic()
+        if wait > 0:
+            logging.getLogger("cast_test").info("자막 응답 지연 실험: %s %.0f초 붙잡음", name, wait)
+            time.sleep(wait)
+        logging.getLogger("cast_test").info("자막 응답 지연 실험: %s 보냄", name)
+        return orig(self, name)
+
+    SubtitleSet.get = held  # type: ignore[method-assign]
+
+
 # ===================== 화면 언어 (F10, D079~D086) =====================
 _HANGUL = re.compile(r"[가-힣]")
 I18N_SOURCES = ("core", "ui", "main.py")
@@ -2953,6 +2972,8 @@ def main() -> int:   # 인자 해석·로그 준비만 하고 본 실행은 run(
     ap.add_argument("--start", type=float, default=0.0, help="시작 위치(초)")
     ap.add_argument("--selftest", action="store_true", help="TV 없이 끊김·복구 자가검사")
     ap.add_argument("--droptest", action="store_true", help="실기기 연결 끊김 시험 (3장면 자동)")
+    ap.add_argument("--holdsub", type=float, metavar="초",
+                    help="실험: TV의 첫 자막 요청부터 이 시간 동안 자막 응답을 붙잡음 (뒤에서 추출 흉내)")
     ap.add_argument("--shots", action="store_true",
                     help="README 스크린샷·작동 장면 GIF를 docs/images/에 만듦 (D083, D089)")
     ap.add_argument("--count-buffering", nargs="*", metavar="로그",
@@ -3072,6 +3093,8 @@ def run(args: argparse.Namespace, ap: argparse.ArgumentParser) -> int:
     cm = CastManager(cb, known_hosts=args.host)
     ctrl = PlaybackController(cm, server, detector, cb, subtitle_scale=cfg.subtitle_scale)
     instrument(cm, mon)
+    if args.holdsub:
+        _hold_subtitles(args.holdsub)
     try:
         audio = args.audio - 1 if args.audio else None
         info = ctrl.load(PlaylistItem(path, audio_stream=audio), on_progress=progress)

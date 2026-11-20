@@ -243,7 +243,7 @@ Status: approved (2026-11-20) | 단계: 5 확정 | 갱신: 2026-11-20
 - 실기기 확인 대상과 결과 전달 방식: 인수 기준의 [실기기] 항목(TV 송출 필요). Claude가 기대 결과를 번호 항목으로 주고, 사용자는 항목마다 "예/아니요와 본 것"으로 답한다. 로그로 알 수 있는 것은 Claude가 `logs/`의 `.log`를 읽어 함께 판정. GUI 실기기 시험은 "로그 기록"을 켠 상태에서 하고, 시험이 끝나면 프로그램을 다시 켜기 전에 알린다(다시 켜면 로그가 지워짐) [U] (D070). 모든 항목이 "예"일 때만 통과, 애매한 답은 그 항목만 다시 묻는다 [U] (D062, D047 대체)
 - 전체 테스트 명령과 걸리는 시간: `.venv\Scripts\python -m tools.cast_test --selftest --log` (TV 불필요, 20초 이내). 작업마다 실행, 하나라도 실패하면 다음 작업으로 가지 않음 [U] (D064, 시간 D071 → D104)
 - 편집 때 자동 검사: `.py` → `.venv\Scripts\ruff.exe check` (ruff 기본 규칙 + `core/`에서 PySide6 import 금지 `TID251`, D003) → `pyright` (전역 npm 설치본, 설정 `pyrightconfig.json`, 오류 0개 유지). `.claude/hooks/check.ps1`이 실행 [U] (D063, D068)
-- 작업 끝 자동 검사: 파일을 고친 턴이 끝나면 `.venv\Scripts\python -m tools.cast_test --selftest` (`--log` 없이). `.claude/hooks/finish.ps1`이 실행 [U] (D078)
+- 작업 끝 자동 검사: 파일을 고친 턴이 끝나면 `.venv\Scripts\python -m tools.cast_test --selftest` (`--log` 없이). `.metarche/hooks/finish.ps1`이 실행 [U] (D078)
 - 반목표 확인: 유튜브 재생 중 캐스팅 전 연결·정지 → 유튜브 유지 (캐스팅한 뒤 정지하면 우리 수신 앱이 끝나 TV는 홈으로 감. Chromecast는 앱을 하나만 띄우므로 정상) / 연결 직후 TV 볼륨 그대로 / 끊김 뒤 다른 파일 열기 → 처음부터 재생 / 종료 뒤 `Get-Process ffmpeg, ffprobe` 없음 [U] (D058)
 - 공개 전 점검: 저장소 전체(`git grep`)에서 사설 IP 패턴(`192.168.`·`172.16~31.`·`10.`, 문서용 예시 `10.0.0.x`·`192.0.2.x` 제외)·사용자 경로(`C:\Users\`)·시험 영상 파일 이름(작업 폴더의 영상 파일 이름에서 확장자를 뺀 문자열) 검색 0건 [U] (D054) · 패턴 [AI]
 - 보안 정책: `docs/SECURITY_POLICY.md` (수준 기본, 같은 네트워크 미디어 서버 규칙, 공개 배포 전 `pip-audit`) [U] (D072)

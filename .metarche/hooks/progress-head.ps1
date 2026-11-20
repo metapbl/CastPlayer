@@ -1,7 +1,12 @@
-# SessionStart: put the head of docs/PROGRESS.md (above <!-- head:end -->, at most 40 lines) into context.
+# At session start: put the head of docs/PROGRESS.md (above <!-- head:end -->, at most 40 lines) into context.
+# Claude Code and Codex both add plain stdout from a SessionStart hook to the context.
 $ErrorActionPreference = 'SilentlyContinue'
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
-$root = if ($env:CLAUDE_PROJECT_DIR) { $env:CLAUDE_PROJECT_DIR } else { (Get-Location).Path }
+$data = [Console]::In.ReadToEnd() | ConvertFrom-Json
+$cwd = if ($data.cwd) { $data.cwd } else { (Get-Location).Path }
+# Project root: Claude Code sets CLAUDE_PROJECT_DIR; otherwise the git root of the session folder.
+$root = if ($env:CLAUDE_PROJECT_DIR) { $env:CLAUDE_PROJECT_DIR } else { git -C $cwd rev-parse --show-toplevel 2>$null }
+if (-not $root) { $root = $cwd }
 $file = Join-Path $root 'docs/PROGRESS.md'
 if (-not (Test-Path $file)) { exit 0 }
 $head = foreach ($line in Get-Content $file -Encoding utf8 -TotalCount 60) {

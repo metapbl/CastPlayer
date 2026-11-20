@@ -1,4 +1,5 @@
-# Stop: if a file was edited (.claude/.unchecked), run the project-wide checks; on failure, return the output to Claude (exit 2).
+# When the agent stops: if a file was edited (.metarche/.unchecked), run the project-wide checks; on failure, return the output (exit 2).
+# Claude Code and Codex both read exit 2 + stderr on Stop as "keep working, for this reason".
 $ErrorActionPreference = 'SilentlyContinue'
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 # Project-wide check commands. No file path is appended. Empty means do nothing.
@@ -8,15 +9,18 @@ $finish = @(
 )
 $limit = 2   # most times the same failure blocks; past that the marker is removed so the next turn (even a question) is not blocked
 $data = [Console]::In.ReadToEnd() | ConvertFrom-Json
-$root = if ($env:CLAUDE_PROJECT_DIR) { $env:CLAUDE_PROJECT_DIR } else { $data.cwd }
-$mark = Join-Path $root '.claude/.unchecked'   # hidden on macOS and Linux, so removing it needs -Force
+$cwd = if ($data.cwd) { $data.cwd } else { (Get-Location).Path }
+# Project root: Claude Code sets CLAUDE_PROJECT_DIR; otherwise the git root of the session folder.
+$root = if ($env:CLAUDE_PROJECT_DIR) { $env:CLAUDE_PROJECT_DIR } else { git -C $cwd rev-parse --show-toplevel 2>$null }
+if (-not $root) { $root = $cwd }
+$mark = Join-Path $root '.metarche/.unchecked'   # hidden on macOS and Linux, so removing it needs -Force
 if (-not (Test-Path $mark)) { exit 0 }
 if (-not $finish) { Remove-Item -Force $mark; exit 0 }
 Set-Location $root
 $failed = foreach ($cmd in $finish) {
     $exe, $rest = -split $cmd
     $args_ = @($rest | Where-Object { $_ })
-    if (-not (Get-Command $exe)) { "[metarche] check tool not found: $exe. Install it or remove it from .claude/hooks/finish.ps1."; continue }
+    if (-not (Get-Command $exe)) { "[metarche] check tool not found: $exe. Install it or remove it from .metarche/hooks/finish.ps1."; continue }
     $out = & $exe @args_ 2>&1
     if ($LASTEXITCODE -ne 0) { "[metarche] end-of-turn check failed: $cmd"; $out | Select-Object -Last 40 }
 }

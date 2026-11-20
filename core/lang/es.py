@@ -358,4 +358,12 @@ STRINGS: dict[str, str] = {
     '재생 중': 'Reproduciendo',
     '버퍼링 중': 'Almacenando en búfer',
     '자막 추출 {n}%': 'Extrayendo subtítulos {n}%',
+    '기기를 찾았습니다: {name}': 'Dispositivo encontrado: {name}',
+    '기기 찾기 완료: {n}대': 'Búsqueda terminada: {n} dispositivos',
+    '기기를 찾지 못했습니다. 같은 네트워크인지 확인하거나 메뉴 → IP로 기기 추가를 쓰세요.': 'No se encontraron dispositivos. Comprueba que estás en la misma red o usa Menú → Añadir dispositivo por IP….',
+    '기기 찾는 중 · {n}대': 'Buscando dispositivos · {n}',
+    '로그': 'Registro',
+    '로그(자세히)': 'Registro (detallado)',
+    '내장 자막을 붙이려고 다시 불러옵니다.': 'Recargando para añadir los subtítulos incrustados.',
+    '자막 싱크를 반영하려고 다시 불러옵니다.': 'Recargando para aplicar la sincronía de subtítulos.',
 }

@@ -155,7 +155,8 @@ def main() -> int:
     cm = CastManager(bridge.callbacks, known_hosts=cfg.known_hosts)
     ctrl = PlaybackController(cm, server, detector, bridge.callbacks,
                               subtitle_scale=cfg.subtitle_scale)
-    win = MainWindow(cfg, cm, ctrl, bridge, set_log=file_log.set, log_error=log_error)
+    win = MainWindow(cfg, cm, ctrl, bridge, set_log=file_log.set, log_error=log_error,
+                     verbose=args.verbose)
     win.show()
     beat = QTimer(app)
     beat.timeout.connect(file_log.heartbeat)

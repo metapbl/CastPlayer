@@ -1508,6 +1508,10 @@ def _gui(loaded: bool = False, log_error: str | None = None, cfg: AppConfig | No
     cfg = cfg or AppConfig(auto_connect=False)
     cfg.save = lambda: None                    # config.json을 건드리지 않음
     w = mw_mod.MainWindow(cfg, cm, ctrl, bridge, set_log=set_log, log_error=log_error)
+    if not log_error:                          # 시작 찾기 알림(D120)을 지워 빈 상태줄에서 시작
+        w._scan_gen += 1                       # pylint: disable=protected-access
+        w._scanning = False                    # pylint: disable=protected-access
+        w.statusBar().clearMessage()
     w.show()
     w.activateWindow()
     QTest.qWaitForWindowActive(w)              # 단축키는 활성 창에서만 동작
@@ -2276,6 +2280,60 @@ def _state_line_cases(check: Callable[[str, bool, str], None]) -> None:
                    "일시정지 · 자막 추출 42%", "정지"], f"{seen}")
 
 
+def _status_more_cases(check: Callable[[str, bool, str], None]) -> None:
+    """F1-6 (D120) 기기 찾기 현황, F9-18 (D121) 다시 불러오기 이유, F9-19 (D122) 로그 표시."""
+    saved = mw_mod.DISCOVERY_WINDOW_MS
+    mw_mod.DISCOVERY_WINDOW_MS = 300
+    try:
+        for found in (True, False):
+            w, _cm, _ctrl, bridge = _gui()
+            msgs: list[tuple[str, bool]] = []
+            orig = w._msg                                      # pylint: disable=protected-access
+            w._msg = lambda text, error=False, o=orig: (msgs.append((text, error)), o(text, error))
+            w._rescan()                                        # pylint: disable=protected-access
+            right = ""
+            if found:
+                bridge.devices_changed.emit([_dev()])
+                QApplication.processEvents()
+                right = w.state_label.text()
+            _wait_for(lambda: len(msgs) >= (3 if found else 2), 2.0)
+            _close(w)
+            if found:
+                check("F1-6 기기 찾기: 찾는 중 → 찾았습니다(오른쪽 n대) → 완료 n대 (D120)",
+                      msgs == [("기기를 찾는 중…", False), ("기기를 찾았습니다: 시험 TV", False),
+                               ("기기 찾기 완료: 1대", False)] and right == "기기 찾는 중 · 1대",
+                      f"{msgs}, 오른쪽 {right!r}")
+            else:
+                check("F1-6 기기 없음 → 경고색 \"기기를 찾지 못했습니다…\" (D120)",
+                      len(msgs) == 2 and msgs[1][1] and msgs[1][0].startswith("기기를 찾지 못했습니다"),
+                      f"{msgs}")
+    finally:
+        mw_mod.DISCOVERY_WINDOW_MS = saved
+
+    reasons: list[str] = []
+    _cm, ctrl, _ = _fresh(callbacks=CastCallbacks(on_reload=reasons.append))
+    ctrl.adjust_subtitle_delay(0.5)
+    check("F9-18 자막 싱크를 바꾸면 다시 불러오기 직전에 이유 알림 (D121)",
+          reasons == ["자막 싱크를 반영하려고 다시 불러옵니다."], f"{reasons}")
+
+    w, *_ = _gui()
+    seen = [w.log_label.text()]
+    w.acts.log_file.setChecked(True)
+    seen.append(w.log_label.text())
+    w.acts.log_file.setChecked(False)
+    seen.append(w.log_label.text())
+    _close(w)
+    cm, bridge = _GuiCM(), CastBridge()
+    ctrl = PlaybackController(cm, _FakeServer(), None, bridge.callbacks)
+    cfg = AppConfig(auto_connect=False)
+    cfg.save = lambda: None
+    w = mw_mod.MainWindow(cfg, cm, ctrl, bridge, set_log=lambda _on: None, log_error=None, verbose=True)
+    seen.append(w.log_label.text())
+    _close(w)
+    check("F9-19 로그 표시: 꺼짐 → 켜면 \"로그\" → 끄면 없음, -v면 \"로그(자세히)\" (D122)",
+          seen == ["", "로그", "", "로그(자세히)"], f"{seen}")
+
+
 def _track_text_cases(check: Callable[[str, bool, str], None]) -> None:
     """F9-11 (D092, D096): 음성·자막 목록은 사람이 읽는 형태, 트랙 제목은 풍선 도움말."""
     from core.i18n import N_
@@ -2351,7 +2409,7 @@ def _gui_cases(check: Callable[[str, bool, str], None]) -> None:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")   # 창을 화면에 띄우지 않음
     _app = QApplication.instance() or QApplication([])
     for fn in (_conn_cases, _play_cases, _media_cases, _lost_cases, _log_slow_close_cases,
-               _ui_cases, _lang_cases, _layout_cases, _track_text_cases, _state_line_cases, _cancel_cases,
+               _ui_cases, _lang_cases, _layout_cases, _track_text_cases, _state_line_cases, _status_more_cases, _cancel_cases,
                _thumb_cases):
         try:
             fn(check)
@@ -2478,7 +2536,7 @@ def _bg_subs_cases(check: Callable[[str, bool, str], None]) -> None:
                             "-c:s", "srt", "-metadata:s:s:0", f"language={lang}", str(files[lang])],
                            check=True, capture_output=True,
                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-        gate, seen = threading.Event(), []
+        gate, seen, why = threading.Event(), [], []
 
         def slow(info, streams, on_progress=None):
             try:
@@ -2500,7 +2558,8 @@ def _bg_subs_cases(check: Callable[[str, bool, str], None]) -> None:
                 if wait_first:
                     gate.set()
                 cm = _FakeCM()
-                ctrl = PlaybackController(cm, _FakeServer(), None, CastCallbacks())
+                why.clear()
+                ctrl = PlaybackController(cm, _FakeServer(), None, CastCallbacks(on_reload=why.append))
                 ctrl.load(PlaylistItem(files[lang]))
                 pending = [t.note for t in ctrl.subs.tracks] if ctrl.subs else []
                 ctrl.play(0.0)
@@ -2521,6 +2580,8 @@ def _bg_subs_cases(check: Callable[[str, bool, str], None]) -> None:
             check("F2-12 끝나면 자동 선택된 내장 한국어 → 그 위치에서 다시 불러오기 1회",
                   len(cm.loads) == 2 and tracks(last) == 1 and last.active_track == 1
                   and _start(last) == 12.0, _desc(cm))
+            check("F9-18 뒤에서 추출한 자막을 붙이려 다시 불러오기 직전에 이유 알림 (D121)",
+                  why == ["내장 자막을 붙이려고 다시 불러옵니다."], f"{why}")
             cm, ctrl, _ = run("eng", release=True)
             ok = ctrl.subs is not None and [t.supported for t in ctrl.subs.tracks] == [True]
             check("F2-12 자동 선택되지 않는 내장 영어(화면 한국어) → 목록만 채우고 다시 불러오지 않음",

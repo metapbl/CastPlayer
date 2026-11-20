@@ -43,6 +43,7 @@ from ui.widgets import SeekSlider, fmt_time
 _LOGGER = logging.getLogger(__name__)
 VIDEO_EXTS = {".mp4", ".m4v", ".mkv", ".avi", ".ts", ".m2ts", ".mov", ".webm", ".wmv",
               ".mpg", ".mpeg", ".flv"}
+DISCOVERY_WINDOW_MS = 8000      # mDNS는 끝 신호가 없어 이 시간 뒤 찾기 결과를 알림 (D120)
 AUTO_HOST_FALLBACK_MS = 8000     # mDNS로 마지막 기기를 못 찾으면 저장된 IP로 검색
 RECONNECT_WINDOW = 30.0          # 끊긴 뒤 같은 UUID를 다시 찾는 시간(초)
 SEEK_STEP, SEEK_COALESCE_MS = 5.0, 300
@@ -150,7 +151,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self, cfg: AppConfig, cm: CastManager, ctrl: PlaybackController,
                  bridge: CastBridge, set_log: Callable[[bool], str | None],
-                 log_error: str | None) -> None:
+                 log_error: str | None, verbose: bool = False) -> None:
         super().__init__()
         self.cfg, self.cm, self.ctrl, self.bridge = cfg, cm, ctrl, bridge
         self._set_log = set_log
@@ -169,6 +170,10 @@ class MainWindow(QMainWindow):
         self._err = False                  # 상태줄 글이 오류 → 경고색
         self._title = ""                   # 연 파일 이름 (줄이기 전)
         self._load_step: tuple[str, int] | None = None   # 불러오기 단계 (키, %)
+        self._verbose = verbose            # -v 실행 (로그 표시, D122)
+        self._scan_gen = 0                 # 기기 찾기 회차 (D120). 늦게 온 타이머 무시
+        self._scanning = False
+        self._scan_seen: set[UUID] = set()
 
         self.setWindowTitle(APP_NAME)
         self.setAcceptDrops(True)
@@ -176,6 +181,8 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self.state_label = QLabel()          # 상태줄 오른쪽 지금 상태 (D114)
         self.statusBar().addPermanentWidget(self.state_label)
+        self.log_label = QLabel()            # 로그 기록 중 표시 (D122)
+        self.statusBar().addPermanentWidget(self.log_label)
         self._retranslate()
         self.acts = build_menus(self, cfg.auto_connect, cfg.log_file, cfg.theme, cfg.language)
         self._wire()
@@ -188,9 +195,11 @@ class MainWindow(QMainWindow):
         self._seek_timer = QTimer(self, singleShot=True, interval=SEEK_COALESCE_MS)
         self._seek_timer.timeout.connect(self._flush_seek)
         self._set_conn(ST_NONE)            # 연결 표시를 처음부터 보임 (F1-3)
-        if log_error:
-            self._msg(log_error, error=True)
         cm.start_discovery()
+        self._start_scan()
+        if log_error:                       # 찾기 알림보다 뒤에 → 오류가 보이게
+            self._msg(log_error, error=True)
+        self._show_log(not log_error and (verbose or cfg.log_file))
         if cfg.auto_connect and cfg.last_device_uuid and cfg.last_device_host:
             QTimer.singleShot(AUTO_HOST_FALLBACK_MS, self._auto_host_fallback)
 
@@ -427,6 +436,7 @@ class MainWindow(QMainWindow):
         b.media_status.connect(self._on_status)
         b.volume.connect(self._on_volume)
         b.subtitles.connect(self._on_subtitles)
+        b.reload.connect(self._on_reload)    # 메서드로 연결 → 작업 스레드에서 와도 화면 스레드에서 실행
         b.finished.connect(lambda: self._on_playback_end(N_("재생 완료")))
         b.app_closed.connect(lambda: self._on_playback_end(N_("TV에서 플레이어가 종료됨")))
         b.load_failed.connect(lambda c, n: self._msg(tr("불러오기 실패: {name} ({code})",
@@ -592,6 +602,8 @@ class MainWindow(QMainWindow):
         else:
             text = {"PLAYING": tr("재생 중"), "PAUSED": tr("일시정지"),
                     "BUFFERING": tr("버퍼링 중")}.get(self._state, tr("불러오는 중"))
+        if not text and self._scanning:
+            text = tr("기기 찾는 중 · {n}대", n=len(self._scan_seen))
         if text and self.ctrl.extracting_subs:
             text += " · " + tr("자막 추출 {n}%", n=self.ctrl.sub_progress)
         self.state_label.setText(text)
@@ -645,6 +657,11 @@ class MainWindow(QMainWindow):
 
     # ================= 기기 =================
     def _on_devices(self, devs: list[DeviceInfo]) -> None:
+        if self._scanning:                   # 새로 나타난 기기마다 알림 (D120)
+            for d in devs:
+                if d.uuid not in self._scan_seen:
+                    self._scan_seen.add(d.uuid)
+                    self._msg(tr("기기를 찾았습니다: {name}", name=d.name))
         cur = self.dev_combo.currentData()
         self.dev_combo.clear()
         for d in devs:
@@ -716,8 +733,39 @@ class MainWindow(QMainWindow):
             self._connect_selected()
 
     def _rescan(self) -> None:
+        self._start_scan()
         self.cm.rescan()
+        if self.cm.device is not None:       # 연결된 동안은 목록만 다시 알림 → 바로 완료 (D120)
+            self._scan_done(self._scan_gen)
+
+    def _start_scan(self) -> None:
+        """기기 찾기 현황 (D120): 찾는 중 → 새 기기마다 이름 → DISCOVERY_WINDOW_MS 뒤 결과."""
+        self._scan_gen += 1
+        self._scanning, self._scan_seen = True, set()
         self._msg(tr("기기를 찾는 중…"))
+        gen = self._scan_gen
+        QTimer.singleShot(DISCOVERY_WINDOW_MS, self, lambda: self._scan_done(gen))
+        self._show_state()
+
+    def _scan_done(self, gen: int) -> None:
+        if gen != self._scan_gen or not self._scanning:
+            return
+        self._scanning = False
+        n = self.dev_combo.count()
+        if n:
+            self._msg(tr("기기 찾기 완료: {n}대", n=n))
+        elif not (self.cfg.auto_connect and not self._auto_tried and self.cfg.last_device_host
+                  and self.cm.device is None):   # 자동 연결의 IP 확인 중이면 그쪽이 알림
+            self._msg(tr("기기를 찾지 못했습니다. 같은 네트워크인지 확인하거나 "
+                         "메뉴 → IP로 기기 추가를 쓰세요."), error=True)
+        self._show_state()
+
+    def _on_reload(self, key: str) -> None:
+        self._msg(tr(key))                   # 다시 불러오기 이유 (D121)
+
+    def _show_log(self, on: bool) -> None:
+        """상태줄 맨 오른쪽 로그 표시 (D122)."""
+        self.log_label.setText((tr("로그(자세히)") if self._verbose else tr("로그")) if on else "")
 
     def _add_ip(self) -> None:
         ip = ask_ip(self)
@@ -726,6 +774,7 @@ class MainWindow(QMainWindow):
         if ip not in self.cfg.known_hosts:
             self.cfg.known_hosts.append(ip)
             self.cfg.save()
+        self._start_scan()
         self.cm.add_known_host(ip)
         self._msg(tr("{ip} 확인 중… 목록에 나타나면 [연결]을 누르세요.", ip=ip))
 
@@ -1040,6 +1089,7 @@ class MainWindow(QMainWindow):
             self._msg(err, error=True)
         else:
             self._msg(tr("로그 기록 켬") if on else tr("로그 기록 끔"))
+        self._show_log((on and not err) or self._verbose)
 
     def _open_logs(self) -> None:
         d = app_dir() / "logs"

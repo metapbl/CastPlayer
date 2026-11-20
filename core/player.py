@@ -35,6 +35,10 @@ from .subtitles import (PENDING, STOPPED, SUB_OFF, TEXT_SUB_CODECS, Cue, Subtitl
 
 _LOGGER = logging.getLogger(__name__)
 ProgressFn = Callable[[str, int], None]   # (단계 이름, 퍼센트)
+_RELOAD_WHY = {   # 로그 이유 → 화면 알림 (D121)
+    "자막 추가": N_("내장 자막을 붙이려고 다시 불러옵니다."),   # 로그 전용 키
+    "자막 싱크 반영": N_("자막 싱크를 반영하려고 다시 불러옵니다."),   # 로그 전용 키
+}
 SUB_WAIT = 3.0   # 캐시 없는 내장 자막 추출을 기다리는 시간, 넘으면 재생부터 (D108)
 
 
@@ -285,8 +289,7 @@ class PlaybackController:
                 t.note = PENDING
             text = [s for s in self.info.subtitles if s.codec in TEXT_SUB_CODECS]
             self._sub_job = _SubJob(self.info, text, self._sub_pct, self._sub_done)
-            _LOGGER.info("내장 자막 추출 다시 시작")
-        self._notify_subs("progress", 0)
+            _LOGGER.info("내장 자막 추출 다시 시작")   # 화면은 첫 진행 알림 때 바뀜 (play의 잠금 안이라 여기서 알리지 않음)
 
     def seek(self, position: float) -> None:
         with self._lock:
@@ -395,6 +398,9 @@ class PlaybackController:
             _LOGGER.info("%s: %.1f초에서 다시 불러옴%s", why, pos,
                          " (일시정지 유지)" if paused else "")
             self.play(pos, autoplay=not paused)
+        # 잠금 밖에서 알림: 화면 스레드가 이 잠금을 기다리는 중이면 신호가 막힘 (D121)
+        if why in _RELOAD_WHY and self._cb.on_reload:
+            self._cb.on_reload(_RELOAD_WHY[why])
 
     def set_subtitle_scale(self, scale: float) -> float:
         with self._lock:

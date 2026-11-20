@@ -146,6 +146,8 @@ class CastCallbacks:
     on_connection_lost: Callable[[DeviceInfo], None] | None = None
     # 내장 자막 뒤에서 추출 (D109): ("progress", %) / ("ready", 100) / ("stopped", 0)
     on_subtitles: Callable[[str, int], None] | None = None
+    # 재생이 잠깐 끊기는 다시 불러오기 직전, 이유(번역 키) (D121)
+    on_reload: Callable[[str], None] | None = None
 
 
 class _ConnListener(ConnectionStatusListener):

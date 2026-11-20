@@ -241,4 +241,12 @@ STRINGS: dict[str, str] = {
     '재생 중': 'Playing',
     '버퍼링 중': 'Buffering',
     '자막 추출 {n}%': 'Extracting subtitles {n}%',
+    '기기를 찾았습니다: {name}': 'Found device: {name}',
+    '기기 찾기 완료: {n}대': 'Device search done: {n} found',
+    '기기를 찾지 못했습니다. 같은 네트워크인지 확인하거나 메뉴 → IP로 기기 추가를 쓰세요.': 'No devices found. Check that you are on the same network, or use Menu → Add device by IP….',
+    '기기 찾는 중 · {n}대': 'Searching for devices · {n} found',
+    '로그': 'Log',
+    '로그(자세히)': 'Log (detailed)',
+    '내장 자막을 붙이려고 다시 불러옵니다.': 'Reloading to add embedded subtitles.',
+    '자막 싱크를 반영하려고 다시 불러옵니다.': 'Reloading to apply subtitle sync.',
 }

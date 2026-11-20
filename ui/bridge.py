@@ -23,6 +23,7 @@ class CastBridge(QObject):
     app_closed = Signal()
     error = Signal(str)
     subtitles = Signal(str, int)         # 내장 자막 뒤에서 추출: 상태, % (D109)
+    reload = Signal(str)                 # 다시 불러오기 이유 키 (D121)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -40,4 +41,5 @@ class CastBridge(QObject):
             on_error=self.error.emit,
             on_connection_lost=self.connection_lost.emit,
             on_subtitles=self.subtitles.emit,
+            on_reload=self.reload.emit,
         )

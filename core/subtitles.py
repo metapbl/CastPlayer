@@ -59,12 +59,12 @@ STOPPED = N_("추출 중단")     # 뒤에서 추출하다 정지 등으로 멈�
 
 
 def norm_lang(code: str | None) -> str:
-    """'kor', 'ko-KR', 'korean' → 'ko'. 모르면 2글자 코드 그대로, 아니면 'und'."""
+    """'kor', 'ko-KR', 'korean' → 'ko'. 모르면 2·3글자 코드 그대로('nob', 'ita'), 아니면 'und'."""
     c = (code or "").strip().lower().replace("_", "-")
     if c in _LANG:
         return _LANG[c]
     head = c.split("-")[0]
-    return _LANG.get(head, head if len(head) == 2 and head.isalpha() else "und")
+    return _LANG.get(head, head if len(head) in (2, 3) and head.isalpha() else "und")
 
 
 # ================= 자막 데이터 =================
@@ -324,7 +324,8 @@ def find_external(video: Path) -> list[Path]:
 def _file_lang(video: Path, path: Path) -> str:
     """'영화.kor.srt' → ko. 이름 뒤쪽 조각부터 언어 코드를 찾음."""
     for part in reversed(path.stem[len(video.stem):].strip(".").split(".")):
-        lang = norm_lang(part)
+        # 파일 이름의 모르는 3글자 조각(sdh, hdr 등)은 언어로 보지 않음
+        lang = norm_lang(part) if len(part) != 3 or part.lower() in _LANG else "und"
         if lang != "und":
             return lang
     return "und"

@@ -2487,7 +2487,13 @@ def _bg_subs_cases(check: Callable[[str, bool, str], None]) -> None:
            subs_mod.norm_lang("rus")]
     check("F5-7 자동 선택은 화면 언어: en→영어, ko→한국어, ru 없음→첫 외부→끄기, rus→ru",
           got == ["e-en", "e-ko", "x-ko", None, "ru"], f"{got}")
-    from ui.tracks import subtitle_text
+    from ui.tracks import language_name, subtitle_text
+    names = [language_name(subs_mod.norm_lang(c)) for c in ("ita", "tha", "nob", "", "und")]
+    check("F9-11 언어 코드: 사전에 있는 3글자 코드는 이름, 모르는 코드는 대문자, 없으면 \"언어 정보 없음\" (D096)",
+          names == ["이탈리아어", "태국어", "NOB", "언어 정보 없음", "언어 정보 없음"], f"{names}")
+    fl = [subs_mod._file_lang(Path("m.mkv"), Path(n))       # pylint: disable=protected-access
+          for n in ("m.kor.sdh.srt", "m.sdh.srt", "m.en.srt")]
+    check("F5 외부 자막 파일 이름의 모르는 3글자 조각은 언어로 보지 않음", fl == ["ko", "und", "en"], f"{fl}")
     txt = subtitle_text(SubtitleTrack("emb:2", "#1", "ko", False, note=subs_mod.PENDING,
                                       codec="subrip"), 42)
     check("F2-12 추출 중인 내장 자막 목록 글자에 진행률", txt.endswith("추출 중 42%"), txt)

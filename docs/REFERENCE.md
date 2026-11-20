@@ -78,7 +78,7 @@
 | ID | 증상 | 원인 | 대처 | 근거 |
 |---|---|---|---|---|
 | T1 | 탐색 바 길이가 받은 만큼 계속 늘어남 | 길이 정보 없는 fMP4 실시간 스트림에서 수신기가 `media_info.duration`을 무시 | HLS VOD + ENDLIST | D015, 2026-10-16 로그 |
-| T2 | 싱크를 바꿔도 화면 자막이 그대로 | 수신기가 한 번 받은 VTT를 다시 요청하지 않음 (EDIT_TRACKS_INFO로 껐다 켜도 GET 없음) | 새 토큰 주소로 다시 불러오기 | D023 |
+| T2 | 싱크를 바꿔도 화면 자막이 그대로 | 수신기가 한 번 받은 VTT를 다시 요청하지 않음 (EDIT_TRACKS_INFO로 껐다 켜도 GET 없음). 또 LOAD의 자막 트랙은 켜지 않은 것까지 버퍼링 중에 모두 받아 감 (실측 54개를 3초에, 바꿀 때 GET 없음, 2026-11-20 콘솔 시험) | 새 토큰 주소로 다시 불러오기. 뒤에서 추출한 자막도 자리만 미리 넣어 두는 방식은 안 됨 → 다시 불러오기 (D112) | D023, D112 |
 | T3 | x265 mp4가 DIRECT에서 끊김 | B프레임인데 ctts(표시 시각)가 빠짐 — MKVToolNix 45 이전으로 만든 mp4의 알려진 결함 | `pts_broken` → TRANSCODE | D024 |
 | T4 | .ts가 LOAD_FAILED | `empty_moov`가 `aac_adtstoasc` 첫 패킷 전에 moov를 써서 AudioSpecificConfig가 빠짐 | `delay_moov` + `-use_editlist 0` | D016 |
 | T5 | 끊긴 위치가 0으로 기록됨 | pychromecast가 상태를 비운 뒤 LOST를 알림 | `_last_point`를 계속 기록해 두고 사용 | D029 |

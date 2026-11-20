@@ -2212,6 +2212,42 @@ def _cancel_cases(check: Callable[[str, bool, str], None]) -> None:
           msg == "음성 변경을 취소했습니다.", msg)
 
 
+def _state_line_cases(check: Callable[[str, bool, str], None]) -> None:
+    """F9-13 (D113) 언어 이름, F9-14 (D114) 상태줄 오른쪽 상시 표시."""
+    from ui.tracks import language_name
+    names = [language_name(c) for c in ("ita", "nob", "tur", "")]
+    check("F9-13 언어 이름: 15개는 번역, 그 밖은 그 언어 자체 이름, 없으면 \"언어 정보 없음\"",
+          names == ["이탈리아어", "norsk bokmål", "Türkçe", "언어 정보 없음"], f"{names}")
+    w, _cm, ctrl, bridge = _gui(loaded=True)
+    seen = []
+    gate = threading.Event()
+
+    def job():
+        w.tasks.report("키프레임 분석", 45)
+        gate.wait(5)
+
+    w.tasks.submit("load", job)
+    _wait_for(lambda: w.state_label.text().endswith("45%"))
+    seen.append(w.state_label.text())
+    gate.set()
+    _wait_for(lambda: w.tasks.busy is None)
+    for st in ("PLAYING", "PAUSED"):
+        bridge.media_status.emit(PlaybackState(st, 10.0, 6000.0, None))
+        QApplication.processEvents()
+        seen.append(w.state_label.text())
+    ctrl._sub_job = SimpleNamespace(pct=42)        # pylint: disable=protected-access
+    w._show_state()                                # 추출 진행 알림이 부르는 것 # pylint: disable=protected-access
+    seen.append(w.state_label.text())
+    ctrl._sub_job = None                           # pylint: disable=protected-access
+    w._stop()                                      # pylint: disable=protected-access
+    QApplication.processEvents()
+    seen.append(w.state_label.text())
+    _close(w)
+    check("F9-14 상태줄 오른쪽: 불러오는 중 → 재생 중 → 일시정지 → 추출 중 덧붙임 → 정지",
+          seen == ["불러오는 중 · 키프레임 분석 45%", "재생 중", "일시정지",
+                   "일시정지 · 자막 추출 42%", "정지"], f"{seen}")
+
+
 def _track_text_cases(check: Callable[[str, bool, str], None]) -> None:
     """F9-11 (D092, D096): 음성·자막 목록은 사람이 읽는 형태, 트랙 제목은 풍선 도움말."""
     from core.i18n import N_
@@ -2287,7 +2323,7 @@ def _gui_cases(check: Callable[[str, bool, str], None]) -> None:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")   # 창을 화면에 띄우지 않음
     _app = QApplication.instance() or QApplication([])
     for fn in (_conn_cases, _play_cases, _media_cases, _lost_cases, _log_slow_close_cases,
-               _ui_cases, _lang_cases, _layout_cases, _track_text_cases, _cancel_cases,
+               _ui_cases, _lang_cases, _layout_cases, _track_text_cases, _state_line_cases, _cancel_cases,
                _thumb_cases):
         try:
             fn(check)
@@ -2488,9 +2524,9 @@ def _bg_subs_cases(check: Callable[[str, bool, str], None]) -> None:
     check("F5-7 자동 선택은 화면 언어: en→영어, ko→한국어, ru 없음→첫 외부→끄기, rus→ru",
           got == ["e-en", "e-ko", "x-ko", None, "ru"], f"{got}")
     from ui.tracks import language_name, subtitle_text
-    names = [language_name(subs_mod.norm_lang(c)) for c in ("ita", "tha", "nob", "", "und")]
-    check("F9-11 언어 코드: 사전에 있는 3글자 코드는 이름, 모르는 코드는 대문자, 없으면 \"언어 정보 없음\" (D096)",
-          names == ["이탈리아어", "태국어", "NOB", "언어 정보 없음", "언어 정보 없음"], f"{names}")
+    names = [language_name(subs_mod.norm_lang(c)) for c in ("ita", "tha", "qaa", "", "und")]
+    check("F9-11 언어 코드: 사전에 있는 3글자 코드는 이름, Qt도 모르는 코드는 대문자, 없으면 \"언어 정보 없음\" (D096, D113)",
+          names == ["이탈리아어", "태국어", "QAA", "언어 정보 없음", "언어 정보 없음"], f"{names}")
     fl = [subs_mod._file_lang(Path("m.mkv"), Path(n))       # pylint: disable=protected-access
           for n in ("m.kor.sdh.srt", "m.sdh.srt", "m.en.srt")]
     check("F5 외부 자막 파일 이름의 모르는 3글자 조각은 언어로 보지 않음", fl == ["ko", "und", "en"], f"{fl}")

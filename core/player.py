@@ -402,6 +402,10 @@ class PlaybackController:
 
     # ---- 내장 자막 뒤에서 추출 (D107~D112) ----
     @property
+    def extracting_subs(self) -> bool:
+        return self._sub_job is not None
+
+    @property
     def sub_progress(self) -> int:
         job = self._sub_job
         return job.pct if job else 0

@@ -136,11 +136,14 @@ class MainWindow(QMainWindow):
         self._conn_extra: tuple[str, dict] = ("", {})   # 연결 상태 뒤 글 (키, 채울 값)
         self._err = False                  # 상태줄 글이 오류 → 경고색
         self._title = ""                   # 연 파일 이름 (줄이기 전)
+        self._load_step: tuple[str, int] | None = None   # 불러오기 단계 (키, %)
 
         self.setWindowTitle(APP_NAME)
         self.setAcceptDrops(True)
         self.resize(680, 0)
         self._build_ui()
+        self.state_label = QLabel()          # 상태줄 오른쪽 지금 상태 (D114)
+        self.statusBar().addPermanentWidget(self.state_label)
         self._retranslate()
         self.acts = build_menus(self, cfg.auto_connect, cfg.log_file, cfg.theme, cfg.language)
         self._wire()
@@ -554,6 +557,26 @@ class MainWindow(QMainWindow):
         playing = self.ctrl.active and self._state in ("PLAYING", "BUFFERING")
         self.btn_play.setText(GLYPH["pause" if playing else "play"])
         self.setAcceptDrops(ok and not busy)
+        self._show_state()
+
+    def _show_state(self) -> None:
+        """상태줄 오른쪽: 불러오는 중·재생 중·일시정지·버퍼링 중·정지·다시 연결 중 (+ 자막 추출 %) (D114)."""
+        if self.tasks.busy:
+            text = tr("불러오는 중")
+            if self._load_step:
+                text += f" · {tr(self._load_step[0])} {self._load_step[1]}%"
+        elif self._conn is ST_LOST:
+            text = tr("다시 연결 중")
+        elif not self.ctrl.info:
+            text = ""
+        elif not self.ctrl.active:
+            text = tr("정지")
+        else:
+            text = {"PLAYING": tr("재생 중"), "PAUSED": tr("일시정지"),
+                    "BUFFERING": tr("버퍼링 중")}.get(self._state, tr("불러오는 중"))
+        if text and self.ctrl.extracting_subs:
+            text += " · " + tr("자막 추출 {n}%", n=self.ctrl.sub_progress)
+        self.state_label.setText(text)
 
     def _fill_tracks(self) -> None:
         info, plan = self.ctrl.info, self.ctrl.plan
@@ -584,6 +607,7 @@ class MainWindow(QMainWindow):
             for n, t in enumerate(self.ctrl.subs.tracks if self.ctrl.subs else [], 1):
                 if t.note == PENDING:
                     self.sub_combo.setItemText(n, subtitle_text(t, pct))
+            self._show_state()
             return
         self._fill_tracks()
         if state == "ready":
@@ -796,9 +820,12 @@ class MainWindow(QMainWindow):
         self.load_bar.setValue(pct)
         self.load_pct.setText(f"{pct}%")
         self.load_box.show()
+        self._load_step = (stage, pct)
+        self._show_state()
 
     def _on_task_ok(self, kind: str, result) -> None:
         self.load_box.hide()
+        self._load_step = None
         if kind == "load":
             self._last_pos = 0.0
             self.seek.set_duration(result.duration)
@@ -816,6 +843,7 @@ class MainWindow(QMainWindow):
 
     def _on_task_fail(self, kind: str, msg: str) -> None:
         self.load_box.hide()
+        self._load_step = None
         self._msg(tr("불러오기 실패: {msg}", msg=msg) if kind == "load"
                   else tr("음성 변경 실패: {msg}", msg=msg), error=True)
         if kind == "audio":
@@ -825,6 +853,7 @@ class MainWindow(QMainWindow):
     def _on_task_cancel(self, kind: str) -> None:
         """하던 작업을 버리고 그 전 상태로 (D099). 불러오기면 파일 열기 전 화면."""
         self.load_box.hide()
+        self._load_step = None
         if kind == "load":
             info = self.ctrl.info
             self._set_title(info.path.name if info else "")
@@ -850,6 +879,7 @@ class MainWindow(QMainWindow):
             self._last_pos = 0.0
             self.ctrl.stop()
             self._msg(tr("정지 (TV 플레이어 종료)"))
+            self._update_ui()
 
     def _seek_to(self, sec: float) -> None:
         if self.ctrl.info:

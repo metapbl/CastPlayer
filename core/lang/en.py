@@ -235,4 +235,10 @@ STRINGS: dict[str, str] = {
     '추출 중단': 'Extraction stopped',
     '추출 중 {n}%': 'Extracting {n}%',
     '내장 자막을 준비했습니다.': 'Embedded subtitles are ready.',
+    '불러오는 중': 'Loading',
+    '다시 연결 중': 'Reconnecting',
+    '정지': 'Stopped',
+    '재생 중': 'Playing',
+    '버퍼링 중': 'Buffering',
+    '자막 추출 {n}%': 'Extracting subtitles {n}%',
 }

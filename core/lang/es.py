@@ -352,4 +352,10 @@ STRINGS: dict[str, str] = {
     '추출 중단': 'Extracción detenida',
     '추출 중 {n}%': 'Extrayendo {n}%',
     '내장 자막을 준비했습니다.': 'Los subtítulos incrustados están listos.',
+    '불러오는 중': 'Cargando',
+    '다시 연결 중': 'Reconectando',
+    '정지': 'Detenido',
+    '재생 중': 'Reproduciendo',
+    '버퍼링 중': 'Almacenando en búfer',
+    '자막 추출 {n}%': 'Extrayendo subtítulos {n}%',
 }

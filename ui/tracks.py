@@ -1,6 +1,8 @@
 """음성·자막 목록 글자 (F9-11, D092, D096). 겹치는 정보 없이 사람이 읽는 형태로, 트랙 제목은 풍선 도움말."""
 from __future__ import annotations
 
+from PySide6.QtCore import QLocale
+
 from core.i18n import N_, tr
 from core.probe import AudioStream
 from core.subtitles import PENDING, SubtitleTrack
@@ -26,7 +28,10 @@ def language_name(code: str) -> str:
     c = (code or "").lower().replace("_", "-").split("-")[0]
     if c in ("", "und"):
         return tr("언어 정보 없음")
-    return tr(LANG_NAMES[c]) if c in LANG_NAMES else c.upper()
+    if c in LANG_NAMES:
+        return tr(LANG_NAMES[c])
+    loc = QLocale(c)                               # 그 밖은 그 언어 자체 이름 (D113)
+    return loc.nativeLanguageName() if loc.language() != QLocale.Language.C else c.upper()
 
 
 def audio_text(a: AudioStream) -> str:

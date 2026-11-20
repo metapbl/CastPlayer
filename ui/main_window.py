@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Callable
 from uuid import UUID
 
-from PySide6.QtCore import QByteArray, QLocale, QRectF, QSize, Qt, QTimer, Signal
+from PySide6.QtCore import QByteArray, QLocale, QRect, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QKeySequence, QPainter, QPixmap, QShortcut
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QFrame, QGridLayout,
                                QHBoxLayout, QLabel, QMainWindow, QMessageBox, QProgressBar,
@@ -114,7 +114,7 @@ def _plan_text(plan: Plan, info: MediaInfo) -> str:
 
 
 class _Cover(QWidget):
-    """썸네일: 받은 공간을 비율 유지로 가득 채우고 넘치는 가장자리는 가운데 기준으로 자름 (D118)."""
+    """썸네일: 그림 비율 그대로, 자르지 않고 받은 공간의 가로나 세로 최대까지. 나머지는 배경 (D119)."""
     MIN_H = 48                      # 이보다 낮으면 숨김 [AI]
 
     def __init__(self) -> None:
@@ -129,13 +129,20 @@ class _Cover(QWidget):
     def showing(self) -> bool:
         return self._src is not None and self.isVisible() and self.height() >= self.MIN_H
 
+    def target_rect(self) -> QRect:
+        """그림을 그릴 자리 (가운데)."""
+        if not self._src:
+            return QRect()
+        s = self._src.size().scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio)
+        return QRect((self.width() - s.width()) // 2, (self.height() - s.height()) // 2,
+                     s.width(), s.height())
+
     def paintEvent(self, _e) -> None:  # noqa: N802 (Qt)
         if not (self._src and self.height() >= self.MIN_H and self.width() > 0):
             return
-        pm = self._src.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                              Qt.TransformationMode.SmoothTransformation)
-        QPainter(self).drawPixmap(0, 0, pm, (pm.width() - self.width()) // 2,
-                                  (pm.height() - self.height()) // 2, self.width(), self.height())
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        p.drawPixmap(self.target_rect(), self._src)
 
 
 class MainWindow(QMainWindow):

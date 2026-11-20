@@ -2159,11 +2159,19 @@ def _thumb_cases(check: Callable[[str, bool, str], None]) -> None:
             r, g, b = (int(hexcol[i:i + 2], 16) for i in (1, 3, 5))
             return max((r, "red"), (g, "green"), (b, "blue"))[1]
 
-        check("F9-12 표지 있는 MP4 → 표지(빨강), 없는 MKV → 10% 지점 장면(초록), 가로 320px",
+        check("F9-12 표지 있는 MP4 → 표지(빨강), 없는 MKV → 10% 지점 장면(초록), 원본이 작으면 원본 크기 (D119)",
               got["plain.mkv"][0] is None and tone(got["plain.mkv"][2]) == "green"
               and got["cover.mp4"][0] is not None and tone(got["cover.mp4"][2]) == "red"
-              and got["plain.mkv"][1] == got["cover.mp4"][1] == 320,
+              and got["plain.mkv"][1] == 160 and got["cover.mp4"][1] == 64,
               f"{got}")
+
+        # F9-17: 위아래 검은 띠(320×120 내용을 320×180에) → 띠를 잘라 내용 비율
+        bars = "testsrc=size=320x120:rate=24:duration=6,pad=320:180:0:30:black"
+        run("-f", "lavfi", "-i", bars, "-c:v", "libx264", "-preset", "ultrafast", str(t / "bars.mkv"))
+        img = QImage.fromData(thumbs_mod.thumbnail(probe_mod.probe(t / "bars.mkv")) or b"")
+        ratio = img.width() / img.height() if img.height() else 0
+        check("F9-17 위아래 검은 띠를 잘라 내용 비율, 가로는 원본 크기 (D119)",
+              img.width() == 320 and abs(ratio - 320 / 120) <= 0.05, f"{img.width()}×{img.height()}")
 
         w, *_ = _gui()
         w._show_thumb((t / "cover.png").read_bytes())       # pylint: disable=protected-access
@@ -2175,7 +2183,12 @@ def _thumb_cases(check: Callable[[str, bool, str], None]) -> None:
         w.resize(680, w.minimumSizeHint().height() + 300)
         big = _wait_for(w.thumb_label.showing, 1.0)
         tw, th, fw = w.thumb_label.width(), w.thumb_label.height(), w.file_label.width()
+        r = w.thumb_label.target_rect()
+        fits = (r.width() <= tw and r.height() <= th and (r.width() == tw or r.height() == th)
+                and abs(r.width() / max(1, r.height()) - 1.0) <= 0.05)   # cover.png는 정사각형
         _close(w)
+        check("F9-17 창의 썸네일은 그림 비율 그대로, 자르지 않고 가로나 세로 최대 (D119)", fits,
+              f"그림 {r.width()}×{r.height()}, 칸 {tw}×{th}")
         check("F9-12 창이 작으면 썸네일 숨김, 남은 공간이 있으면 보임", small and big,
               f"작을 때 숨김 {small}, 클 때 보임 {big}")
         check("F9-15 윗칸 최소 높이는 글자 두 줄+여백, 늘리면 썸네일이 글자 아래를 가로·세로 가득",

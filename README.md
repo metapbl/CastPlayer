@@ -122,7 +122,7 @@ These are created next to the executable (or the source folder):
 
 - `config.json` — last device, volume, subtitle size, language and other settings (change the port with `server_port`)
 - `logs\castplayer.log` — log. Off by default; turn it on with **Options → Logging**. It starts fresh on every run (1 MB each, up to 4 files). Running from a terminal with `-v` writes a detailed (DEBUG) log for that run only
-- `cache\` — subtitle cache (cleared with **Options → Clear cache…**)
+- `cache\` — subtitle cache, deleted when the app closes (or with **Options → Clear cache…**)
 
 ## Issues and contributions
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import faulthandler
 import logging
+import shutil
 import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -26,7 +27,7 @@ from core.config import AppConfig
 from core.encoders import EncoderDetector
 from core.i18n import set_language, startup_language, tr
 from core.media_server import MediaServer
-from core.paths import app_dir, asset_path, bin_dir, ffmpeg_path, ffprobe_path
+from core.paths import app_dir, asset_path, bin_dir, cache_dir, ffmpeg_path, ffprobe_path
 from core.player import PlaybackController
 from ui import theme
 from ui.bridge import CastBridge
@@ -172,6 +173,7 @@ def cleanup(cm: CastManager, ctrl: PlaybackController, server: MediaServer) -> N
     cm.shutdown()
     ctrl.shutdown()
     server.stop()
+    shutil.rmtree(cache_dir(), ignore_errors=True)   # 추출한 자막은 실행 안에서만 씀 (D117)
 
 
 if __name__ == "__main__":

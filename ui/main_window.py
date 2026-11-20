@@ -15,7 +15,7 @@ from typing import Callable
 from uuid import UUID
 
 from PySide6.QtCore import QByteArray, QLocale, QRectF, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QIcon, QKeySequence, QPainter, QPixmap, QShortcut
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QKeySequence, QPainter, QPixmap, QShortcut
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QFrame, QGridLayout,
                                QHBoxLayout, QLabel, QMainWindow, QMessageBox, QProgressBar,
                                QPushButton, QSizePolicy, QSlider, QStackedWidget, QVBoxLayout,
@@ -111,6 +111,31 @@ def _plan_text(plan: Plan, info: MediaInfo) -> str:
     audio = (tr("음성 없음") if plan.audio is None
              else tr("음성 그대로") if plan.audio_copy else tr("음성 AAC 2ch로 변환"))
     return " | ".join((how, video, audio))   # 가운뎃점은 작은 글씨에서 구분이 안 보임
+
+
+class _Cover(QWidget):
+    """썸네일: 받은 공간을 비율 유지로 가득 채우고 넘치는 가장자리는 가운데 기준으로 자름 (D118)."""
+    MIN_H = 48                      # 이보다 낮으면 숨김 [AI]
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._src: QPixmap | None = None
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
+
+    def set_pixmap(self, pm: QPixmap | None) -> None:
+        self._src = pm
+        self.update()
+
+    def showing(self) -> bool:
+        return self._src is not None and self.isVisible() and self.height() >= self.MIN_H
+
+    def paintEvent(self, _e) -> None:  # noqa: N802 (Qt)
+        if not (self._src and self.height() >= self.MIN_H and self.width() > 0):
+            return
+        pm = self._src.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                              Qt.TransformationMode.SmoothTransformation)
+        QPainter(self).drawPixmap(0, 0, pm, (pm.width() - self.width()) // 2,
+                                  (pm.height() - self.height()) // 2, self.width(), self.height())
 
 
 class MainWindow(QMainWindow):
@@ -250,7 +275,7 @@ class MainWindow(QMainWindow):
         self.drop = QFrame()
         self.drop.setObjectName("drop")
         dv = QVBoxLayout(self.drop)
-        dv.setContentsMargins(16, 18, 16, 18)
+        dv.setContentsMargins(16, 8, 16, 8)
         dv.setSpacing(8)
         drop_icon = label(GLYPH["drop"], "drop_icon", align=center)
         f = QFont()
@@ -259,10 +284,8 @@ class MainWindow(QMainWindow):
         drop_icon.setFont(f)
         self.drop_hint = label("", "sub", align=center)
         self.btn_open_big = btn("", "Ctrl+O", 112, "primary")
-        dv.addStretch(1)                    # 영역이 커져도 아이콘·안내·버튼은 가운데에 모임
-        dv.addWidget(drop_icon)
-        dv.addWidget(self.drop_hint)
-        dv.addLayout(hbox(None, self.btn_open_big, None))
+        dv.addStretch(1)                    # 한 줄로 가운데에 모임 (최소 높이를 낮게, D118)
+        dv.addLayout(hbox(None, drop_icon, self.drop_hint, self.btn_open_big, None))
         dv.addStretch(1)
         self.media_slot.addWidget(self.drop)
 
@@ -272,18 +295,7 @@ class MainWindow(QMainWindow):
         for lb in (self.file_label, self.plan_label):
             lb.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.plan_label.setWordWrap(True)      # 긴 언어·좁은 창에서 잘리지 않고 다음 줄로
-        tv = QVBoxLayout()
-        tv.setSpacing(2)
-        tv.addWidget(self.file_label)
-        tv.addWidget(self.plan_label)
-        ih = QHBoxLayout(self.info_box)
-        ih.setContentsMargins(0, 0, 0, 0)
-        ih.setSpacing(8)
-        self.thumb_label = QLabel()          # 창이 클 때만 보임 (D097)
-        self.thumb_label.hide()
-        self._thumb: QPixmap | None = None
-        ih.addWidget(self.thumb_label, 0, Qt.AlignmentFlag.AlignVCenter)
-        ih.addLayout(tv, 1)
+        self.thumb_label = _Cover()          # 글자 아래 남은 공간 가득 (D118)
 
         self.load_box = QWidget()
         self.load_stage = label("", "sub")
@@ -294,15 +306,27 @@ class MainWindow(QMainWindow):
         lh = hbox(self.load_stage, (self.load_bar, 1), self.load_pct, self.btn_cancel)
         lh.setContentsMargins(0, 0, 0, 0)
         self.load_box.setLayout(lh)
-        self.load_box.hide()
+        self.line2 = QStackedWidget()        # 송출 방식 / 불러오기 진행 — 높이는 둘 중 큰 쪽 (D091)
+        self.line2.addWidget(self.plan_label)
+        self.line2.addWidget(self.load_box)
+        self.file_label.ensurePolished()     # 큰 창의 큰 글꼴(19px, D096) 기준으로 높이 고정 → 카드가 흔들리지 않음
+        big_font = QFont(self.file_label.font())
+        big_font.setPixelSize(19)
+        self.file_label.setMinimumHeight(QFontMetrics(big_font).height())
+        self.plan_label.ensurePolished()     # 줄바꿈 높이가 상태마다 달라 카드가 흔들리지 않게 고정
+        self.line2.setFixedHeight(max(self.load_box.sizeHint().height(),
+                                      2 * self.plan_label.fontMetrics().lineSpacing()))
+        tv = QVBoxLayout(self.info_box)
+        tv.setContentsMargins(0, 0, 0, 0)
+        tv.setSpacing(2)
+        tv.addWidget(self.file_label)
+        tv.addWidget(self.line2)
         page = QWidget()
         pv = QVBoxLayout(page)
-        pv.setContentsMargins(0, 0, 0, 0)
-        pv.setSpacing(10)
-        pv.addStretch(1)                    # 창이 클 때 파일 정보를 가운데에 (D096)
+        pv.setContentsMargins(0, 8, 0, 8)
+        pv.setSpacing(8)
         pv.addWidget(self.info_box)
-        pv.addWidget(self.load_box)
-        pv.addStretch(1)
+        pv.addWidget(self.thumb_label, 1)
         self.media_slot.addWidget(page)
         mv.addWidget(self.media_slot, 1)
 
@@ -501,25 +525,12 @@ class MainWindow(QMainWindow):
             self.file_label.setProperty("big", big)
             self.file_label.style().unpolish(self.file_label)
             self.file_label.style().polish(self.file_label)
-        self._fit_thumb(big)
         self._elide_title()
 
     def _show_thumb(self, data: bytes) -> None:
-        """썸네일 그림을 바꾼다 (b"" = 없음). 보일지는 창 크기로 정함. 파일로 남기지 않음 (D102)."""
+        """썸네일 그림을 바꾼다 (b"" = 없음). 보일지는 남은 공간으로 정함. 파일로 남기지 않음 (D102)."""
         pm = QPixmap()
-        self._thumb = pm if data and pm.loadFromData(data) else None
-        self._fit_thumb(self.media_slot.height() >= 2 * self.media_slot.minimumSizeHint().height())
-
-    def _fit_thumb(self, big: bool) -> None:
-        """윗칸이 최소 높이의 2배 이상일 때만 썸네일을 칸 높이에 맞춰 보인다 (D097)."""
-        if not (big and self._thumb is not None):
-            self.thumb_label.hide()
-            return
-        h = max(60, min(180, self.media_slot.height() - 40))
-        w = int(self.media_slot.width() * 0.35)          # 파일 이름·송출 방식 자리를 남김
-        self.thumb_label.setPixmap(self._thumb.scaled(
-            w, h, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-        self.thumb_label.show()
+        self.thumb_label.set_pixmap(pm if data and pm.loadFromData(data) else None)
 
     def _on_thumb(self, video: str, data: bytes) -> None:
         info = self.ctrl.info
@@ -819,12 +830,12 @@ class MainWindow(QMainWindow):
         self.load_stage.setText(tr(stage))   # core가 N_ 키로 보냄
         self.load_bar.setValue(pct)
         self.load_pct.setText(f"{pct}%")
-        self.load_box.show()
+        self.line2.setCurrentWidget(self.load_box)
         self._load_step = (stage, pct)
         self._show_state()
 
     def _on_task_ok(self, kind: str, result) -> None:
-        self.load_box.hide()
+        self.line2.setCurrentWidget(self.plan_label)
         self._load_step = None
         if kind == "load":
             self._last_pos = 0.0
@@ -842,7 +853,7 @@ class MainWindow(QMainWindow):
         self._update_ui()
 
     def _on_task_fail(self, kind: str, msg: str) -> None:
-        self.load_box.hide()
+        self.line2.setCurrentWidget(self.plan_label)
         self._load_step = None
         self._msg(tr("불러오기 실패: {msg}", msg=msg) if kind == "load"
                   else tr("음성 변경 실패: {msg}", msg=msg), error=True)
@@ -852,7 +863,7 @@ class MainWindow(QMainWindow):
 
     def _on_task_cancel(self, kind: str) -> None:
         """하던 작업을 버리고 그 전 상태로 (D099). 불러오기면 파일 열기 전 화면."""
-        self.load_box.hide()
+        self.line2.setCurrentWidget(self.plan_label)
         self._load_step = None
         if kind == "load":
             info = self.ctrl.info

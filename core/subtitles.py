@@ -26,7 +26,7 @@ from typing import Callable
 from .i18n import N_, tr
 from .paths import cache_dir, ffmpeg_path
 from .probe import MediaInfo, SubtitleStream
-from .proc import NO_WINDOW, bind_to_job
+from .proc import NO_WINDOW, bind_to_job, read_bytes
 
 _LOGGER = logging.getLogger(__name__)
 _CACHE_VERSION = 1
@@ -374,8 +374,15 @@ def _drain(stream, tail: deque[str]) -> None:
             tail.append(line)
 
 
+def progress_pct(sec: float, duration: float, read: int, size: int) -> int:
+    """읽은 양 기준 %, 알 수 없으면 자막 시각 기준 (D115). 자막 시각은 듬성한 트랙 때문에 멈춘 듯 보임."""
+    by_time = sec * 100 / duration if duration > 0 else 0
+    by_bytes = read * 100 / size if size > 0 else 0
+    return int(min(99, max(0, by_time, by_bytes)))
+
+
 def _run_with_progress(cmd: list[str], duration: float,
-                       on_progress: ProgressFn | None) -> None:
+                       on_progress: ProgressFn | None, size: int = 0) -> None:
     _LOGGER.debug("자막 추출: %s", subprocess.list2cmdline(cmd))
     try:
         proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
@@ -398,7 +405,7 @@ def _run_with_progress(cmd: list[str], duration: float,
                 us = int(line.split("=", 1)[1])
             except ValueError:
                 continue                       # N/A
-            pct = int(min(99, max(0, us / 1e6 * 100 / duration)))
+            pct = progress_pct(us / 1e6, duration, read_bytes(proc), size)
             if pct != last:
                 last = pct
                 on_progress(pct)
@@ -454,7 +461,11 @@ def extract_embedded(info: MediaInfo, streams: list[SubtitleStream],
         for s in need:
             cmd += ["-map", f"0:{s.index}", "-c:s", "webvtt", "-f", "webvtt",
                     str(tmp / f"{s.index}.vtt")]
-        _run_with_progress(cmd, info.duration, on_progress)
+        try:
+            size = info.path.stat().st_size
+        except OSError:
+            size = 0
+        _run_with_progress(cmd, info.duration, on_progress, size)
         for s in need:
             p = tmp / f"{s.index}.vtt"
             cached[s.index] = parse_timed_text(read_text(p)) if p.exists() else []

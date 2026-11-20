@@ -273,6 +273,20 @@ class PlaybackController:
             if self._sub_id and sub:
                 _LOGGER.info("자막: 트랙 %d (%s)", self._sub_id, sub.label)
             self.cm.play_media(req)
+            self._restart_subs()
+
+    def _restart_subs(self) -> None:
+        """정지로 멈춘 내장 자막 추출을 재생 요청 뒤에 처음부터 다시 (D116)."""
+        with self._lock:
+            stopped = [t for t in self.subs.tracks if t.note == STOPPED] if self.subs else []
+            if self._sub_job or not stopped or not self.info:
+                return
+            for t in stopped:
+                t.note = PENDING
+            text = [s for s in self.info.subtitles if s.codec in TEXT_SUB_CODECS]
+            self._sub_job = _SubJob(self.info, text, self._sub_pct, self._sub_done)
+            _LOGGER.info("내장 자막 추출 다시 시작")
+        self._notify_subs("progress", 0)
 
     def seek(self, position: float) -> None:
         with self._lock:

@@ -124,7 +124,7 @@ Se crean junto al ejecutable (o a la carpeta del código fuente):
 
 - `config.json` — último dispositivo, volumen, tamaño de subtítulos, idioma y otros ajustes (el puerto se cambia con `server_port`)
 - `logs\castplayer.log` — registro. Desactivado por defecto; actívalo con **Opciones → Registro**. Se escribe de nuevo en cada ejecución (1 MB cada uno, hasta 4 archivos). Al ejecutar desde una terminal con `-v` se escribe un registro detallado (DEBUG) solo en esa ejecución
-- `cache\` — caché de subtítulos (se vacía con **Opciones → Vaciar caché…**)
+- `cache\` — caché de subtítulos; se borra al cerrar la aplicación (o con **Opciones → Vaciar caché…**)
 
 ## Problemas y contribuciones
 

@@ -89,6 +89,23 @@ if os.name == "nt":
                 _k32.CloseHandle(h)
         except OSError:
             _LOGGER.warning("Job Object 등록 실패(무시)", exc_info=True)
+
+    _k32.OpenProcess.restype = wintypes.HANDLE
+    _PROCESS_QUERY_LIMITED = 0x1000
+
+    def read_bytes(proc: subprocess.Popen) -> int:
+        """프로세스가 지금까지 읽은 바이트 (진행률용, D115). 알 수 없으면 0."""
+        h = _k32.OpenProcess(_PROCESS_QUERY_LIMITED, False, proc.pid)
+        if not h:
+            return 0
+        try:
+            io = _IoCounters()
+            return io.ReadTransferCount if _k32.GetProcessIoCounters(h, ctypes.byref(io)) else 0
+        finally:
+            _k32.CloseHandle(h)
 else:
     def bind_to_job(proc: subprocess.Popen) -> None:  # noqa: ARG001
         return None
+
+    def read_bytes(proc: subprocess.Popen) -> int:  # noqa: ARG001
+        return 0

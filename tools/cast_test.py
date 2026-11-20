@@ -587,6 +587,7 @@ class _FakeServer:
 
 class _FakeSubs:
     supported = True
+    tracks: list = []
 
     def __init__(self) -> None:
         self._d = 0.0
@@ -1930,7 +1931,16 @@ def _log_slow_close_cases(check: Callable[[str, bool, str], None]) -> None:
     session, route = _FakeSession(), ctrl._route   # pylint: disable=protected-access
     ctrl._session = session                        # pylint: disable=protected-access
     stopped: list[bool] = []
-    main_mod.cleanup(cm, ctrl, SimpleNamespace(stop=lambda: stopped.append(True)))
+    tmp_cache = Path(tempfile.mkdtemp()) / "cache"
+    (tmp_cache / "subtitles").mkdir(parents=True)
+    (tmp_cache / "subtitles" / "x.json").write_text("{}", encoding="utf-8")
+    saved_cache = main_mod.cache_dir
+    main_mod.cache_dir = lambda: tmp_cache
+    try:
+        main_mod.cleanup(cm, ctrl, SimpleNamespace(stop=lambda: stopped.append(True)))
+    finally:
+        main_mod.cache_dir = saved_cache
+    check("F2-17 종료 정리 뒤 cache 폴더 없음 (D117)", not tmp_cache.exists(), f"남음 {tmp_cache.exists()}")
     check("F3-6 창을 닫은 뒤 정리 → 수신 앱 종료·HLS 세션 닫기·경로 해제·서버 종료",
           cm.names() == ["shutdown"] and session.closed and route in srv.unregistered
           and not ctrl.active and stopped == [True],
@@ -2160,12 +2170,17 @@ def _thumb_cases(check: Callable[[str, bool, str], None]) -> None:
         w._set_title("selftest.mkv")                        # pylint: disable=protected-access
         w._update_ui()                                      # pylint: disable=protected-access
         w.resize(680, w.minimumSizeHint().height())
-        small = _wait_for(lambda: not w.thumb_label.isVisible(), 1.0)
-        w.resize(680, w.minimumSizeHint().height() * 3)
-        big = _wait_for(w.thumb_label.isVisible, 1.0)
+        small = _wait_for(lambda: not w.thumb_label.showing(), 1.0)
+        slot_min = w.media_slot.minimumSizeHint().height()
+        w.resize(680, w.minimumSizeHint().height() + 300)
+        big = _wait_for(w.thumb_label.showing, 1.0)
+        tw, th, fw = w.thumb_label.width(), w.thumb_label.height(), w.file_label.width()
         _close(w)
-        check("F9-12 창이 작으면 썸네일 숨김, 윗칸이 최소의 2배 이상이면 보임", small and big,
+        check("F9-12 창이 작으면 썸네일 숨김, 남은 공간이 있으면 보임", small and big,
               f"작을 때 숨김 {small}, 클 때 보임 {big}")
+        check("F9-15 윗칸 최소 높이는 글자 두 줄+여백, 늘리면 썸네일이 글자 아래를 가로·세로 가득",
+              slot_min <= 80 and abs(tw - fw) <= 2 and th >= 250,
+              f"윗칸 최소 {slot_min}px, 썸네일 {tw}×{th}, 파일 이름 너비 {fw}")
 
 
 def _cancel_cases(check: Callable[[str, bool, str], None]) -> None:
@@ -2291,7 +2306,7 @@ def _layout_cases(check: Callable[[str, bool, str], None]) -> None:
     w._update_ui()                                        # pylint: disable=protected-access
     QApplication.processEvents()
     heights.append(w.media_card.height())                 # 불러오는 중
-    w.load_box.hide()
+    w.line2.setCurrentWidget(w.plan_label)
     ctrl.info = SimpleNamespace(path=Path("selftest.mkv"), duration=6000.0, audio=())
     w._update_ui()                                        # pylint: disable=protected-access
     QApplication.processEvents()
@@ -2510,6 +2525,15 @@ def _bg_subs_cases(check: Callable[[str, bool, str], None]) -> None:
             notes = [t.note for t in ctrl.subs.tracks] if ctrl.subs else []
             check("F2-14 끊긴 동안은 추출 계속, 정지하면 추출 중단",
                   alive and seen == ["취소"] and notes == ["추출 중단"], f"끊김 중 계속 {alive}, {seen}, {notes}")
+            n0 = len(cm.loads)
+            ctrl.play(0.0)
+            again = [t.note for t in ctrl.subs.tracks] if ctrl.subs else []
+            gate.set()
+            _until(lambda: not ctrl.extracting_subs, 3.0)
+            done = [t.supported for t in ctrl.subs.tracks] if ctrl.subs else []
+            check("F2-15 추출 중 정지 → 다시 재생하면 재생 요청 먼저, 추출 다시 시작 (D116)",
+                  len(cm.loads) > n0 and again == ["추출 중"] and done == [True],
+                  f"요청 {len(cm.loads) - n0}개, 재생 직후 {again}, 끝난 뒤 고를 수 있음 {done}")
         finally:
             player_mod.extract_embedded, player_mod.cached_embedded, player_mod.SUB_WAIT = saved
             gate.set()
@@ -2523,6 +2547,10 @@ def _bg_subs_cases(check: Callable[[str, bool, str], None]) -> None:
            subs_mod.norm_lang("rus")]
     check("F5-7 자동 선택은 화면 언어: en→영어, ko→한국어, ru 없음→첫 외부→끄기, rus→ru",
           got == ["e-en", "e-ko", "x-ko", None, "ru"], f"{got}")
+    pcts = [subs_mod.progress_pct(22.0, 100.0, 50, 100), subs_mod.progress_pct(22.0, 100.0, 0, 100),
+            subs_mod.progress_pct(22.0, 100.0, 90, 0)]
+    check("F2-16 자막 추출 진행률은 읽은 양(바이트) 기준, 못 읽으면 자막 시각 (D115)",
+          pcts == [50, 22, 22], f"{pcts}")
     from ui.tracks import language_name, subtitle_text
     names = [language_name(subs_mod.norm_lang(c)) for c in ("ita", "tha", "qaa", "", "und")]
     check("F9-11 언어 코드: 사전에 있는 3글자 코드는 이름, Qt도 모르는 코드는 대문자, 없으면 \"언어 정보 없음\" (D096, D113)",
@@ -2828,7 +2856,7 @@ def make_shots(out: Path) -> int:
     def playing(w: Any, cm: _GuiCM, ctrl: PlaybackController, pos: float) -> None:
         ctrl.info, ctrl.subs = info, subs
         ctrl.plan = planner_mod.make_plan(info, 0)
-        w.load_box.hide()
+        w.line2.setCurrentWidget(w.plan_label)
         w.seek.set_duration(info.duration)
         w.dur_label.setText(fmt_time(info.duration))
         w._fill_tracks()                    # pylint: disable=protected-access

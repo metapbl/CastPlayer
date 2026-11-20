@@ -13,11 +13,12 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from typing import Any, Callable
 
 from .cast_manager import CastCallbacks, CastManager, MediaRequest
 from .encoders import EncoderDetector, EncoderProfile
-from .i18n import N_, tr
+from .i18n import N_, language, tr
 from .hls import (HLS_MEDIA_INFO, HLS_MIME, HlsSession, Timeline, fixed_timeline,
                   keyframe_timeline)
 from .keyframes import KeyframeError, keyframes
@@ -26,12 +27,64 @@ from .netutil import local_ip_for
 from .paths import ffmpeg_path
 from .planner import Mode, Plan, PlanError, make_plan
 from .playlist import PlaylistItem
-from .probe import MediaInfo, probe
-from .subtitles import (SUB_OFF, SubtitleSet, SubtitleTrack, clamp_scale,
-                        load_subtitles, text_style)
+from .probe import MediaInfo, SubtitleStream, probe
+from .proc import LoadCancelled
+from .subtitles import (PENDING, STOPPED, SUB_OFF, TEXT_SUB_CODECS, Cue, SubtitleError,
+                        SubtitleSet, SubtitleTrack, cached_embedded, clamp_scale,
+                        extract_embedded, load_subtitles, text_style)
 
 _LOGGER = logging.getLogger(__name__)
 ProgressFn = Callable[[str, int], None]   # (단계 이름, 퍼센트)
+SUB_WAIT = 3.0   # 캐시 없는 내장 자막 추출을 기다리는 시간, 넘으면 재생부터 (D108)
+
+
+def _sub_lang() -> str:
+    """자동 자막 선택 언어 = 화면 언어 (D111). zh_CN → zh."""
+    return language().split("_")[0]
+
+
+class _SubJob:
+    """내장 자막 추출 스레드 1개 (D107). cancel()이면 다음 진행 알림 자리에서 ffmpeg를 끝낸다."""
+
+    def __init__(self, info: MediaInfo, streams: list[SubtitleStream],
+                 on_pct: Callable[[_SubJob, int], None], on_done: Callable[[_SubJob], None]) -> None:
+        self.info, self.pct = info, 0
+        self.result: dict[int, list[Cue]] = {}
+        self.done, self._cancel = threading.Event(), threading.Event()
+        self._on_pct, self._on_done = on_pct, on_done
+        threading.Thread(target=self._run, args=(streams,), name="sub-extract", daemon=True).start()
+
+    def cancel(self) -> None:
+        self._cancel.set()
+
+    def _progress(self, pct: int) -> None:
+        if self._cancel.is_set():
+            raise LoadCancelled()
+        self.pct = pct
+        self._on_pct(self, pct)
+
+    def _run(self, streams: list[SubtitleStream]) -> None:
+        try:
+            self.result = extract_embedded(self.info, streams, self._progress)
+        except LoadCancelled:
+            _LOGGER.info("내장 자막 추출 중단")
+        except SubtitleError as err:
+            _LOGGER.warning("%s", err)               # 트랙마다 "추출 실패"
+        finally:
+            self.done.set()
+        if not self._cancel.is_set():
+            self._on_done(self)
+
+    def wait(self, sec: float, on_progress: Callable[[int], None] | None) -> None:
+        """sec까지 기다리며 0.1초마다 진행 알림. 알림이 취소 예외를 던지면 추출도 끝낸다."""
+        end = time.monotonic() + sec
+        try:
+            while not self.done.wait(0.1) and time.monotonic() < end:
+                if on_progress:
+                    on_progress(self.pct)
+        except BaseException:
+            self.cancel()
+            raise
 
 
 def _stage(fn: ProgressFn | None, name: str) -> Callable[[int], None] | None:
@@ -58,6 +111,9 @@ class PlaybackController:
         self.subs: SubtitleSet | None = None
         self.subtitle_scale = clamp_scale(subtitle_scale)
         self._sub_id: int | None = None                 # 켜진 자막 trackId (None=끔)
+        self._sub_job: _SubJob | None = None            # 뒤에서 추출 중인 내장 자막 (D107)
+        self._sub_auto = False                          # 자막을 자동 선택에 맡김 (사용자가 안 고름)
+        self._cast_ids: set[int] = set()                # 마지막 재생 요청에 넣은 자막 trackId
         self._delay_timer: threading.Timer | None = None   # 싱크 변경 후 다시 불러오기 대기
         self._route: str | None = None
         self._sub_route: str | None = None
@@ -98,16 +154,37 @@ class PlaybackController:
         info = probe(item.path, on_progress=_stage(on_progress, N_("정보 읽기")))  # ProbeError 전파
         plan = make_plan(info, item.audio_stream)     # PlanError 전파
         timeline, encoder = self._prepare(info, plan, None, on_progress)
-        subs = load_subtitles(info, _stage(on_progress, N_("자막 추출")))
-        if item.subtitle_key is None:
-            sub = subs.auto_select()
-        elif item.subtitle_key == SUB_OFF:
-            sub = None
-        else:
-            sub = subs.find(item.subtitle_key)
-        if on_progress:      # 마지막 취소 자리: 취소됐으면 새 파일로 바꾸지 않음 (D099)
-            on_progress(N_("자막 추출"), 100)
+        text = [s for s in info.subtitles if s.codec in TEXT_SUB_CODECS]
+        job, subs = None, None
+        if text and cached_embedded(info, text) is None:     # 캐시 없음 → 뒤에서 추출 (D107, D108)
+            job = _SubJob(info, text, self._sub_pct, self._sub_done)
+            job.wait(SUB_WAIT, _stage(on_progress, N_("자막 추출")))
+        try:
+            if job is None:
+                subs = load_subtitles(info)                   # 캐시 또는 내장 텍스트 자막 없음
+            elif not job.done.is_set():
+                subs = load_subtitles(info, pending=True)
+            if on_progress:      # 마지막 취소 자리: 취소됐으면 새 파일로 바꾸지 않음 (D099)
+                on_progress(N_("자막 추출"), 100)
+        except BaseException:
+            if job:
+                job.cancel()
+            raise
         with self._lock:
+            if job and job.done.is_set():                     # 기다리는 동안 끝남 → 지금처럼
+                subs, job = load_subtitles(info, embedded=job.result), None
+            elif job:
+                _LOGGER.info("내장 자막은 뒤에서 추출, 재생 먼저 (%.0f초 넘음)", SUB_WAIT)
+            assert subs is not None                           # 위 세 갈래 중 하나
+            if self._sub_job:
+                self._sub_job.cancel()                        # 이전 파일의 추출 (D110)
+            self._sub_job, self._sub_auto = job, item.subtitle_key is None
+            if item.subtitle_key is None:
+                sub = subs.auto_select(_sub_lang())
+            elif item.subtitle_key == SUB_OFF:
+                sub = None
+            else:
+                sub = subs.find(item.subtitle_key)
             self.forget_lost()                        # 새 파일에 옛 끊김 위치를 쓰지 않음
             self.item, self.info, self.plan = item, info, plan
             self.timeline, self.encoder = timeline, encoder
@@ -165,6 +242,7 @@ class PlaybackController:
                 media_info["tracks"] = self.subs.cast_tracks(
                     self.server.url_for(sub_route, ip))
                 media_info["textTrackStyle"] = text_style(self.subtitle_scale)
+            self._cast_ids = {c["trackId"] for c in media_info.get("tracks", ())}
 
             if plan.mode is Mode.DIRECT:
                 session = None
@@ -251,7 +329,10 @@ class PlaybackController:
                     raise PlanError(tr("자막 #{n}은 고를 수 없습니다 ({why}).", n=number, why=tr(track.note)))
             self._sub_id = track.track_id if track else None
             self.item.subtitle_key = track.key if track else SUB_OFF
-            if self.active:
+            self._sub_auto = False
+            if self.active and self._sub_id and self._sub_id not in self._cast_ids:
+                self._reload_for_subtitle(why="자막 추가")    # 로그 전용 (뒤에서 추출한 트랙, D112)
+            elif self.active:
                 self.cm.set_subtitle(self._sub_id)
             return track
 
@@ -278,7 +359,8 @@ class PlaybackController:
                     self._reload_for_subtitle()
             return self.subs.delay(self._sub_id)
 
-    def _reload_for_subtitle(self, timer: threading.Timer | None = None) -> None:
+    def _reload_for_subtitle(self, timer: threading.Timer | None = None,
+                             why: str = "자막 싱크 반영") -> None:   # 로그 전용
         """자막 싱크 반영: 현재 위치에서 다시 불러오기.
         play()가 자막 경로를 새 토큰으로 등록하므로 수신기가 VTT를 새로 받는다.
         일시정지 중이었으면 다시 불러온 뒤에도 일시정지 유지.
@@ -293,10 +375,10 @@ class PlaybackController:
                 return
             if self._offline:
                 self._reload_pending = True
-                _LOGGER.info("자막 싱크 반영: 연결 복구 중 → 복구 뒤 다시 불러옴")
+                _LOGGER.info("%s: 연결 복구 중 → 복구 뒤 다시 불러옴", why)
                 return
             pos, paused = self.cm.position(), self.cm.paused
-            _LOGGER.info("자막 싱크 반영: %.1f초에서 다시 불러옴%s", pos,
+            _LOGGER.info("%s: %.1f초에서 다시 불러옴%s", why, pos,
                          " (일시정지 유지)" if paused else "")
             self.play(pos, autoplay=not paused)
 
@@ -310,11 +392,57 @@ class PlaybackController:
     def stop(self) -> None:
         """수신 앱 종료가 끝난 뒤 송출 자원 정리."""
         self.forget_lost()
+        self._stop_subs()
         self.cm.stop(then=self._release)
 
     def shutdown(self) -> None:
         """송출 자원 정리. 끊김 기억은 남긴다 (지우려면 forget_lost)."""
+        self._stop_subs()
         self._release()
+
+    # ---- 내장 자막 뒤에서 추출 (D107~D112) ----
+    @property
+    def sub_progress(self) -> int:
+        job = self._sub_job
+        return job.pct if job else 0
+
+    def _stop_subs(self) -> None:
+        """정지·새 파일·사용자 연결 해제·종료·재연결 포기 (D110). 끊긴 동안은 부르지 않는다."""
+        with self._lock:
+            job, self._sub_job = self._sub_job, None
+            if job is None:
+                return
+            job.cancel()
+            for t in self.subs.tracks if self.subs else ():
+                if t.note == PENDING:
+                    t.note = STOPPED
+        self._notify_subs("stopped", 0)
+
+    def _sub_pct(self, job: _SubJob, pct: int) -> None:
+        if job is self._sub_job:
+            self._notify_subs("progress", pct)
+
+    def _sub_done(self, job: _SubJob) -> None:
+        """추출 스레드에서. 목록을 채우고, 자동 선택이 내장 자막을 고르면 그 자리에서 다시 불러옴 (D112)."""
+        with self._lock:
+            if job is not self._sub_job or not (self.info and self.item and self.subs):
+                return       # load가 아직 새 파일로 바꾸기 전 → load가 done을 보고 처리
+            self._sub_job = None
+            new = load_subtitles(self.info, embedded=job.result)
+            new.copy_delays(self.subs)
+            self.subs = new
+            pick = new.auto_select(_sub_lang()) if self._sub_auto else None
+            reload = pick is not None and not pick.external
+            if pick is not None and reload:
+                self._sub_id, self.item.subtitle_key = pick.track_id, pick.key
+            _LOGGER.info("내장 자막 준비 완료%s", ": 자동 선택 → 다시 불러옴" if reload else "")
+        self._notify_subs("ready", 100)
+        if reload:
+            self._reload_for_subtitle(why="자막 추가")   # 로그 전용
+
+    def _notify_subs(self, state: str, pct: int) -> None:
+        if self._cb.on_subtitles:
+            self._cb.on_subtitles(state, pct)
 
     # ---- 연결 끊김 / 복구 ----
     def mark_lost(self) -> None:

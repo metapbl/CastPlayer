@@ -231,4 +231,8 @@ STRINGS: dict[str, str] = {
     '불러오기를 취소했습니다.': 'Loading was cancelled.',
     '정보 읽기': 'Reading file info',
     '음성 변경을 취소했습니다.': 'Audio change was cancelled.',
+    '추출 중': 'Extracting',
+    '추출 중단': 'Extraction stopped',
+    '추출 중 {n}%': 'Extracting {n}%',
+    '내장 자막을 준비했습니다.': 'Embedded subtitles are ready.',
 }

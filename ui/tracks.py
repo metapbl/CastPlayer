@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from core.i18n import N_, tr
 from core.probe import AudioStream
-from core.subtitles import SubtitleTrack
+from core.subtitles import PENDING, SubtitleTrack
 
 # 자주 쓰는 15개 언어만 화면 언어로 번역 (D096). ISO 639-1·639-2 코드 모두
 _LANG_NAMES = {
@@ -39,10 +39,11 @@ def audio_text(a: AudioStream) -> str:
     return " · ".join(parts)
 
 
-def subtitle_text(t: SubtitleTrack) -> str:
+def subtitle_text(t: SubtitleTrack, pct: int = 0) -> str:
     """예: "한국어 · 내장 SRT · 2352줄", "English · 영화.en.srt · 1342줄"."""
     where = (t.label if t.external
              else tr("내장 {fmt}", fmt=SUB_CODECS.get(t.codec, t.codec.upper())) if t.codec
              else tr("내장").strip())                     # 형식 정보가 없을 때
-    tail = tr(t.note) if t.note else tr("{n}줄", n=len(t.cues))
+    tail = (tr("추출 중 {n}%", n=pct) if t.note == PENDING          # 뒤에서 추출 중 (D109)
+            else tr(t.note) if t.note else tr("{n}줄", n=len(t.cues)))
     return " · ".join((language_name(t.language), where, tail))

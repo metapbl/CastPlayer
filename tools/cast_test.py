@@ -2397,6 +2397,109 @@ def _keyframe_index_cases(check: Callable[[str, bool, str], None]) -> None:
               raised and after == before, f"예외 {raised}, 새 파일 {len(after - before)}개")
 
 
+# ===================== 내장 자막 뒤에서 추출 (F2-12~14, F5-7, D107~D112) =====================
+def _bg_subs_cases(check: Callable[[str, bool, str], None]) -> None:
+    """가짜로 늦춘 추출로 재생 먼저 → 끝나면 자동 선택될 때만 다시 불러오기, 정지하면 중단."""
+    import core.subtitles as subs_mod
+    from core.proc import LoadCancelled
+    with tempfile.TemporaryDirectory() as tmp:
+        srt = Path(tmp) / "s.srt"
+        srt.write_text("1\n00:00:01,000 --> 00:00:02,000\nhello\n", encoding="utf-8")
+        files = {}
+        for lang in ("kor", "eng"):
+            files[lang] = Path(tmp) / f"bg_{lang}.mkv"
+            subprocess.run([str(ffmpeg_path()), "-v", "error", "-y", "-f", "lavfi", "-i",
+                            "testsrc=size=160x90:rate=24:duration=2", "-i", str(srt),
+                            "-map", "0", "-map", "1", "-c:v", "libx264", "-preset", "ultrafast",
+                            "-c:s", "srt", "-metadata:s:s:0", f"language={lang}", str(files[lang])],
+                           check=True, capture_output=True,
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        gate, seen = threading.Event(), []
+
+        def slow(info, streams, on_progress=None):
+            try:
+                while not gate.wait(0.02):
+                    if on_progress:
+                        on_progress(50)
+            except LoadCancelled:
+                seen.append("취소")
+                raise
+            return {s.index: [Cue(1.0, 2.0, "hello")] for s in streams}
+
+        saved = (player_mod.extract_embedded, player_mod.cached_embedded, player_mod.SUB_WAIT)
+        player_mod.extract_embedded, player_mod.cached_embedded = slow, lambda _i, _s: None
+        player_mod.SUB_WAIT = 0.3
+        try:
+            def run(lang: str, release: bool, wait_first: bool = False):
+                gate.clear()
+                seen.clear()
+                if wait_first:
+                    gate.set()
+                cm = _FakeCM()
+                ctrl = PlaybackController(cm, _FakeServer(), None, CastCallbacks())
+                ctrl.load(PlaylistItem(files[lang]))
+                pending = [t.note for t in ctrl.subs.tracks] if ctrl.subs else []
+                ctrl.play(0.0)
+                cm.pos = 12.0
+                if release:
+                    gate.set()
+                    _until(lambda: len(cm.loads) > 1 or not ctrl._sub_job, 3.0)  # pylint: disable=protected-access
+                    time.sleep(0.1)
+                return cm, ctrl, pending
+
+            def tracks(req) -> int:
+                return len((req.media_info or {}).get("tracks", []))
+
+            cm, ctrl, pending = run("kor", release=True)
+            first, last = cm.loads[0], cm.loads[-1]
+            check("F2-12 추출이 3초를 넘음 → 내장 자막 없이 재생 먼저, 목록은 \"추출 중\"",
+                  tracks(first) == 0 and pending == ["추출 중"], f"첫 요청 트랙 {tracks(first)}, {pending}")
+            check("F2-12 끝나면 자동 선택된 내장 한국어 → 그 위치에서 다시 불러오기 1회",
+                  len(cm.loads) == 2 and tracks(last) == 1 and last.active_track == 1
+                  and _start(last) == 12.0, _desc(cm))
+            cm, ctrl, _ = run("eng", release=True)
+            ok = ctrl.subs is not None and [t.supported for t in ctrl.subs.tracks] == [True]
+            check("F2-12 자동 선택되지 않는 내장 영어(화면 한국어) → 목록만 채우고 다시 불러오지 않음",
+                  len(cm.loads) == 1 and ok, f"{_desc(cm)}, 고를 수 있음 {ok}")
+            cm, ctrl, _ = run("kor", release=False, wait_first=True)
+            time.sleep(0.2)
+            check("F2-13 3초 안에 끝남 → 자막을 넣은 재생 요청 1회, 다시 불러오기 없음",
+                  len(cm.loads) == 1 and tracks(cm.loads[0]) == 1, _desc(cm))
+            cm, ctrl, _ = run("kor", release=False)
+            ctrl.mark_lost()
+            time.sleep(0.1)
+            alive = not seen
+            ctrl.stop()
+            _until(lambda: bool(seen), 2.0)
+            notes = [t.note for t in ctrl.subs.tracks] if ctrl.subs else []
+            check("F2-14 끊긴 동안은 추출 계속, 정지하면 추출 중단",
+                  alive and seen == ["취소"] and notes == ["추출 중단"], f"끊김 중 계속 {alive}, {seen}, {notes}")
+        finally:
+            player_mod.extract_embedded, player_mod.cached_embedded, player_mod.SUB_WAIT = saved
+            gate.set()
+
+    def t(key, lang, ext):
+        return SubtitleTrack(key, key, lang, True, external=ext)
+    s = SubtitleSet([t("e-ko", "ko", False), t("e-en", "en", False)])
+    s2 = SubtitleSet([t("x-ko", "ko", True), t("e-en", "en", False)])
+    got = [getattr(s.auto_select("en"), "key", None), getattr(s.auto_select("ko"), "key", None),
+           getattr(s2.auto_select("ru"), "key", None), getattr(s.auto_select("ru"), "key", None),
+           subs_mod.norm_lang("rus")]
+    check("F5-7 자동 선택은 화면 언어: en→영어, ko→한국어, ru 없음→첫 외부→끄기, rus→ru",
+          got == ["e-en", "e-ko", "x-ko", None, "ru"], f"{got}")
+    from ui.tracks import subtitle_text
+    txt = subtitle_text(SubtitleTrack("emb:2", "#1", "ko", False, note=subs_mod.PENDING,
+                                      codec="subrip"), 42)
+    check("F2-12 추출 중인 내장 자막 목록 글자에 진행률", txt.endswith("추출 중 42%"), txt)
+
+
+def _until(cond: Callable[[], bool], sec: float) -> bool:
+    end = time.monotonic() + sec
+    while not cond() and time.monotonic() < end:
+        time.sleep(0.02)
+    return cond()
+
+
 # ===================== 화면 언어 (F10, D079~D086) =====================
 _HANGUL = re.compile(r"[가-힣]")
 I18N_SOURCES = ("core", "ui", "main.py")
@@ -2564,6 +2667,11 @@ def selftest() -> int:
             _keyframe_index_cases(check)
         except Exception as err:  # pylint: disable=broad-except
             check("F2-9 키프레임 목차", False, f"예외: {err!r}")
+        print("[자가검사] player.py — 내장 자막 뒤에서 추출 (F2-12~14, F5-7)")
+        try:
+            _bg_subs_cases(check)
+        except Exception as err:  # pylint: disable=broad-except
+            check("F2-12 뒤에서 자막 추출", False, f"예외: {err!r}")
         print("[자가검사] i18n.py — 화면 언어 (F10)")
         try:
             _i18n_cases(check)

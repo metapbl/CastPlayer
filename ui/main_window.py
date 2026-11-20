@@ -29,6 +29,7 @@ from core.planner import Mode, Plan, PlanError
 from core.player import PlaybackController
 from core.playlist import Playlist, PlaylistItem
 from core.probe import MediaInfo
+from core.subtitles import PENDING
 from core.thumbs import thumbnail
 from ui import theme
 from ui.bridge import CastBridge
@@ -391,6 +392,7 @@ class MainWindow(QMainWindow):
         b.connection_lost.connect(self._on_lost)
         b.media_status.connect(self._on_status)
         b.volume.connect(self._on_volume)
+        b.subtitles.connect(self._on_subtitles)
         b.finished.connect(lambda: self._on_playback_end(N_("재생 완료")))
         b.app_closed.connect(lambda: self._on_playback_end(N_("TV에서 플레이어가 종료됨")))
         b.load_failed.connect(lambda c, n: self._msg(tr("불러오기 실패: {name} ({code})",
@@ -567,7 +569,7 @@ class MainWindow(QMainWindow):
         self.sub_combo.addItem(tr("끄기"), 0)
         subs, cur = self.ctrl.subs, self.ctrl.subtitle
         for n, t in enumerate(subs.tracks if subs else [], 1):
-            self.sub_combo.addItem(subtitle_text(t), n)
+            self.sub_combo.addItem(subtitle_text(t, self.ctrl.sub_progress), n)
             if t.stream_title:
                 self.sub_combo.setItemData(n, t.stream_title, Qt.ItemDataRole.ToolTipRole)
             if not t.supported:                     # 회색 비활성, 자리만 남김
@@ -575,6 +577,17 @@ class MainWindow(QMainWindow):
             if cur is t:
                 self.sub_combo.setCurrentIndex(n)
         self._show_sync()
+
+    def _on_subtitles(self, state: str, pct: int) -> None:
+        """내장 자막 뒤에서 추출 (D109): 진행률은 글자만 바꾸고, 끝나거나 멈추면 목록을 다시 채움."""
+        if state == "progress":
+            for n, t in enumerate(self.ctrl.subs.tracks if self.ctrl.subs else [], 1):
+                if t.note == PENDING:
+                    self.sub_combo.setItemText(n, subtitle_text(t, pct))
+            return
+        self._fill_tracks()
+        if state == "ready":
+            self._msg(tr("내장 자막을 준비했습니다."))
 
     def _show_plan(self) -> None:
         p, info = self.ctrl.plan, self.ctrl.info

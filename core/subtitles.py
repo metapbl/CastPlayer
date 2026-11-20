@@ -44,7 +44,7 @@ _LANG = {
     "ja": "ja", "jpn": "ja", "jp": "ja", "japanese": "ja",
     "zh": "zh", "chi": "zh", "zho": "zh", "chs": "zh", "cht": "zh",
     "fr": "fr", "fre": "fr", "fra": "fr", "de": "de", "ger": "de", "deu": "de",
-    "es": "es", "spa": "es",
+    "es": "es", "spa": "es", "ru": "ru", "rus": "ru", "russian": "ru",
 }
 _SMI_CLASS_LANG = {"KRCC": "ko", "KOCC": "ko", "KOKRCC": "ko", "ENCC": "en",
                    "EGCC": "en", "ENUSCC": "en", "JPCC": "ja", "JACC": "ja"}
@@ -52,6 +52,10 @@ _SMI_CLASS_LANG = {"KRCC": "ko", "KOCC": "ko", "KOKRCC": "ko", "ENCC": "en",
 
 class SubtitleError(RuntimeError):
     pass
+
+
+PENDING = N_("추출 중")       # 뒤에서 추출 중인 내장 자막 (D109)
+STOPPED = N_("추출 중단")     # 뒤에서 추출하다 정지 등으로 멈춤 (D110)
 
 
 def norm_lang(code: str | None) -> str:
@@ -410,6 +414,23 @@ def _run_with_progress(cmd: list[str], duration: float,
         on_progress(100)
 
 
+def _read_cache(cf: Path) -> dict[int, list[Cue]]:
+    try:
+        data = json.loads(cf.read_text(encoding="utf-8"))
+        return {int(k): [Cue(*c) for c in v] for k, v in data.items()}
+    except (OSError, ValueError, TypeError):
+        return {}
+
+
+def cached_embedded(info: MediaInfo, streams: list[SubtitleStream]) -> dict[int, list[Cue]] | None:
+    """캐시에 모든 트랙이 있으면 그 결과, 아니면 None (추출이 필요함)."""
+    try:
+        cached = _read_cache(_cache_file(info.path))
+    except OSError:
+        return None
+    return cached if all(s.index in cached for s in streams) else None
+
+
 def extract_embedded(info: MediaInfo, streams: list[SubtitleStream],
                      on_progress: ProgressFn | None = None) -> dict[int, list[Cue]]:
     """여러 내장 트랙을 ffmpeg 한 번으로 추출. {스트림 index: 자막}."""
@@ -417,12 +438,7 @@ def extract_embedded(info: MediaInfo, streams: list[SubtitleStream],
         cf = _cache_file(info.path)
     except OSError as err:
         raise SubtitleError(f"파일 정보 읽기 실패: {err}") from err   # 로그 전용
-    cached: dict[int, list[Cue]] = {}
-    try:
-        data = json.loads(cf.read_text(encoding="utf-8"))
-        cached = {int(k): [Cue(*c) for c in v] for k, v in data.items()}
-    except (OSError, ValueError, TypeError):
-        cached = {}
+    cached = _read_cache(cf)
     need = [s for s in streams if s.index not in cached]
     if not need:
         _LOGGER.debug("자막 캐시 사용: %s", cf.name)
@@ -474,11 +490,11 @@ class SubtitleSet:
     def find(self, key: str | None) -> SubtitleTrack | None:
         return next((t for t in self.tracks if t.supported and t.key == key), None)
 
-    def auto_select(self) -> SubtitleTrack | None:
-        """외부 한국어 → 내장 한국어 → 첫 외부 자막 → 끄기."""
+    def auto_select(self, lang: str = "ko") -> SubtitleTrack | None:
+        """외부 그 언어 → 내장 그 언어 → 첫 외부 자막 → 끄기. lang은 화면 언어 (D111)."""
         ok = self.supported
-        for pred in (lambda t: t.external and t.language == "ko",
-                     lambda t: not t.external and t.language == "ko",
+        for pred in (lambda t: t.external and t.language == lang,
+                     lambda t: not t.external and t.language == lang,
                      lambda t: t.external):
             found = next((t for t in ok if pred(t)), None)
             if found:
@@ -492,6 +508,13 @@ class SubtitleSet:
     def set_delay(self, track_id: int, sec: float) -> None:
         with self._lock:
             self._delay[track_id] = round(sec, 3)
+
+    def copy_delays(self, old: SubtitleSet) -> None:
+        """뒤에서 추출한 뒤 새 묶음으로 바꿀 때 싱크값을 같은 트랙(key)으로 옮긴다."""
+        for t in self.supported:
+            o = old.find(t.key)
+            if o:
+                self.set_delay(t.track_id, old.delay(o.track_id))
 
     def get(self, name: str) -> tuple[bytes, str] | None:
         m = re.fullmatch(r"(\d+)\.vtt", name)
@@ -510,11 +533,14 @@ class SubtitleSet:
                 for t in self.supported]
 
 
-def load_subtitles(info: MediaInfo, on_progress: ProgressFn | None = None) -> SubtitleSet:
+def load_subtitles(info: MediaInfo, on_progress: ProgressFn | None = None,
+                   embedded: dict[int, list[Cue]] | None = None,
+                   pending: bool = False) -> SubtitleSet:
+    """embedded: 이미 추출한 내장 자막 (없으면 여기서 추출). pending: 내장 텍스트 자막은 "추출 중"으로."""
     tracks = _external_tracks(info.path)
     text_streams = [s for s in info.subtitles if s.codec in TEXT_SUB_CODECS]
-    cues_by_index: dict[int, list[Cue]] = {}
-    if text_streams:
+    cues_by_index: dict[int, list[Cue]] = embedded or {}
+    if text_streams and embedded is None and not pending:
         try:
             cues_by_index = extract_embedded(info, text_streams, on_progress)
         except SubtitleError as err:
@@ -525,6 +551,7 @@ def load_subtitles(info: MediaInfo, on_progress: ProgressFn | None = None) -> Su
             label += f" '{s.title}'"
         lang, key = norm_lang(s.language), f"emb:{s.index}"
         note = (N_("지원 안 함") if s.codec not in TEXT_SUB_CODECS
+                else PENDING if pending
                 else N_("추출 실패") if s.index not in cues_by_index
                 else N_("비어 있음") if not cues_by_index[s.index] else "")
         tracks.append(SubtitleTrack(key, label, lang, not note,

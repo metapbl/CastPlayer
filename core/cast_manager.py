@@ -144,6 +144,8 @@ class CastCallbacks:
     # 우리가 끊지 않았는데 연결이 끊김. pychromecast가 스스로 다시 연결을 시도하며,
     # 성공하면 on_connected, 포기하면 on_disconnected가 이어서 호출됨
     on_connection_lost: Callable[[DeviceInfo], None] | None = None
+    # 내장 자막 뒤에서 추출 (D109): ("progress", %) / ("ready", 100) / ("stopped", 0)
+    on_subtitles: Callable[[str, int], None] | None = None
 
 
 class _ConnListener(ConnectionStatusListener):

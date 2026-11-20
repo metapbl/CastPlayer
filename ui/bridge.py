@@ -22,6 +22,7 @@ class CastBridge(QObject):
     load_failed = Signal(int, str)
     app_closed = Signal()
     error = Signal(str)
+    subtitles = Signal(str, int)         # 내장 자막 뒤에서 추출: 상태, % (D109)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -38,4 +39,5 @@ class CastBridge(QObject):
             on_app_closed=lambda: self.app_closed.emit(),
             on_error=self.error.emit,
             on_connection_lost=self.connection_lost.emit,
+            on_subtitles=self.subtitles.emit,
         )

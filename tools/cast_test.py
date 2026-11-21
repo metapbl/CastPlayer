@@ -951,7 +951,7 @@ def _manager_cases(check: Callable[[str, bool, str], None]) -> None:
         cm._rx_ready.set()
         got = threading.Event()
         cm.check_session(lambda _alive: got.set())
-        called = got.wait(1.0)
+        called = got.wait(0.3)
         ok = not called and cm._lost is mem
         return ok, (f"결과 {'전달됨' if called else '보류'}, "
                     f"요청 기억 {'유지' if cm._lost is mem else '지워짐'}")
@@ -1601,9 +1601,10 @@ def _conn_cases(check: Callable[[str, bool, str], None]) -> None:
 class _Grab(logging.Handler):
     """with 안에서 한 로거의 INFO 메시지를 모은다 (자가검사는 ERROR만 보이므로 잠시 낮춤)."""
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, level: int = logging.INFO) -> None:
         super().__init__()
         self.lines: list[str] = []
+        self.level_ = level
         self.log = logging.getLogger(name)
         self.saved = (self.log.level, self.log.propagate)
 
@@ -1612,7 +1613,7 @@ class _Grab(logging.Handler):
 
     def __enter__(self) -> list[str]:
         self.log.addHandler(self)
-        self.log.setLevel(logging.INFO)
+        self.log.setLevel(self.level_)
         self.log.propagate = False
         return self.lines
 
@@ -1659,13 +1660,14 @@ def _play_cases(check: Callable[[str, bool, str], None]) -> None:
     cm.pos = 100.0
     with _Grab("core.player") as lines:
         _key(w, K.Key_Right, K.Key_Right, K.Key_Right)
-        QTest.qWait(wait)
+        _wait_for(lambda: bool(_seeks(lines)), wait / 1000 + 0.5)
+        QTest.qWait(50)                        # 두 번 보내지 않는지
     check("F3-2 → 3번(0.3초 안) → 탐색 1번 +15초, 로그 `탐색:` 1줄",
           _seeks(lines) == ["탐색: 115.0초"], f"{lines}")
     cm.pos = 100.0
     with _Grab("core.player") as lines:
         _key(w, K.Key_Left)
-        QTest.qWait(wait)
+        _wait_for(lambda: bool(_seeks(lines)), wait / 1000 + 0.5)
     check("← → 5초 뒤로 탐색", _seeks(lines) == ["탐색: 95.0초"], f"{lines}")
 
     cm.calls.clear()
@@ -1680,7 +1682,7 @@ def _play_cases(check: Callable[[str, bool, str], None]) -> None:
           f"{cm.calls}")
 
     cm.pos = 321.0
-    QTest.qWait(700)
+    _wait_for(lambda: w.pos_label.text() == "05:21", 1.0)
     check("재생 중 0.5초마다 위치 표시 갱신", w.pos_label.text() == "05:21", w.pos_label.text())
 
     with _Grab("core.player") as lines:
@@ -1783,17 +1785,23 @@ def _media_cases(check: Callable[[str, bool, str], None]) -> None:
           f"{[w.sub_combo.itemText(i) for i in range(w.sub_combo.count())]}")
 
     cm.pos = 300.0
-    with _Grab("core.player") as lines:
-        for _ in range(3):
-            w.btn_sync_up.click()
-        QTest.qWait(1000)
-        early = len(cm.loads)
-        QTest.qWait(800)                       # 마지막 입력 1.5초 뒤
+    saved_wait = mw_mod.SYNC_WAIT
+    mw_mod.SYNC_WAIT = 0.3                     # 시험 시간 단축: 1.5초와 같은 순서를 0.3초로 확인
+    try:
+        with _Grab("core.player") as lines:
+            for _ in range(3):
+                w.btn_sync_up.click()
+            QTest.qWait(150)
+            early = len(cm.loads)
+            _wait_for(lambda: len(cm.loads) >= 1, 1.0)
+            QTest.qWait(100)                   # 두 번 불러오지 않는지
+    finally:
+        mw_mod.SYNC_WAIT = saved_wait
     synced = [x for x in lines if x.startswith("자막 싱크 반영")]
-    check("F5-3 싱크 +0.5 3번 → 1.5초 뒤 한 번만 +1.5초로 다시 불러옴, 로그 1줄",
+    check("F5-3 싱크 +0.5 3번 → 마지막 입력 뒤 대기 시간에 한 번만 +1.5초로 다시 불러옴, 로그 1줄",
           early == 0 and len(cm.loads) == 1 and _start(cm.loads[0]) == 300.0 and len(synced) == 1
           and ctrl.subs.delay(1) == 1.5 and w.sync_label.text() == "+1.5초",
-          f"1초 때 {early}번, {_desc(cm)}, {w.sync_label.text()}, {synced}")
+          f"대기 전 {early}번, {_desc(cm)}, {w.sync_label.text()}, {synced}")
     _close(w)
 
     v = VideoStream(0, "h264", "High", 41, 1920, 1080, "yuv420p", Fraction(24), "avc1")
@@ -1917,7 +1925,7 @@ def _log_slow_close_cases(check: Callable[[str, bool, str], None]) -> None:
         result = []
         for slow in (0.0, 5.0):               # 0초 기준이면 어떤 조각도 느림
             ms_mod.SLOW_SEND = slow
-            with _Grab("core.media_server") as lines:
+            with _Grab("core.media_server", logging.DEBUG) as lines:   # 느리지 않은 전송은 DEBUG
                 for name in ("seg_1.m4s", "master.m3u8"):
                     with urllib.request.urlopen(f"{url}/{name}", timeout=5) as resp:
                         resp.read()
@@ -1982,7 +1990,7 @@ def _ui_cases(check: Callable[[str, bool, str], None]) -> None:
     for b in (w.btn_back, w.btn_fwd):
         with _Grab("core.player") as lines:
             b.click()
-            QTest.qWait(mw_mod.SEEK_COALESCE_MS + 150)
+            _wait_for(lambda: bool(_seeks(lines)), mw_mod.SEEK_COALESCE_MS / 1000 + 0.5)
         got += _seeks(lines)
     check("F9-5 [−10초]·[+10초] → 10초 뒤·10초 앞으로 탐색 (D093), 줄 이름 자막 크기·자막 싱크 (D095)",
           got == ["탐색: 90.0초", "탐색: 110.0초"]

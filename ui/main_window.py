@@ -47,6 +47,7 @@ AUTO_HOST_FALLBACK_MS = 8000     # mDNS로 마지막 기기를 못 찾으면 저
 RECONNECT_WINDOW = 30.0          # 끊긴 뒤 같은 UUID를 다시 찾는 시간(초)
 SEEK_STEP, SEEK_COALESCE_MS = 5.0, 300
 SEEK_BACK, SEEK_FWD = -10.0, 10.0   # 화면 버튼 (D093), 키 ←/→는 SEEK_STEP
+SYNC_WAIT = 1.5                     # 자막 싱크 버튼: 마지막 입력 뒤 이 시간(초)에 한 번 다시 불러옴
 VOL_STEP = 5
 
 # 연결 상태: (표시 문구 키, 테마 색 이름)
@@ -1107,7 +1108,7 @@ class MainWindow(QMainWindow):
     def _sync(self, sign: int) -> None:
         shift = QApplication.keyboardModifiers() & Qt.KeyboardModifier.ShiftModifier
         try:
-            self.ctrl.adjust_subtitle_delay(sign * (0.1 if shift else 0.5), wait=1.5)
+            self.ctrl.adjust_subtitle_delay(sign * (0.1 if shift else 0.5), wait=SYNC_WAIT)
         except PlanError as err:
             self._msg(str(err), error=True)
         self._show_sync()

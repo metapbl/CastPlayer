@@ -100,6 +100,7 @@
 | T21 | 재생 요청 직후 TV가 `LOAD_FAILED`, 앱에는 아무 알림도 없음 | HE-AAC 96kHz 7.1을 복사해 보냄. 오류 코드(`detailedErrorCode`)가 없으면 pychromecast가 `load_media_failed`를 부르지 않음 | 복사 조건 제한(`planner._audio_copy_ok`), IDLE/ERROR로 알림 | D075, 2026-11-04 실기기 |
 | T22 | 밝게 테마에서 창 폭에 따라 버튼 바탕이 흰색↔회색으로 달라 보임 (전에는 테두리도) | 앱이 아니라 디스플레이의 콘텐츠 적응 밝기(CABC 등): 화면 내용(흰 면적)에 따라 밝기를 바꿈. 사용자 화면 영상의 픽셀은 폭과 관계없이 같은 색(#dde1e5 근처) | 코드를 고치기 전에 화면 영상·캡처의 픽셀 색부터 잰다. 같으면 디스플레이 탓. 흰 바탕과 너무 가까운 색은 피함(켜진 버튼은 진한 윤곽, 테마 1.3.0~) | D076, 2026-11-10 사용자 확인 |
 | T23 | 자막 싱크를 바꿔도 다시 불러오기가 1~2초 늦거나 안 됨(시험) | 플레이어 잠금(`PlaybackController._lock`)을 잡은 채 작업 스레드에서 Qt 신호를 보냄 → 화면 스레드가 그 잠금을 기다리면 신호 전달이 막힘 | core 콜백은 잠금 밖에서 부른다 (`_notify_subs`·`on_reload`) | D121, 2026-11-21 자가검사 |
+| T24 | 자가검사는 모두 통과인데 출력에 AttributeError 스택이 찍힘 | Qt 신호 처리(슬롯)·뒤 스레드의 예외는 PySide6가 출력만 하고 호출한 쪽으로 올라오지 않아 `check`가 모름. 실제 원인은 F9-14 시험의 가짜 불러오기가 None을 돌려준 것 | 가짜 작업은 실제와 같은 모양을 돌려준다. 자가검사가 `sys.excepthook`·`threading.excepthook`으로 모아 "처리되지 않은 예외 없음"으로 판정 | 2026-11-21 자가검사 |
 
 ## R§5 환경·도구
 - 개발 환경: Windows 11, PowerShell 7, Python 3.15.1 `.venv`(설계 기준 3.11+), PyChromecast 14.0.10, zeroconf 0.151.5, protobuf 7.36.2, PySide6 6.12.0, charset-normalizer 3.5.2 (2026-10-23 확인). PyInstaller 미설치

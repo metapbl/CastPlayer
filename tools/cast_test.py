@@ -2856,6 +2856,18 @@ def selftest() -> int:
     saved = (player_mod.local_ip_for, player_mod.make_plan)
     player_mod.local_ip_for = lambda _host: "10.0.0.2"
     player_mod.make_plan = lambda _info, order: _fake_plan(order or 0)
+    # Qt 신호 처리·뒤 스레드의 예외는 출력만 되고 시험을 실패시키지 않으므로 모아서 마지막에 판정
+    stray: list[str] = []
+    hooks = (sys.excepthook, threading.excepthook)
+
+    def on_stray(kind: type[BaseException], err: BaseException | None, tb) -> None:
+        stray.append(f"{kind.__name__}: {err}")
+        hooks[0](kind, err if err is not None else kind(), tb)
+
+    sys.excepthook = on_stray
+    threading.excepthook = lambda a: (stray.append(f"{a.exc_type.__name__}: {a.exc_value} "
+                                                   f"(스레드 {a.thread.name if a.thread else '?'})"),
+                                      hooks[1](a))
     try:
         print("[자가검사] player.py — 끊김·복구 순서")
         for name, fn in _PLAYER_CASES:
@@ -2896,8 +2908,10 @@ def selftest() -> int:
             check("i18n", False, f"예외: {err!r}")
         print("[자가검사] main_window.py — 화면 없는 창 + 가짜 TV (D071)")
         _gui_cases(check)
+        check("시험 중 처리되지 않은 예외(Qt 신호 처리·뒤 스레드) 없음", not stray, f"{stray[:3]}")
     finally:
         player_mod.local_ip_for, player_mod.make_plan = saved
+        sys.excepthook, threading.excepthook = hooks
     print(f"[자가검사] {len(oks)}개 중 {sum(oks)}개 통과")
     return 0 if all(oks) else 1
 

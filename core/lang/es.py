@@ -149,6 +149,30 @@ STRINGS: dict[str, str] = {
         'Botones de sincronía de subtítulos en pasos de 0,1 s',
     '지원 형식':
         'Formatos compatibles',
+    '내장 텍스트 자막':
+        'Subtítulos de texto incrustados',
+    '그림 자막은 안 됨':
+        'Los subtítulos de imagen no son compatibles',
+    '그대로':
+        'se mantiene',
+    '등은 스테레오로 바꿈':
+        'etc. se convierten a estéreo',
+    '송출 방식':
+        'Método de envío',
+    '파일을 열면 자동으로 고름':
+        'Se elige automáticamente al abrir un archivo',
+    'mp4':
+        'mp4',
+    'H.264·HEVC 영상 + AAC·MP3 음성':
+        'Vídeo H.264/HEVC + audio AAC/MP3',
+    'mkv·avi·mov·ts 등':
+        'mkv, avi, mov, ts, etc.',
+    'mp4에서 다른 음성 트랙을 고를 때':
+        'Un mp4 al elegir otra pista de audio',
+    '10비트 H.264':
+        'H.264 de 10 bits',
+    'XviD 등 TV가 못 읽는 영상':
+        'XviD y otros vídeos que la TV no puede leer',
     '도움말':
         'Ayuda',
     '단축키':
@@ -157,22 +181,6 @@ STRINGS: dict[str, str] = {
         'Atrás / adelante 5 s',
     '영상':
         'Vídeo',
-    '영상에 든 글자 자막':
-        'Subtítulos de texto dentro del vídeo',
-    '안 됨':
-        'No compatible',
-    '(블루레이·DVD의 그림 자막)':
-        '(subtítulos de imagen de Blu-ray/DVD)',
-    '모든 음성 트랙을 고를 수 있음. Dolby·DTS 같은 다채널 음성은 스테레오로 나옴':
-        'Se puede elegir cualquier pista de audio. El audio multicanal como Dolby o DTS se reproduce en estéreo',
-    '송출 방식 — 파일을 열면 자동으로 고름':
-        'Método de envío — se elige automáticamente al abrir un archivo',
-    'TV가 바로 읽는 mp4':
-        'mp4 que la TV lee directamente',
-    '그 밖의 파일, 또는 다른 음성 트랙을 고를 때':
-        'Otros archivos, o al elegir otra pista de audio',
-    'TV가 못 읽는 영상은 PC가 다시 인코딩 (XviD, 10비트 H.264 등)':
-        'El vídeo que la TV no puede leer lo recodifica el PC (XviD, H.264 de 10 bits, etc.)',
     'PC 자원 사용':
         'Usa recursos del PC',
     '화질 조금 낮아짐':

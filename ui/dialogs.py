@@ -55,10 +55,10 @@ def confirm(parent: QWidget, text: str) -> bool:
     return r == QMessageBox.StandardButton.Ok
 
 
-MODES = (   # 이름은 재생 카드와 같은 말. 보여 줄 때 tr() (D085, D126)
-    (N_("그대로 보냄"), N_("TV가 바로 읽는 mp4"), ()),
-    (N_("HLS 변환"), N_("그 밖의 파일, 또는 다른 음성 트랙을 고를 때"), ()),
-    (N_("HLS 재인코딩"), N_("TV가 못 읽는 영상은 PC가 다시 인코딩 (XviD, 10비트 H.264 등)"),
+MODES = (   # 이름은 재생 카드와 같은 말. 설명은 두 줄. 보여 줄 때 tr() (D085, D126)
+    (N_("그대로 보냄"), (N_("mp4"), N_("H.264·HEVC 영상 + AAC·MP3 음성")), ()),
+    (N_("HLS 변환"), (N_("mkv·avi·mov·ts 등"), N_("mp4에서 다른 음성 트랙을 고를 때")), ()),
+    (N_("HLS 재인코딩"), (N_("10비트 H.264"), N_("XviD 등 TV가 못 읽는 영상")),
      ((N_("PC 자원 사용"), "chip"), (N_("화질 조금 낮아짐"), "warnchip"))),
 )
 SUB_EXTS = ("srt", "smi", "ass", "ssa", "vtt")
@@ -70,7 +70,7 @@ QLabel#h { font-size: 15px; font-weight: bold; color: @text; }
 QLabel#key { background: @raised; border: 1px solid @line2; border-bottom-width: 2px;
              border-radius: 4px; padding: 1px 7px; color: @text; font-weight: 600; }
 QLabel#chip { background: @raised; border: 1px solid @line2; border-radius: 9px; padding: 1px 8px; color: @text; }
-QLabel#nochip { border: 1px dashed @faint; border-radius: 9px; padding: 1px 8px; color: @muted; }
+QLabel#nochip { border: 1px solid @danger; border-radius: 9px; padding: 1px 8px; color: @danger; }
 QLabel#warnchip { border: 1px solid @warn; border-radius: 9px; padding: 1px 8px; color: @warn; }
 QLabel#name { font-weight: bold; color: @text; }
 QLabel#text { color: @text2; }
@@ -109,13 +109,16 @@ def _keys(text: str) -> QHBoxLayout:
     return _row(*parts, spacing=4)
 
 
-def _card(outer: QVBoxLayout, title: str) -> QVBoxLayout:
+def _card(outer: QVBoxLayout, title: str, note: str = "") -> QVBoxLayout:
     f = QFrame()
     f.setObjectName("card")
     lay = QVBoxLayout(f)
     lay.setContentsMargins(18, 14, 18, 16)
     lay.setSpacing(10)
-    lay.addWidget(_label(title, "h"))
+    head = _row(_label(title, "h"), spacing=10)
+    if note:                                     # 제목 오른쪽 회색 한마디
+        head.insertWidget(1, _label(note, "muted"), 0, Qt.AlignmentFlag.AlignBottom)
+    lay.addLayout(head)
     outer.addWidget(f)
     return lay
 
@@ -155,45 +158,50 @@ def build_help(parent: QWidget | None, video_exts: tuple[str, ...]) -> QDialog:
     g.setVerticalSpacing(10)
     top = Qt.AlignmentFlag.AlignTop
     per_row = 6
+    ext_chips: list[QLabel] = []     # 확장자 칩은 끝에 같은 폭으로 (D126)
+
+    def ext(text: str, name: str = "chip") -> QLabel:
+        lb = _label(text, name, fixed=True)
+        lb.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ext_chips.append(lb)
+        return lb
+
     vids = QVBoxLayout()
     vids.setSpacing(6)
     for i in range(0, len(video_exts), per_row):
-        vids.addLayout(_row(*(_label(e.lstrip("."), "chip", fixed=True)
-                              for e in video_exts[i:i + per_row])))
+        vids.addLayout(_row(*(ext(e.lstrip(".")) for e in video_exts[i:i + per_row])))
     subs = QVBoxLayout()
     subs.setSpacing(6)
-    subs.addLayout(_row(*(_label(e, "chip", fixed=True) for e in SUB_EXTS),
-                        _label(tr("영상에 든 글자 자막"), "chip", fixed=True)))
-    subs.addLayout(_row(_label(tr("안 됨"), "muted"), _label("PGS", "nochip", fixed=True),
-                        _label("VobSub", "nochip", fixed=True),
-                        _label(tr("(블루레이·DVD의 그림 자막)"), "muted")))
-    audio = _label(tr("모든 음성 트랙을 고를 수 있음. Dolby·DTS 같은 다채널 음성은 스테레오로 나옴"), "text")
-    audio.setWordWrap(True)
+    subs.addLayout(_row(*(ext(e) for e in SUB_EXTS), _label(tr("내장 텍스트 자막"), "chip", fixed=True)))
+    subs.addLayout(_row(ext("✕ PGS", "nochip"), ext("✕ VobSub", "nochip"), _label(tr("그림 자막은 안 됨"), "muted")))
+    audio = QVBoxLayout()
+    audio.setSpacing(6)
+    audio.addLayout(_row(ext("AAC"), _label(tr("그대로"), "muted")))
+    audio.addLayout(_row(*(ext(c) for c in ("Dolby", "DTS", "FLAC", "Opus")),
+                         _label(tr("등은 스테레오로 바꿈"), "muted")))
     g.addWidget(_label(tr("영상"), "muted"), 0, 0, top)
     g.addLayout(vids, 0, 1)
     g.addWidget(_label(tr("자막"), "muted"), 1, 0, top)
     g.addLayout(subs, 1, 1)
     g.addWidget(_label(tr("음성"), "muted"), 2, 0, top)
-    g.addWidget(audio, 2, 1)
+    g.addLayout(audio, 2, 1)
     g.setColumnStretch(1, 1)
     fc.addLayout(g)
-    fc.addWidget(_sep())
-    fc.addWidget(_label(tr("송출 방식 — 파일을 열면 자동으로 고름"), "muted"))
+    mc = _card(v, tr("송출 방식"), tr("파일을 열면 자동으로 고름"))
     g = QGridLayout()
     g.setHorizontalSpacing(14)
-    g.setVerticalSpacing(8)
-    for r, (name, when, chips) in enumerate(MODES):
+    g.setVerticalSpacing(12)
+    for r, (name, lines, chips) in enumerate(MODES):
         g.addWidget(_label(tr(name), "name"), r, 0, top)
         body = QVBoxLayout()
-        body.setSpacing(4)
-        w = _label(tr(when), "text")
-        w.setWordWrap(True)
-        body.addWidget(w)
+        body.setSpacing(2)
+        for line in lines:
+            body.addWidget(_label(tr(line), "text"))
         if chips:
             body.addLayout(_row(*(_label(tr(t), n, fixed=True) for t, n in chips)))
         g.addLayout(body, r, 1)
     g.setColumnStretch(1, 1)
-    fc.addLayout(g)
+    mc.addLayout(g)
 
     close = QPushButton(tr("닫기"))
     close.setMinimumWidth(88)
@@ -203,6 +211,11 @@ def build_help(parent: QWidget | None, video_exts: tuple[str, ...]) -> QDialog:
     bh.addStretch(1)
     bh.addWidget(close)
     v.addLayout(bh)
+    for lb in ext_chips:
+        lb.ensurePolished()           # 창의 스타일(여백)을 입힌 뒤 폭을 잼
+    width = max(lb.sizeHint().width() for lb in ext_chips)
+    for lb in ext_chips:
+        lb.setFixedWidth(width)
     return d
 
 

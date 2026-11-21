@@ -2973,11 +2973,15 @@ def count_buffering(paths: list[str]) -> int:
 # ===================== 실행 =====================
 # ===================== README 이미지 (D083, D089) =====================
 GIF_MAX = 2_000_000   # GIF 하나당. README가 빨리 열리도록 (D089, D125)
+SCENE_SEC = 1.25      # 장면 하나를 보여 주는 시간
+RESIZE_STEPS, RESIZE_SEC = 6, 0.06   # 창 높이가 바뀌는 사이 장면 수(-1)와 장 당 시간 (D131)
+GIF_MARGIN = 24       # 창 둘레 바탕 여백·그림자 (D131)
+GIF_VERSION = 2       # 그림을 바꾸면 올림: 같은 이름이면 GitHub 이미지 캐시가 옛 그림을 보여 줌 (D130)
 
 
 def make_shots(out: Path) -> int:
-    """가짜 TV를 붙인 실제 창을 찍어 demo-light-en.gif·demo-dark-ko.gif를 만든다 (D125, D129).
-    파일 이름에 언어를 넣음: 이름이 같으면 GitHub 이미지 캐시가 옛 그림을 계속 보여 줌 (D130).
+    """가짜 TV를 붙인 실제 창을 찍어 demo-light-en-vN.gif·demo-dark-ko-vN.gif를 만든다 (D125, D129, D131).
+    이름에 언어와 GIF_VERSION을 넣음: 이름이 같으면 GitHub 이미지 캐시가 옛 그림을 계속 보여 줌 (D130).
     화면 없는 Qt는 글꼴이 없어 글자가 □로 나오므로 Windows 플랫폼에서 창을 띄우지 않고 찍는다."""
     from PySide6.QtCore import Qt
     from core import i18n
@@ -3036,13 +3040,18 @@ def make_shots(out: Path) -> int:
     def gif(mode: str, backdrop: str, lang: str) -> Path | None:
         """한 테마·언어의 장면을 찍어 GIF로 묶는다. 실패하면 None."""
         i18n.set_language(lang)
-        shots: list[Any] = []   # QPixmap. 높이가 장면마다 달라 끝에 같은 높이로 맞춤 (다르면 ffmpeg가 장면을 버림)
+        shots: list[tuple[Any, float]] = []   # (QPixmap, 보여 줄 초). 끝에 같은 크기 바탕에 얹음
 
-        def snap(w: Any, extra: int, repeat: int = 1) -> None:
+        def snap(w: Any, extra: float, repeat: int = 1, sec: float = SCENE_SEC) -> None:
             app.processEvents()
-            w.resize(680, w.minimumSizeHint().height() + extra)
+            w.resize(680, w.minimumSizeHint().height() + int(extra))
             app.processEvents()
-            shots.extend([w.grab()] * repeat)
+            shots.append((w.grab(), sec * repeat))
+
+        def grow(w: Any, a: int, b: int) -> None:
+            """창 높이가 a → b로 바뀌는 사이 장면 (빈 바탕이 창이 커질 자리로 보이게, D131)."""
+            for k in range(1, RESIZE_STEPS):
+                snap(w, a + (b - a) * k / RESIZE_STEPS, sec=RESIZE_SEC)
 
         w, cm, ctrl, bridge = window(mode)
         snap(w, small)                                              # 미연결
@@ -3059,30 +3068,48 @@ def make_shots(out: Path) -> int:
         playing(w, cm, ctrl, 764.0)
         snap(w, small)                                              # +10초
         w.statusBar().clearMessage()
+        grow(w, small, tall)
         snap(w, tall, 2)                                            # 창을 키움 (썸네일 아래)
         w.audio_combo.setCurrentIndex(1)
         w.sub_combo.setCurrentIndex(2)
         w._msg(tr("음성 트랙을 바꿨습니다."))                         # pylint: disable=protected-access
         snap(w, tall, 3)                                            # 음성·자막 바꿈
+        grow(w, tall, small)                                        # 처음 장면(낮은 창)으로 이어지게
         _close(w)
 
+        # 창을 GitHub 바탕색 위에 여백·그림자와 함께 얹음 → 낮은 창 아래 빈 곳이 바탕으로 보임 (D131)
         frames: list[Path] = []
-        height = max(p.height() for p in shots)
-        for p in shots:
-            img = QImage(p.width(), height, QImage.Format.Format_RGB32)
-            img.fill(QColor(backdrop))           # 작은 창 아래는 GitHub 바탕색 (창이 커지는 모습)
+        m = GIF_MARGIN
+        width = max(p.width() for p, _ in shots) + 2 * m
+        height = max(p.height() for p, _ in shots) + 2 * m
+        shade = QColor(0, 0, 0)
+        for p, _sec in shots:
+            img = QImage(width, height, QImage.Format.Format_RGB32)
+            img.fill(QColor(backdrop))
             painter = QPainter(img)
-            painter.drawPixmap(0, 0, p)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setPen(Qt.PenStyle.NoPen)
+            for i in range(m // 2, 0, -2):                        # 바깥으로 갈수록 옅은 그림자
+                shade.setAlpha(max(2, 22 - i))
+                painter.setBrush(shade)
+                painter.drawRoundedRect(m - i, m - i + 3, p.width() + 2 * i, p.height() + 2 * i, 8 + i, 8 + i)
+            painter.drawPixmap(m, m, p)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.setPen(QColor(128, 128, 128, 90))             # 창 테두리 (어두운 바탕에서도 구분)
+            painter.drawRect(m, m, p.width() - 1, p.height() - 1)
             painter.end()
             frames.append(out / f"_frame{len(frames):02d}.png")
             img.save(str(frames[-1]))
-        path = out / f"demo-{mode}-{lang}.gif"
-        cmd = [str(ffmpeg_path()), "-y", "-loglevel", "error", "-framerate", "0.8",
-               "-i", str(out / "_frame%02d.png"),
+        listing = out / "_frames.txt"                              # 장면마다 보여 줄 시간이 달라 concat 목록으로
+        lines = [f"file '{f.name}'\nduration {sec:.2f}" for f, (_p, sec) in zip(frames, shots)]
+        listing.write_text("\n".join(lines + [f"file '{frames[-1].name}'"]) + "\n", encoding="utf-8")
+        path = out / f"demo-{mode}-{lang}-v{GIF_VERSION}.gif"
+        cmd = [str(ffmpeg_path()), "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
+               "-i", str(listing),
                "-vf", "split[a][b];[a]palettegen=max_colors=256[p];[b][p]paletteuse=dither=sierra2_4a",
                "-loop", "0", str(path)]
         r = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        for f in frames:
+        for f in [*frames, listing]:
             f.unlink()
         if r.returncode != 0:
             print("ffmpeg 실패:", r.stderr.strip())

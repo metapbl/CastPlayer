@@ -24,7 +24,7 @@ Status: approved (2026-11-21) | 단계: 5 확정 | 갱신: 2026-11-21
 - 연결이 끊겼다 다시 연결되면 사용자 조작 없이 그 자리에서 이어 재생 (일시정지 상태 유지) [X] C §4 (D029, D033)
 - 버퍼링을 줄인다: 끊겨도 세션 유지(완료), 조각 전송 계측(완료). 영화 한 편(125.5분) 버퍼링 0회로 성공 기준 통과(2026-10-24), 비트레이트 상한은 하지 않음 [X] C §4 (D034) · [U] (D065)
 - GitHub 공개: README, LICENSE(MIT, META PUBLIC), 의존성 라이선스 고지, Releases에 exe(onedir zip). zip의 exe 옆에 LICENSE·THIRD_PARTY_NOTICES.md·README*.md 동봉 [AI] (D087). 1.0.0 공개 (2026-10-27, Releases v1.0.0) [U] (D039~D044, D067)
-- README: metarche readme 표준. `README.md` 영어 기본 + `README.ko.md`·`README.zh-CN.md`·`README.ja.md`·`README.es.md`·`README.ru.md`(AI 번역, 영어판 우선 안내), 맨 위 언어 줄·Shields.io 배지. 스크린샷은 화면 없는 Qt + 가짜 TV 연결로 다크·라이트 자동 생성(`tools/cast_test.py` 옵션, `docs/images/`) [U] (D082, D083) · 위치 [AI] (D088). 맨 위에 작동 장면 GIF 1개(연결 → 파일 열기 → 불러오기 → 재생 중 조작, 같은 방식으로 장면을 찍어 ffmpeg로 묶음, 약 2MB 이하) [U] (D089). → 맨 위 GIF와 정지 화면을 빼고 "스크린샷" 절에 다크·라이트 GIF 두 개만, 낮은 창·큰 창 장면 모두, 예시 트랙은 영어·한국어 [U] (D125). 표 순서는 라이트·다크, 다크 GIF는 한국어 화면 [U] (D129). 이미지는 English 화면 하나를 6개 README가 같이 씀 [AI] (D089). 썸네일 그림은 페르메이르 "진주 귀걸이를 한 소녀"(퍼블릭 도메인, `docs/images/thumb-sample.jpg`), README에 출처 한 줄 [U] (D106). 확인은 표준 §6 점검 항목 [AI] (D088)
+- README: metarche readme 표준. `README.md` 영어 기본 + `README.ko.md`·`README.zh-CN.md`·`README.ja.md`·`README.es.md`·`README.ru.md`(AI 번역, 영어판 우선 안내), 맨 위 언어 줄·Shields.io 배지. 스크린샷은 화면 없는 Qt + 가짜 TV 연결로 다크·라이트 자동 생성(`tools/cast_test.py` 옵션, `docs/images/`) [U] (D082, D083) · 위치 [AI] (D088). 맨 위에 작동 장면 GIF 1개(연결 → 파일 열기 → 불러오기 → 재생 중 조작, 같은 방식으로 장면을 찍어 ffmpeg로 묶음, 약 2MB 이하) [U] (D089). → 맨 위 GIF와 정지 화면을 빼고 "스크린샷" 절에 다크·라이트 GIF 두 개만, 낮은 창·큰 창 장면 모두, 예시 트랙은 영어·한국어 [U] (D125). 표 순서는 라이트·다크, 다크 GIF는 한국어 화면 [U] (D129). 창은 바탕 위에 여백·그림자와 함께, 창 높이가 바뀌는 사이는 짧은 애니메이션 [U] (D131). 이미지는 English 화면 하나를 6개 README가 같이 씀 [AI] (D089). 썸네일 그림은 페르메이르 "진주 귀걸이를 한 소녀"(퍼블릭 도메인, `docs/images/thumb-sample.jpg`), README에 출처 한 줄 [U] (D106). 확인은 표준 §6 점검 항목 [AI] (D088)
 - 프로그램 아이콘 `assets/cast.ico`를 exe 파일과 창·작업표시줄에 쓴다 [U] (D066)
 - ffmpeg·ffprobe를 프로그램 옆 `bin/` → PATH 순서로 자동으로 찾는다 [U] (D042)
 ### 2.2 있으면 좋음
@@ -312,4 +312,5 @@ Status: approved (2026-11-21) | 단계: 5 확정 | 갱신: 2026-11-21
 | 2026-11-21 | F9 도움말 창: 송출 방식 카드 분리, 설명 두 줄, 음성 칩, 미지원 ✕ 칩, 칩 폭 통일 | D127 |
 | 2026-11-21 | F10 일본어·중국어 화면 글꼴(F10-6) | D128 |
 | 2026-11-21 | §2.1 README 스크린샷 라이트·다크 순서, 다크는 한국어 화면 | D129 |
+| 2026-11-21 | §2.1 README GIF: 바탕 위 창, 창 크기 바뀌는 애니메이션 | D131 |
 | 2026-11-21 | F9 썸네일 문구를 실제 동작에 맞춤(만드는 시점은 불러오기 뒤, 배치·크기는 D118·D119·D124를 가리킴). 동작 변경 없음 | D097, D101 |

@@ -155,7 +155,7 @@ STRINGS: dict[str, str] = {
         'Formatos compatibles',
     '송출 방식':
         'Método',
-    '이런 파일':
+    '대상':
         'Archivos',
     '특징':
         'Qué implica',

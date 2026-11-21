@@ -68,7 +68,7 @@ FORMATS = (   # 송출 방식 이름은 재생 카드와 같은 말 (D123). 보�
 
 def show_formats(parent: QWidget) -> None:
     cell = "<td style='padding:4px 10px 4px 0'>"
-    head = "".join(f"{cell}<b>{tr(h)}</b></td>" for h in (N_("송출 방식"), N_("이런 파일"), N_("특징")))
+    head = "".join(f"{cell}<b>{tr(h)}</b></td>" for h in (N_("송출 방식"), N_("대상"), N_("특징")))
     rows = "".join(f"<tr>{cell}<b>{tr(m)}</b></td>{cell}{tr(f)}</td>{cell}{tr(n)}</td></tr>"
                    for m, f, n in FORMATS)
     QMessageBox.information(parent, tr("지원 형식"), (

@@ -98,7 +98,7 @@ STRINGS: dict[str, str] = {
     "단축키 목록": "Keyboard shortcuts",
     "지원 형식": "Supported formats",
     "송출 방식": "Method",
-    "이런 파일": "Files",
+    "대상": "Files",
     "특징": "What it means",
     "그대로 보냄": "Sent directly",
     "mp4 파일 (H.264·HEVC 영상, AAC·MP3 음성)": "mp4 files (H.264/HEVC video, AAC/MP3 audio)",

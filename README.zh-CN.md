@@ -21,8 +21,6 @@
 
 <p align="center">一款轻量的 Windows 应用，把本地视频投放到 Chromecast with Google TV。PC 只当遥控器，由电视播放。</p>
 
-<p align="center"><img src="docs/images/demo.gif" alt="连接电视、打开视频、加载，然后跳转并切换音轨和字幕"></p>
-
 ## 功能
 
 - 可打开 mp4、mkv、avi、ts、mov 等格式，并选择电视能播放的形式发送。仅在需要时才转换。
@@ -35,7 +33,7 @@
 
 | 深色 | 浅色 |
 |---|---|
-| <img src="docs/images/main-dark.png" alt="主窗口，深色主题"> | <img src="docs/images/main-light.png" alt="主窗口，浅色主题"> |
+| <img src="docs/images/demo-dark.gif" alt="连接电视、打开视频、加载，然后跳转并切换音轨和字幕"> | <img src="docs/images/demo-light.gif" alt="连接电视、打开视频、加载，然后跳转并切换音轨和字幕"> |
 
 示例缩略图：Johannes Vermeer, Girl with a Pearl Earring (c. 1665), public domain.
 

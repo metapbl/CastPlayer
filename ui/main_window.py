@@ -16,7 +16,7 @@ from uuid import UUID
 
 from PySide6.QtCore import QByteArray, QLocale, QRect, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QKeySequence, QPainter, QPixmap, QShortcut
-from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog, QFrame, QGridLayout,
+from PySide6.QtWidgets import (QApplication, QBoxLayout, QComboBox, QFileDialog, QFrame, QGridLayout,
                                QHBoxLayout, QLabel, QMainWindow, QMessageBox, QProgressBar,
                                QPushButton, QSizePolicy, QSlider, QStackedWidget, QVBoxLayout,
                                QWidget)
@@ -121,6 +121,7 @@ class _Cover(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self._src: QPixmap | None = None
+        self.left = False               # 옆 칸에서는 왼쪽 정렬 (카드 안쪽 선에 맞춤, D124)
         self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
 
     def set_pixmap(self, pm: QPixmap | None) -> None:
@@ -131,11 +132,12 @@ class _Cover(QWidget):
         return self._src is not None and self.isVisible() and self.height() >= self.MIN_H
 
     def target_rect(self) -> QRect:
-        """그림을 그릴 자리 (가운데)."""
+        """그림을 그릴 자리 (세로 가운데, 가로는 가운데 또는 왼쪽)."""
         if not self._src:
             return QRect()
         s = self._src.size().scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio)
-        return QRect((self.width() - s.width()) // 2, (self.height() - s.height()) // 2,
+        x = 0 if self.left else (self.width() - s.width()) // 2
+        return QRect(x, (self.height() - s.height()) // 2,
                      s.width(), s.height())
 
     def paintEvent(self, _e) -> None:  # noqa: N802 (Qt)
@@ -144,6 +146,49 @@ class _Cover(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         p.drawPixmap(self.target_rect(), self._src)
+
+
+class _FilePage(QWidget):
+    """파일이 열린 윗칸: 글자 아래가 넉넉하면 글자 위·썸네일 아래, 낮으면 썸네일을 왼쪽 고정 폭 칸에 (D124)."""
+    SIDE_W = 160                    # 옆 칸 폭: 16:9면 160×90. 파일이 바뀌어도 글자 자리가 같게 고정 [AI]
+    STACK_MIN = 180                 # 글자 아래 남는 높이가 옆 칸 16:9 높이(90)의 2배 이상이면 위아래 [AI]
+
+    def __init__(self, info: QWidget, thumb: _Cover) -> None:
+        super().__init__()
+        self.info, self.thumb = info, thumb
+        self.box = QBoxLayout(QBoxLayout.Direction.TopToBottom, self)
+        self.box.setContentsMargins(0, 8, 0, 8)
+        self.box.addWidget(info)
+        self.box.addWidget(thumb)
+        self.stacked: bool | None = None
+        self._arrange(True)
+
+    def _arrange(self, stacked: bool) -> None:
+        if stacked == self.stacked:
+            return
+        self.stacked = stacked
+        b = self.box
+        b.setDirection(QBoxLayout.Direction.TopToBottom if stacked
+                       else QBoxLayout.Direction.RightToLeft)       # 옆: 첫 항목(글자)이 오른쪽
+        b.setSpacing(8 if stacked else 12)
+        b.setStretchFactor(self.info, 0 if stacked else 1)
+        b.setStretchFactor(self.thumb, 1 if stacked else 0)
+        b.setAlignment(self.info, Qt.AlignmentFlag.AlignTop if stacked else Qt.AlignmentFlag.AlignVCenter)
+        self.thumb.left = not stacked
+        pol = QSizePolicy.Policy
+        self.thumb.setSizePolicy(pol.Ignored if stacked else pol.Fixed, pol.Ignored)  # Ignored면 고정 폭도 0으로 셈
+        if stacked:
+            self.thumb.setMinimumWidth(0)
+            self.thumb.setMaximumWidth(16777215)                    # QWIDGETSIZE_MAX
+        else:
+            self.thumb.setFixedWidth(self.SIDE_W)
+        b.activate()        # 창의 resizeEvent(파일 이름 줄임)가 바뀐 너비를 보도록 바로 적용
+
+    def resizeEvent(self, e) -> None:  # noqa: N802 (Qt)
+        m = self.box.contentsMargins()
+        room = self.height() - m.top() - m.bottom() - self.info.sizeHint().height() - 8
+        self._arrange(room >= self.STACK_MIN)
+        super().resizeEvent(e)
 
 
 class MainWindow(QMainWindow):
@@ -311,7 +356,7 @@ class MainWindow(QMainWindow):
         for lb in (self.file_label, self.plan_label):
             lb.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.plan_label.setWordWrap(True)      # 긴 언어·좁은 창에서 잘리지 않고 다음 줄로
-        self.thumb_label = _Cover()          # 글자 아래 남은 공간 가득 (D118)
+        self.thumb_label = _Cover()          # 배치는 _FilePage (D124)
 
         self.load_box = QWidget()
         self.load_stage = label("", "sub")
@@ -337,13 +382,8 @@ class MainWindow(QMainWindow):
         tv.setSpacing(2)
         tv.addWidget(self.file_label)
         tv.addWidget(self.line2)
-        page = QWidget()
-        pv = QVBoxLayout(page)
-        pv.setContentsMargins(0, 8, 0, 8)
-        pv.setSpacing(8)
-        pv.addWidget(self.info_box)
-        pv.addWidget(self.thumb_label, 1)
-        self.media_slot.addWidget(page)
+        self.file_page = _FilePage(self.info_box, self.thumb_label)
+        self.media_slot.addWidget(self.file_page)
         mv.addWidget(self.media_slot, 1)
 
         self.pos_label = label("00:00", "sub", 56)
@@ -547,7 +587,9 @@ class MainWindow(QMainWindow):
     def _show_thumb(self, data: bytes) -> None:
         """썸네일 그림을 바꾼다 (b"" = 없음). 보일지는 남은 공간으로 정함. 파일로 남기지 않음 (D102)."""
         pm = QPixmap()
-        self.thumb_label.set_pixmap(pm if data and pm.loadFromData(data) else None)
+        ok = bool(data) and pm.loadFromData(data)
+        self.thumb_label.set_pixmap(pm if ok else None)
+        self.thumb_label.setVisible(ok)          # 없으면 옆 칸도 비우지 않고 글자가 왼쪽부터
 
     def _on_thumb(self, video: str, data: bytes) -> None:
         info = self.ctrl.info

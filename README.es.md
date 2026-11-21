@@ -21,8 +21,6 @@
 
 <p align="center">Una aplicación ligera para Windows que envía vídeos locales a Chromecast with Google TV. El PC es el mando; el televisor reproduce.</p>
 
-<p align="center"><img src="docs/images/demo.gif" alt="Conectar a un televisor, abrir un vídeo, cargarlo y luego buscar y cambiar el audio y los subtítulos"></p>
-
 ## Funciones
 
 - Abre mp4, mkv, avi, ts, mov y más, y elige un formato que el televisor pueda reproducir. Solo convierte cuando hace falta.
@@ -35,7 +33,7 @@
 
 | Oscuro | Claro |
 |---|---|
-| <img src="docs/images/main-dark.png" alt="Ventana principal, tema oscuro"> | <img src="docs/images/main-light.png" alt="Ventana principal, tema claro"> |
+| <img src="docs/images/demo-dark.gif" alt="Conectar a un televisor, abrir un vídeo, cargarlo y luego buscar y cambiar el audio y los subtítulos"> | <img src="docs/images/demo-light.gif" alt="Conectar a un televisor, abrir un vídeo, cargarlo y luego buscar y cambiar el audio y los subtítulos"> |
 
 Miniatura de ejemplo: Johannes Vermeer, Girl with a Pearl Earring (c. 1665), public domain.
 

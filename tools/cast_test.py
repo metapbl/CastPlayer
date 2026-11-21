@@ -2172,7 +2172,8 @@ def _thumb_cases(check: Callable[[str, bool, str], None]) -> None:
         # F9-17: 위아래 검은 띠(320×120 내용을 320×180에) → 띠를 잘라 내용 비율
         bars = "testsrc=size=320x120:rate=24:duration=6,pad=320:180:0:30:black"
         run("-f", "lavfi", "-i", bars, "-c:v", "libx264", "-preset", "ultrafast", str(t / "bars.mkv"))
-        img = QImage.fromData(thumbs_mod.thumbnail(probe_mod.probe(t / "bars.mkv")) or b"")
+        wide = thumbs_mod.thumbnail(probe_mod.probe(t / "bars.mkv")) or b""
+        img = QImage.fromData(wide)
         ratio = img.width() / img.height() if img.height() else 0
         check("F9-17 위아래 검은 띠를 잘라 내용 비율, 가로는 원본 크기 (D119)",
               img.width() == 320 and abs(ratio - 320 / 120) <= 0.05, f"{img.width()}×{img.height()}")
@@ -2181,23 +2182,36 @@ def _thumb_cases(check: Callable[[str, bool, str], None]) -> None:
         w._show_thumb((t / "cover.png").read_bytes())       # pylint: disable=protected-access
         w._set_title("selftest.mkv")                        # pylint: disable=protected-access
         w._update_ui()                                      # pylint: disable=protected-access
+        page, th_w = w.file_page, w.thumb_label
         w.resize(680, w.minimumSizeHint().height())
-        small = _wait_for(lambda: not w.thumb_label.showing(), 1.0)
+        side = _wait_for(lambda: page.stacked is False and th_w.showing(), 1.0)
         slot_min = w.media_slot.minimumSizeHint().height()
+        sq = (th_w.width(), th_w.x(), w.info_box.x())
+        w._show_thumb(wide)                                 # pylint: disable=protected-access
+        QTest.qWait(20)
+        wd = (th_w.width(), th_w.x(), w.info_box.x())
+        r = th_w.target_rect()
+        side_fit = r.width() <= th_w.width() and r.height() <= th_w.height()
         w.resize(680, w.minimumSizeHint().height() + 300)
-        big = _wait_for(w.thumb_label.showing, 1.0)
-        tw, th, fw = w.thumb_label.width(), w.thumb_label.height(), w.file_label.width()
-        r = w.thumb_label.target_rect()
+        big = _wait_for(lambda: page.stacked is True and th_w.showing(), 1.0)
+        w._show_thumb((t / "cover.png").read_bytes())       # pylint: disable=protected-access
+        QTest.qWait(20)
+        tw, th, fw = th_w.width(), th_w.height(), w.file_label.width()
+        r = th_w.target_rect()
         fits = (r.width() <= tw and r.height() <= th and (r.width() == tw or r.height() == th)
                 and abs(r.width() / max(1, r.height()) - 1.0) <= 0.05)   # cover.png는 정사각형
+        w._show_thumb(b"")                                  # pylint: disable=protected-access
+        QTest.qWait(20)
+        none_full = not th_w.isVisible() and abs(w.file_label.width() - fw) <= 2
         _close(w)
-        check("F9-17 창의 썸네일은 그림 비율 그대로, 자르지 않고 가로나 세로 최대 (D119)", fits,
-              f"그림 {r.width()}×{r.height()}, 칸 {tw}×{th}")
-        check("F9-12 창이 작으면 썸네일 숨김, 남은 공간이 있으면 보임", small and big,
-              f"작을 때 숨김 {small}, 클 때 보임 {big}")
-        check("F9-15 윗칸 최소 높이는 글자 두 줄+여백, 늘리면 썸네일이 글자 아래를 가로·세로 가득",
-              slot_min <= 80 and abs(tw - fw) <= 2 and th >= 250,
-              f"윗칸 최소 {slot_min}px, 썸네일 {tw}×{th}, 파일 이름 너비 {fw}")
+        check("F9-17 창의 썸네일은 그림 비율 그대로, 자르지 않고 칸 안에 (D119)", fits and side_fit,
+              f"위아래 그림 {r.width()}×{r.height()}, 칸 {tw}×{th}, 옆 칸 안 {side_fit}")
+        check("F9-12 창이 낮으면 썸네일이 왼쪽 고정 폭 칸, 그림이 바뀌어도 폭·글자 자리 같음 (D124)",
+              side and sq == wd and sq[0] == page.SIDE_W and sq[2] >= sq[1] + page.SIDE_W,
+              f"옆 배치 {side}, 정사각 (폭, 그림 x, 글자 x) {sq}, 가로로 긴 그림 {wd}")
+        check("F9-15 윗칸 최소 높이는 글자 두 줄+여백, 높이면 글자 위·썸네일 아래 가득, 그림 없으면 글자만 (D124)",
+              slot_min <= 80 and big and abs(tw - fw) <= 2 and th >= 250 and none_full,
+              f"윗칸 최소 {slot_min}px, 위아래 {big}, 썸네일 {tw}×{th}, 파일 이름 너비 {fw}, 그림 없음 {none_full}")
 
 
 def _cancel_cases(check: Callable[[str, bool, str], None]) -> None:
@@ -2904,11 +2918,11 @@ def count_buffering(paths: list[str]) -> int:
 
 # ===================== 실행 =====================
 # ===================== README 이미지 (D083, D089) =====================
-GIF_MAX = 2_000_000   # 첫 화면이 빨리 열리도록 (D089)
+GIF_MAX = 2_000_000   # GIF 하나당. README가 빨리 열리도록 (D089, D125)
 
 
 def make_shots(out: Path) -> int:
-    """가짜 TV를 붙인 실제 창을 English로 찍어 demo.gif·main-dark.png·main-light.png를 만든다.
+    """가짜 TV를 붙인 실제 창을 English로 찍어 demo-dark.gif·demo-light.gif를 만든다 (D125).
     화면 없는 Qt는 글꼴이 없어 글자가 □로 나오므로 Windows 플랫폼에서 창을 띄우지 않고 찍는다."""
     from PySide6.QtCore import Qt
     from core import i18n
@@ -2921,12 +2935,12 @@ def make_shots(out: Path) -> int:
     # 예시값만 (D041): 문서용 IP 192.0.2.x
     dev = DeviceInfo(uuid=uuid4(), name="Living Room TV", model="Chromecast", host="192.0.2.10")
     v = VideoStream(0, "hevc", "Main 10", 150, 3840, 2160, "yuv420p10le", Fraction(24), "hev1")
-    audio = (AudioStream(1, 0, "eac3", 6, "en", "", True), AudioStream(2, 1, "aac", 2, "ja", "", False))
+    audio = (AudioStream(1, 0, "eac3", 6, "en", "", True), AudioStream(2, 1, "aac", 2, "ko", "", False))
     info = MediaInfo(Path("Sample Movie (2024).mkv"), "matroska,webm", 7080.0, v, audio, ())
     cue = tuple(Cue(i * 5.0, i * 5.0 + 2, "x") for i in range(1342))   # 영화 한 편쯤
     subs = SubtitleSet([
         SubtitleTrack("ext:a", "Sample Movie (2024).en.srt", "en", True, cue, track_id=1, external=True),
-        SubtitleTrack("ext:b", "Sample Movie (2024).ja.srt", "ja", True, cue, track_id=2, external=True)])
+        SubtitleTrack("ext:b", "Sample Movie (2024).ko.srt", "ko", True, cue, track_id=2, external=True)])
     # 썸네일: 페르메이르 "진주 귀걸이를 한 소녀" (퍼블릭 도메인, D106)
     thumb = (out / "thumb-sample.jpg").read_bytes()
 
@@ -2961,79 +2975,75 @@ def make_shots(out: Path) -> int:
         w._update_ui()                      # pylint: disable=protected-access
         w._show_thumb(thumb)                # pylint: disable=protected-access
 
-    shots: list[Any] = []   # QPixmap. 높이가 장면마다 달라 끝에 같은 높이로 맞춤 (다르면 ffmpeg가 장면을 버림)
+    from PySide6.QtGui import QColor, QImage, QPainter
+    small, tall = 0, 260        # 창 높이 = 최소 + 이 값. 작으면 썸네일 옆, 크면 위아래 (D124)
 
-    def fit(w: Any) -> None:
-        """모든 장면을 같은 크기로: 미디어 윗칸이 최소의 2배가 넘어 썸네일이 보이는 높이 (D097)."""
-        app.processEvents()
-        w.resize(680, w.minimumSizeHint().height() + w.media_slot.minimumSizeHint().height() + 20)
-        app.processEvents()
+    def gif(mode: str, backdrop: str) -> Path | None:
+        """한 테마의 장면을 찍어 GIF로 묶는다. 실패하면 None."""
+        shots: list[Any] = []   # QPixmap. 높이가 장면마다 달라 끝에 같은 높이로 맞춤 (다르면 ffmpeg가 장면을 버림)
 
-    def snap(w: Any, repeat: int = 1) -> None:
-        fit(w)
-        shots.extend([w.grab()] * repeat)
+        def snap(w: Any, extra: int, repeat: int = 1) -> None:
+            app.processEvents()
+            w.resize(680, w.minimumSizeHint().height() + extra)
+            app.processEvents()
+            shots.extend([w.grab()] * repeat)
 
-    w, cm, ctrl, bridge = window("dark")
-    snap(w)                                                     # 미연결
-    cm.device = dev                                             # 연결된 기기 → 버튼 "Disconnect"
-    bridge.connected.emit(dev)
-    snap(w)                                                     # 연결됨, 파일 없음
-    w._set_title(info.path.name)                                # pylint: disable=protected-access
-    w._on_progress(N_("키프레임 분석"), 40)                      # pylint: disable=protected-access
-    w._update_ui()                                              # pylint: disable=protected-access
-    snap(w)                                                     # 불러오는 중
-    playing(w, cm, ctrl, 754.0)
-    w._msg(tr("재생 요청을 보냈습니다."))                         # pylint: disable=protected-access
-    snap(w, 2)                                                  # 재생 중
-    playing(w, cm, ctrl, 764.0)
-    snap(w)                                                     # +10초
-    w.audio_combo.setCurrentIndex(1)
-    w.sub_combo.setCurrentIndex(2)
-    w._msg(tr("음성 트랙을 바꿨습니다."))                         # pylint: disable=protected-access
-    snap(w, 2)                                                  # 음성·자막 바꿈
-    w.sub_combo.setCurrentIndex(1)
-    w.audio_combo.setCurrentIndex(0)
-    w.statusBar().clearMessage()
-    fit(w)
-    w.grab().save(str(out / "main-dark.png"))
-    _close(w)
-    w, cm, ctrl, bridge = window("light")
-    cm.device = dev
-    bridge.connected.emit(dev)
-    playing(w, cm, ctrl, 764.0)
-    w.statusBar().clearMessage()
-    fit(w)
-    w.grab().save(str(out / "main-light.png"))
-    _close(w)
+        w, cm, ctrl, bridge = window(mode)
+        snap(w, small)                                              # 미연결
+        cm.device = dev                                             # 연결된 기기 → 버튼 "Disconnect"
+        bridge.connected.emit(dev)
+        snap(w, small)                                              # 연결됨, 파일 없음
+        w._set_title(info.path.name)                                # pylint: disable=protected-access
+        w._on_progress(N_("키프레임 분석"), 40)                      # pylint: disable=protected-access
+        w._update_ui()                                              # pylint: disable=protected-access
+        snap(w, small)                                              # 불러오는 중
+        playing(w, cm, ctrl, 754.0)
+        w._msg(tr("재생 요청을 보냈습니다."))                         # pylint: disable=protected-access
+        snap(w, small, 2)                                           # 재생 중 (썸네일 왼쪽)
+        playing(w, cm, ctrl, 764.0)
+        snap(w, small)                                              # +10초
+        w.statusBar().clearMessage()
+        snap(w, tall, 2)                                            # 창을 키움 (썸네일 아래)
+        w.audio_combo.setCurrentIndex(1)
+        w.sub_combo.setCurrentIndex(2)
+        w._msg(tr("음성 트랙을 바꿨습니다."))                         # pylint: disable=protected-access
+        snap(w, tall, 3)                                            # 음성·자막 바꿈
+        _close(w)
+
+        frames: list[Path] = []
+        height = max(p.height() for p in shots)
+        for p in shots:
+            img = QImage(p.width(), height, QImage.Format.Format_RGB32)
+            img.fill(QColor(backdrop))           # 작은 창 아래는 GitHub 바탕색 (창이 커지는 모습)
+            painter = QPainter(img)
+            painter.drawPixmap(0, 0, p)
+            painter.end()
+            frames.append(out / f"_frame{len(frames):02d}.png")
+            img.save(str(frames[-1]))
+        path = out / f"demo-{mode}.gif"
+        cmd = [str(ffmpeg_path()), "-y", "-loglevel", "error", "-framerate", "0.8",
+               "-i", str(out / "_frame%02d.png"),
+               "-vf", "split[a][b];[a]palettegen=max_colors=256[p];[b][p]paletteuse=dither=sierra2_4a",
+               "-loop", "0", str(path)]
+        r = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        for f in frames:
+            f.unlink()
+        if r.returncode != 0:
+            print("ffmpeg 실패:", r.stderr.strip())
+            return None
+        return path
+
+    ok = True
+    for mode, backdrop in (("dark", "#0d1117"), ("light", "#ffffff")):
+        path = gif(mode, backdrop)
+        if path is None:
+            ok = False
+            continue
+        size = path.stat().st_size
+        ok = ok and size <= GIF_MAX
+        print(f"{path} {size / 1e6:.2f}MB (기준 {GIF_MAX / 1e6:.0f}MB 이하: {'예' if size <= GIF_MAX else '아니요'})")
     theme.apply_theme(app, "dark")
-
-    from PySide6.QtGui import QImage, QPainter
-    frames: list[Path] = []
-    height = max(p.height() for p in shots)
-    for p in shots:
-        img = QImage(p.width(), height, QImage.Format.Format_RGB32)
-        img.fill(p.toImage().pixelColor(1, p.height() - 1))   # 상태줄 바탕색으로 아래를 채움
-        painter = QPainter(img)
-        painter.drawPixmap(0, 0, p)
-        painter.end()
-        frames.append(out / f"_frame{len(frames):02d}.png")
-        img.save(str(frames[-1]))
-
-    gif = out / "demo.gif"
-    cmd = [str(ffmpeg_path()), "-y", "-loglevel", "error", "-framerate", "0.8",
-           "-i", str(out / "_frame%02d.png"),
-           "-vf", "split[a][b];[a]palettegen=max_colors=256[p];[b][p]paletteuse=dither=sierra2_4a",
-           "-loop", "0", str(gif)]
-    r = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    for f in frames:
-        f.unlink()
-    if r.returncode != 0:
-        print("ffmpeg 실패:", r.stderr.strip())
-        return 1
-    size = gif.stat().st_size
-    print(f"{gif} {size / 1e6:.2f}MB (기준 {GIF_MAX / 1e6:.0f}MB 이하: {'예' if size <= GIF_MAX else '아니요'})")
-    print(out / "main-dark.png", out / "main-light.png", sep="\n")
-    return 0 if size <= GIF_MAX else 1
+    return 0 if ok else 1
 
 
 def main() -> int:   # 인자 해석·로그 준비만 하고 본 실행은 run()
@@ -3049,7 +3059,7 @@ def main() -> int:   # 인자 해석·로그 준비만 하고 본 실행은 run(
     ap.add_argument("--holdsub", type=float, metavar="초",
                     help="실험: TV의 첫 자막 요청부터 이 시간 동안 자막 응답을 붙잡음 (뒤에서 추출 흉내)")
     ap.add_argument("--shots", action="store_true",
-                    help="README 스크린샷·작동 장면 GIF를 docs/images/에 만듦 (D083, D089)")
+                    help="README 작동 장면 GIF(다크·라이트)를 docs/images/에 만듦 (D125)")
     ap.add_argument("--count-buffering", nargs="*", metavar="로그",
                     help="GUI 로그에서 PLAYING→BUFFERING 횟수 판정 (D050). "
                          "생략 시 logs/castplayer*.log")

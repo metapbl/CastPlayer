@@ -21,8 +21,6 @@
 
 <p align="center">Windows PC의 로컬 동영상을 Chromecast with Google TV로 보내는 가벼운 프로그램. PC는 리모컨, 재생은 TV가 합니다.</p>
 
-<p align="center"><img src="docs/images/demo.gif" alt="TV에 연결하고 동영상을 열어 불러온 뒤 탐색하고 음성·자막을 바꾸는 장면"></p>
-
 ## 기능
 
 - mp4, mkv, avi, ts, mov 등을 열면 TV가 재생할 수 있는 형태를 골라 보냅니다. 필요할 때만 변환합니다.
@@ -35,7 +33,7 @@
 
 | 어둡게 | 밝게 |
 |---|---|
-| <img src="docs/images/main-dark.png" alt="메인 창, 어두운 테마"> | <img src="docs/images/main-light.png" alt="메인 창, 밝은 테마"> |
+| <img src="docs/images/demo-dark.gif" alt="TV에 연결하고 동영상을 열어 불러온 뒤 탐색하고 음성·자막을 바꾸는 장면"> | <img src="docs/images/demo-light.gif" alt="TV에 연결하고 동영상을 열어 불러온 뒤 탐색하고 음성·자막을 바꾸는 장면"> |
 
 예시 썸네일: Johannes Vermeer, Girl with a Pearl Earring (c. 1665), public domain.
 

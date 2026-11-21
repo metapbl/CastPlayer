@@ -21,8 +21,6 @@
 
 <p align="center">ローカル動画を Chromecast with Google TV に送る軽量な Windows アプリ。PC はリモコン、再生はテレビが行います。</p>
 
-<p align="center"><img src="docs/images/demo.gif" alt="テレビに接続し、動画を開いて読み込み、シークして音声と字幕を切り替える様子"></p>
-
 ## 機能
 
 - mp4、mkv、avi、ts、mov などを開くと、テレビが再生できる形式を選んで送ります。変換は必要なときだけ行います。
@@ -35,7 +33,7 @@
 
 | ダーク | ライト |
 |---|---|
-| <img src="docs/images/main-dark.png" alt="メインウィンドウ、ダークテーマ"> | <img src="docs/images/main-light.png" alt="メインウィンドウ、ライトテーマ"> |
+| <img src="docs/images/demo-dark.gif" alt="テレビに接続し、動画を開いて読み込み、シークして音声と字幕を切り替える様子"> | <img src="docs/images/demo-light.gif" alt="テレビに接続し、動画を開いて読み込み、シークして音声と字幕を切り替える様子"> |
 
 サンプルのサムネイル：Johannes Vermeer, Girl with a Pearl Earring (c. 1665), public domain.
 

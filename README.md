@@ -19,8 +19,6 @@
 
 <p align="center">A lightweight Windows app that casts local videos to Chromecast with Google TV. The PC is the remote; the TV plays.</p>
 
-<p align="center"><img src="docs/images/demo.gif" alt="Connecting to a TV, opening a video, loading it, then seeking and changing audio and subtitles"></p>
-
 ## Features
 
 - Opens mp4, mkv, avi, ts, mov and more, and picks a form the TV can play. It converts only when needed.
@@ -33,7 +31,7 @@
 
 | Dark | Light |
 |---|---|
-| <img src="docs/images/main-dark.png" alt="Main window, dark theme"> | <img src="docs/images/main-light.png" alt="Main window, light theme"> |
+| <img src="docs/images/demo-dark.gif" alt="Connecting to a TV, opening a video, loading it, then seeking and changing audio and subtitles"> | <img src="docs/images/demo-light.gif" alt="Connecting to a TV, opening a video, loading it, then seeking and changing audio and subtitles"> |
 
 Sample thumbnail: Johannes Vermeer, Girl with a Pearl Earring (c. 1665), public domain.
 

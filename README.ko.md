@@ -31,9 +31,9 @@
 
 ## 스크린샷
 
-| 어둡게 | 밝게 |
+| 밝게 | 어둡게 |
 |---|---|
-| <img src="docs/images/demo-dark.gif" alt="TV에 연결하고 동영상을 열어 불러온 뒤 탐색하고 음성·자막을 바꾸는 장면"> | <img src="docs/images/demo-light.gif" alt="TV에 연결하고 동영상을 열어 불러온 뒤 탐색하고 음성·자막을 바꾸는 장면"> |
+| <img src="docs/images/demo-light.gif" alt="TV에 연결하고 동영상을 열어 불러온 뒤 탐색하고 음성·자막을 바꾸는 장면"> | <img src="docs/images/demo-dark.gif" alt="TV에 연결하고 동영상을 열어 불러온 뒤 탐색하고 음성·자막을 바꾸는 장면"> |
 
 예시 썸네일: Johannes Vermeer, Girl with a Pearl Earring (c. 1665), public domain.
 

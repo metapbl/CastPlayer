@@ -31,9 +31,9 @@
 
 ## 截图
 
-| 深色 | 浅色 |
+| 浅色 | 深色 |
 |---|---|
-| <img src="docs/images/demo-dark.gif" alt="连接电视、打开视频、加载，然后跳转并切换音轨和字幕"> | <img src="docs/images/demo-light.gif" alt="连接电视、打开视频、加载，然后跳转并切换音轨和字幕"> |
+| <img src="docs/images/demo-light.gif" alt="连接电视、打开视频、加载，然后跳转并切换音轨和字幕"> | <img src="docs/images/demo-dark.gif" alt="连接电视、打开视频、加载，然后跳转并切换音轨和字幕"> |
 
 示例缩略图：Johannes Vermeer, Girl with a Pearl Earring (c. 1665), public domain.
 

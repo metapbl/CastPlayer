@@ -2949,7 +2949,7 @@ GIF_MAX = 2_000_000   # GIF 하나당. README가 빨리 열리도록 (D089, D125
 
 
 def make_shots(out: Path) -> int:
-    """가짜 TV를 붙인 실제 창을 English로 찍어 demo-dark.gif·demo-light.gif를 만든다 (D125).
+    """가짜 TV를 붙인 실제 창을 찍어 demo-light.gif(English)·demo-dark.gif(한국어)를 만든다 (D125, D129).
     화면 없는 Qt는 글꼴이 없어 글자가 □로 나오므로 Windows 플랫폼에서 창을 띄우지 않고 찍는다."""
     from PySide6.QtCore import Qt
     from core import i18n
@@ -3005,8 +3005,9 @@ def make_shots(out: Path) -> int:
     from PySide6.QtGui import QColor, QImage, QPainter
     small, tall = 0, 260        # 창 높이 = 최소 + 이 값. 작으면 썸네일 옆, 크면 위아래 (D124)
 
-    def gif(mode: str, backdrop: str) -> Path | None:
-        """한 테마의 장면을 찍어 GIF로 묶는다. 실패하면 None."""
+    def gif(mode: str, backdrop: str, lang: str) -> Path | None:
+        """한 테마·언어의 장면을 찍어 GIF로 묶는다. 실패하면 None."""
+        i18n.set_language(lang)
         shots: list[Any] = []   # QPixmap. 높이가 장면마다 달라 끝에 같은 높이로 맞춤 (다르면 ffmpeg가 장면을 버림)
 
         def snap(w: Any, extra: int, repeat: int = 1) -> None:
@@ -3061,8 +3062,8 @@ def make_shots(out: Path) -> int:
         return path
 
     ok = True
-    for mode, backdrop in (("dark", "#0d1117"), ("light", "#ffffff")):
-        path = gif(mode, backdrop)
+    for mode, backdrop, lang in (("light", "#ffffff", "en"), ("dark", "#0d1117", "ko")):
+        path = gif(mode, backdrop, lang)
         if path is None:
             ok = False
             continue

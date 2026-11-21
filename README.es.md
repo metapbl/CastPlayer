@@ -33,7 +33,7 @@
 
 | Claro | Oscuro |
 |---|---|
-| <img src="docs/images/demo-light.gif" alt="Conectar a un televisor, abrir un vídeo, cargarlo y luego buscar y cambiar el audio y los subtítulos"> | <img src="docs/images/demo-dark.gif" alt="Conectar a un televisor, abrir un vídeo, cargarlo y luego buscar y cambiar el audio y los subtítulos"> |
+| <img src="docs/images/demo-light-en.gif" alt="Conectar a un televisor, abrir un vídeo, cargarlo y luego buscar y cambiar el audio y los subtítulos"> | <img src="docs/images/demo-dark-ko.gif" alt="Conectar a un televisor, abrir un vídeo, cargarlo y luego buscar y cambiar el audio y los subtítulos"> |
 
 Miniatura de ejemplo: Johannes Vermeer, Girl with a Pearl Earring (c. 1665), public domain.
 

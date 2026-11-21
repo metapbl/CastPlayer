@@ -33,7 +33,7 @@
 
 | ライト | ダーク |
 |---|---|
-| <img src="docs/images/demo-light.gif" alt="テレビに接続し、動画を開いて読み込み、シークして音声と字幕を切り替える様子"> | <img src="docs/images/demo-dark.gif" alt="テレビに接続し、動画を開いて読み込み、シークして音声と字幕を切り替える様子"> |
+| <img src="docs/images/demo-light-en.gif" alt="テレビに接続し、動画を開いて読み込み、シークして音声と字幕を切り替える様子"> | <img src="docs/images/demo-dark-ko.gif" alt="テレビに接続し、動画を開いて読み込み、シークして音声と字幕を切り替える様子"> |
 
 サンプルのサムネイル：Johannes Vermeer, Girl with a Pearl Earring (c. 1665), public domain.
 

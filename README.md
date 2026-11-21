@@ -31,7 +31,7 @@
 
 | Light | Dark |
 |---|---|
-| <img src="docs/images/demo-light.gif" alt="Connecting to a TV, opening a video, loading it, then seeking and changing audio and subtitles"> | <img src="docs/images/demo-dark.gif" alt="Connecting to a TV, opening a video, loading it, then seeking and changing audio and subtitles"> |
+| <img src="docs/images/demo-light-en.gif" alt="Connecting to a TV, opening a video, loading it, then seeking and changing audio and subtitles"> | <img src="docs/images/demo-dark-ko.gif" alt="Connecting to a TV, opening a video, loading it, then seeking and changing audio and subtitles"> |
 
 Sample thumbnail: Johannes Vermeer, Girl with a Pearl Earring (c. 1665), public domain.
 

@@ -5,7 +5,7 @@ Status: done (2026-11-21) | 시작: 2026-11-21 | 근거: PRD F9, §2.1 README (D
 구조:
 - `ui/dialogs.py > build_help`, `MODES` — 도움말 창 (D126, D123 대체), `ui/menus.py`, 5개 사전
 - `ui/main_window.py > _FilePage` — 높이로 배치를 고름 (D124), `_Cover.left`
-- `tools/cast_test.py > make_shots` — `demo-dark.gif`·`demo-light.gif` (D125)
+- `tools/cast_test.py > make_shots` — `demo-light-en.gif`·`demo-dark-ko.gif` (D125, D129, D130)
 
 ## 작업
 - [x] 1. 지원 형식 창 표 + 5개 사전 — 확인: 한국어·English 창 캡처를 보고 판단, 자가검사 통과

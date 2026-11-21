@@ -2962,7 +2962,8 @@ GIF_MAX = 2_000_000   # GIF 하나당. README가 빨리 열리도록 (D089, D125
 
 
 def make_shots(out: Path) -> int:
-    """가짜 TV를 붙인 실제 창을 찍어 demo-light.gif(English)·demo-dark.gif(한국어)를 만든다 (D125, D129).
+    """가짜 TV를 붙인 실제 창을 찍어 demo-light-en.gif·demo-dark-ko.gif를 만든다 (D125, D129).
+    파일 이름에 언어를 넣음: 이름이 같으면 GitHub 이미지 캐시가 옛 그림을 계속 보여 줌 (D130).
     화면 없는 Qt는 글꼴이 없어 글자가 □로 나오므로 Windows 플랫폼에서 창을 띄우지 않고 찍는다."""
     from PySide6.QtCore import Qt
     from core import i18n
@@ -3061,7 +3062,7 @@ def make_shots(out: Path) -> int:
             painter.end()
             frames.append(out / f"_frame{len(frames):02d}.png")
             img.save(str(frames[-1]))
-        path = out / f"demo-{mode}.gif"
+        path = out / f"demo-{mode}-{lang}.gif"
         cmd = [str(ffmpeg_path()), "-y", "-loglevel", "error", "-framerate", "0.8",
                "-i", str(out / "_frame%02d.png"),
                "-vf", "split[a][b];[a]palettegen=max_colors=256[p];[b][p]paletteuse=dither=sierra2_4a",

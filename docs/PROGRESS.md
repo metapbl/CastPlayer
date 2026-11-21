@@ -1,7 +1,7 @@
 # PROGRESS — CastPlayer
 
 ## 상태
-- 단계: 7 계획 대기 (진행 중 계획 없음) · 마지막 계획 `docs/plans/2026-11-21-thumb-layout-formats.md` (썸네일 자동 배치·도움말 창·README GIF, D123~D127) 작업 1~6 완료 · 1.2.0 공개 이후 변경은 아직 배포 안 함 · 자가검사 139/139, 약 18초(기준 20초) · 1.2.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.2.0)
+- 단계: 7 계획 대기 (진행 중 계획 없음) · 마지막 계획 `docs/plans/2026-11-21-thumb-layout-formats.md` (썸네일 자동 배치·도움말 창·README GIF, D123~D128) 작업 1~7 완료 · 1.2.0 공개 이후 변경은 아직 배포 안 함 · 자가검사 140/140, 약 18초(기준 20초) · 1.2.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.2.0)
 - 갱신: 2026-11-21
 - 히스토리를 새로 시작함(D041). 아래 완료 기록의 옛 커밋 해시는 저장소 밖 로컬 백업 `../CastPlayer-git-backup-2026-10-27`에만 있다
 

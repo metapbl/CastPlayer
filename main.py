@@ -32,7 +32,7 @@ from core.player import PlaybackController
 from ui import theme
 from ui.bridge import CastBridge
 from ui.dialogs import APP_NAME
-from ui.main_window import MainWindow
+from ui.main_window import MainWindow, apply_language_font
 
 _LOGGER = logging.getLogger("castplayer")
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
@@ -124,6 +124,7 @@ def main() -> int:
     app.setApplicationName(APP_NAME)
     app.setWindowIcon(QIcon(str(asset_path("cast.ico"))))   # 창·작업표시줄 (exe 파일 아이콘은 spec)
     theme.apply_theme(app, cfg.theme)                          # 창을 만들기 전에 (D076)
+    apply_language_font(app)                                   # 일본어·중국어 화면 글꼴 (D128)
 
     missing = [p.name for p in (ffmpeg_path(), ffprobe_path()) if not p.is_file()]
     if missing:

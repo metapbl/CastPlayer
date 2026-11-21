@@ -15,7 +15,7 @@ from typing import Callable
 from uuid import UUID
 
 from PySide6.QtCore import QByteArray, QLocale, QRect, QRectF, QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QKeySequence, QPainter, QPixmap, QShortcut
+from PySide6.QtGui import QColor, QFont, QFontDatabase, QFontMetrics, QIcon, QKeySequence, QPainter, QPixmap, QShortcut
 from PySide6.QtWidgets import (QApplication, QBoxLayout, QComboBox, QFileDialog, QFrame, QGridLayout,
                                QHBoxLayout, QLabel, QMainWindow, QMessageBox, QProgressBar,
                                QPushButton, QSizePolicy, QSlider, QStackedWidget, QVBoxLayout,
@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QComboBox, QFileDialog,
 
 from core.cast_manager import CastManager, DeviceInfo, PlaybackState
 from core.config import AppConfig
-from core.i18n import N_, set_language, startup_language, tr
+from core.i18n import N_, language, set_language, startup_language, tr
 from core.paths import app_dir, cache_dir
 from core.planner import Mode, Plan, PlanError
 from core.player import PlaybackController
@@ -111,6 +111,20 @@ def _plan_text(plan: Plan, info: MediaInfo) -> str:
     audio = (tr("음성 없음") if plan.audio is None
              else tr("음성 그대로") if plan.audio_copy else tr("음성 AAC 2ch로 변환"))
     return " | ".join((how, video, audio))   # 가운뎃점은 작은 글씨에서 구분이 안 보임
+
+
+LANG_FONTS = {   # 화면 언어의 표준 UI 글꼴 (Windows, macOS). 없는 글꼴은 Qt가 건너뜀 (D128)
+    "ja": ("Yu Gothic UI", "Hiragino Sans"),
+    "zh_CN": ("Microsoft YaHei UI", "PingFang SC"),
+}
+
+
+def apply_language_font(app: QApplication) -> None:
+    """지금 화면 언어의 글꼴을 앞에, 시스템 기본 글꼴을 끝에 (D128).
+    시스템 글꼴에 없는 글자를 Qt가 다른 언어 글꼴(예: SimSun)로 채워 모양이 섞이는 것을 막음."""
+    f = QFontDatabase.systemFont(QFontDatabase.SystemFont.GeneralFont)
+    f.setFamilies([*LANG_FONTS.get(language(), ()), f.family()])
+    app.setFont(f)
 
 
 class _Cover(QWidget):
@@ -1115,6 +1129,9 @@ class MainWindow(QMainWindow):
         self.cfg.language = setting
         self.cfg.save()
         set_language(startup_language(setting, QLocale.system().uiLanguages()))
+        app = QApplication.instance()
+        assert isinstance(app, QApplication)
+        apply_language_font(app)
         self._retranslate()
         retranslate_menus(self.acts)
         self._set_conn(self._conn, self._conn_extra[0], **self._conn_extra[1])   # _update_ui 포함

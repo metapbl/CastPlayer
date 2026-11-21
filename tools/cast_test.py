@@ -33,7 +33,7 @@ from uuid import uuid4
 from typing import Any, Callable, TextIO
 
 from PySide6.QtCore import QMimeData, QPoint, Qt, QUrl
-from PySide6.QtGui import QDragEnterEvent
+from PySide6.QtGui import QDragEnterEvent, QFontDatabase
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QLabel
 from pychromecast.controllers.media import MediaStatus
@@ -2225,6 +2225,20 @@ def _thumb_cases(check: Callable[[str, bool, str], None]) -> None:
           keys == "F1" and "단축키" in texts and "지원 형식" in texts and "Ctrl" in texts
           and all(e.lstrip(".") in chips for e in mw_mod.VIDEO_EXTS),
           f"단축키 {keys}, 칩 {len(chips)}개")
+
+    # D128: 화면 없는 Qt에는 Windows 글꼴이 없어 실제 글리프는 못 봄 → 글꼴 목록 순서만 확인
+    app = QApplication.instance()
+    assert isinstance(app, QApplication)
+    w, *_ = _gui()
+    got = {}
+    for code in ("ja", "zh_CN", "en", "ko"):           # 마지막은 자가검사 기본 언어로 되돌림
+        w._set_language(code)                           # pylint: disable=protected-access
+        got[code] = app.font().families()
+    _close(w)
+    sys_fam = QFontDatabase.systemFont(QFontDatabase.SystemFont.GeneralFont).family()
+    check("F10-6 일본어·중국어 화면은 그 언어 글꼴(Windows·macOS)을 앞에, 시스템 글꼴을 끝에. 다른 언어는 시스템 글꼴만 (D128)",
+          got["ja"] == [*mw_mod.LANG_FONTS["ja"], sys_fam] and got["zh_CN"] == [*mw_mod.LANG_FONTS["zh_CN"], sys_fam]
+          and got["en"] == got["ko"] == [sys_fam], f"{got}")
 
 
 def _cancel_cases(check: Callable[[str, bool, str], None]) -> None:

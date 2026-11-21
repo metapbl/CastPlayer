@@ -2306,6 +2306,11 @@ def _state_line_cases(check: Callable[[str, bool, str], None]) -> None:
     def job():
         w.tasks.report("키프레임 분석", 45)
         gate.wait(5)
+        # 실제 ctrl.load처럼 ctrl.info를 채우고 MediaInfo 모양을 돌려줌 (None이면 _on_task_ok가 예외).
+        # 영상이 없어 썸네일은 바로 None
+        ctrl.info = SimpleNamespace(path=Path("selftest.mkv"), duration=6000.0, cover=None, video=None,
+                                    audio=())
+        return ctrl.info
 
     w.tasks.submit("load", job)
     _wait_for(lambda: w.state_label.text().endswith("45%"))

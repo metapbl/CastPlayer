@@ -33,16 +33,15 @@ from core.subtitles import PENDING
 from core.thumbs import thumbnail
 from ui import theme
 from ui.bridge import CastBridge
-from ui.dialogs import (APP_NAME, ask_ip, confirm, show_about, show_formats,
-                        show_shortcuts)
+from ui.dialogs import APP_NAME, ask_ip, confirm, show_about, show_help
 from ui.menus import build_menus, retranslate_menus
 from ui.tasks import TaskRunner, stop_and_wait
 from ui.tracks import audio_text, subtitle_text
 from ui.widgets import SeekSlider, fmt_time
 
 _LOGGER = logging.getLogger(__name__)
-VIDEO_EXTS = {".mp4", ".m4v", ".mkv", ".avi", ".ts", ".m2ts", ".mov", ".webm", ".wmv",
-              ".mpg", ".mpeg", ".flv"}
+VIDEO_EXTS = (".mp4", ".mkv", ".avi", ".mov", ".ts", ".m2ts",   # 도움말 창에 이 순서로 (흔한 것 먼저)
+              ".webm", ".wmv", ".m4v", ".mpg", ".mpeg", ".flv")
 DISCOVERY_WINDOW_MS = 8000      # mDNS는 끝 신호가 없어 이 시간 뒤 찾기 결과를 알림 (D120)
 AUTO_HOST_FALLBACK_MS = 8000     # mDNS로 마지막 기기를 못 찾으면 저장된 IP로 검색
 RECONNECT_WINDOW = 30.0          # 끊긴 뒤 같은 UUID를 다시 찾는 시간(초)
@@ -524,8 +523,7 @@ class MainWindow(QMainWindow):
         a.log_file.toggled.connect(self._toggle_log)
         a.open_logs.triggered.connect(self._open_logs)
         a.clear_cache.triggered.connect(self._clear_cache)
-        a.shortcuts.triggered.connect(lambda: show_shortcuts(self))
-        a.formats.triggered.connect(lambda: show_formats(self))
+        a.help.triggered.connect(lambda: show_help(self, VIDEO_EXTS))
         a.about.triggered.connect(lambda: show_about(self, self.ctrl.detector.get(0)))
 
         # M·S는 버튼이 비활성이어도 단축키가 동작하므로 연결 상태를 직접 확인

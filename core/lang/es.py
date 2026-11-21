@@ -131,8 +131,6 @@ STRINGS: dict[str, str] = {
         '{err}\n\nCastPlayer ya se está ejecutando o otro programa está usando el puerto {port}.\nPuede cambiar el puerto con server_port en config.json.',
     '재생 / 일시정지':
         'Reproducir / Pausa',
-    '5초 뒤로 / 앞으로 (연타하면 모아서 한 번에 이동)':
-        'Atrás / adelante 5 s (las pulsaciones seguidas se combinan en un solo salto)',
     '볼륨 ±5%':
         'Volumen ±5%',
     '음소거 전환':
@@ -149,38 +147,44 @@ STRINGS: dict[str, str] = {
         'Mayús+clic',
     '자막 싱크 버튼을 0.1초 단위로':
         'Botones de sincronía de subtítulos en pasos de 0,1 s',
-    '단축키 목록':
-        'Atajos de teclado',
     '지원 형식':
         'Formatos compatibles',
-    '송출 방식':
-        'Método',
-    '대상':
-        'Archivos',
-    '특징':
-        'Qué implica',
+    '도움말':
+        'Ayuda',
+    '단축키':
+        'Atajos de teclado',
+    '5초 뒤로 / 앞으로':
+        'Atrás / adelante 5 s',
+    '영상':
+        'Vídeo',
+    '영상에 든 글자 자막':
+        'Subtítulos de texto dentro del vídeo',
+    '안 됨':
+        'No compatible',
+    '(블루레이·DVD의 그림 자막)':
+        '(subtítulos de imagen de Blu-ray/DVD)',
+    '모든 음성 트랙을 고를 수 있음. Dolby·DTS 같은 다채널 음성은 스테레오로 나옴':
+        'Se puede elegir cualquier pista de audio. El audio multicanal como Dolby o DTS se reproduce en estéreo',
+    '송출 방식 — 파일을 열면 자동으로 고름':
+        'Método de envío — se elige automáticamente al abrir un archivo',
+    'TV가 바로 읽는 mp4':
+        'mp4 que la TV lee directamente',
+    '그 밖의 파일, 또는 다른 음성 트랙을 고를 때':
+        'Otros archivos, o al elegir otra pista de audio',
+    'TV가 못 읽는 영상은 PC가 다시 인코딩 (XviD, 10비트 H.264 등)':
+        'El vídeo que la TV no puede leer lo recodifica el PC (XviD, H.264 de 10 bits, etc.)',
+    'PC 자원 사용':
+        'Usa recursos del PC',
+    '화질 조금 낮아짐':
+        'Calidad de imagen algo menor',
+    '닫기':
+        'Cerrar',
     '그대로 보냄':
         'Enviado directamente',
-    'mp4 파일 (H.264·HEVC 영상, AAC·MP3 음성)':
-        'Archivos mp4 (vídeo H.264/HEVC, audio AAC/MP3)',
-    '바로 재생, PC 부담 없음':
-        'Se reproduce enseguida, sin carga para el PC',
     'HLS 변환':
         'HLS',
-    'mkv·ts·mov·avi 등 다른 파일, 또는 다른 음성 트랙을 고를 때':
-        'mkv, ts, mov, avi y otros archivos, o al elegir otra pista de audio',
-    '화질 그대로, PC 부담 적음':
-        'Misma calidad de imagen, poca carga para el PC',
     'HLS 재인코딩':
         'HLS recodificado',
-    'TV가 읽지 못하는 영상 (XviD, 10비트 H.264 등)':
-        'Vídeo que la TV no puede leer (XviD, H.264 de 10 bits, etc.)',
-    'PC 부담 큼, 화질이 조금 떨어질 수 있음':
-        'Mucha carga para el PC, la calidad puede bajar un poco',
-    '<b>음성</b>: AAC는 대부분 그대로, Dolby·DTS 등 다른 음성은 AAC 스테레오로 바꿈':
-        '<b>Audio</b>: AAC normalmente se mantiene; Dolby, DTS y otros se convierten a AAC estéreo',
-    '<b>자막</b>: srt·smi·ass/ssa·vtt 파일과 영상 안의 글자 자막. 블루레이·DVD의 그림 자막(PGS, VobSub)은 안 됨':
-        '<b>Subtítulos</b>: archivos srt, smi, ass/ssa y vtt, y subtítulos de texto dentro del vídeo. No se admiten los subtítulos de imagen de Blu-ray/DVD (PGS, VobSub)',
     '{app} 정보':
         'Acerca de {app}',
     'IP로 기기 추가':

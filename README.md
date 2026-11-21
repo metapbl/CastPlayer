@@ -96,6 +96,7 @@ Change it in **Options → Language**. The change applies at once, without resta
 | S | Stop (closes the player on the TV) |
 | Ctrl+O | Open file |
 | F5 | Search for devices again |
+| F1 | Help (shortcuts and supported formats) |
 | Ctrl+Q | Quit |
 | Shift+click | Subtitle sync buttons in 0.1-second steps |
 

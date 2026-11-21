@@ -22,8 +22,7 @@ class MenuActions:
     log_file: QAction
     open_logs: QAction
     clear_cache: QAction
-    shortcuts: QAction
-    formats: QAction
+    help: QAction
     about: QAction
     texts: list[tuple[QAction, str]]   # (항목, 번역 키): retranslate_menus가 글자를 넣음
 
@@ -90,13 +89,12 @@ def build_menus(win: QMainWindow, auto_connect: bool, log_file: bool,
     cache = _add(win, o, N_("캐시 비우기…"))
 
     i = _menu(bar, N_("정보"))
-    shortcuts = _add(win, i, N_("단축키 목록"))
-    formats = _add(win, i, N_("지원 형식"))
+    help_ = _add(win, i, N_("도움말"), "F1")   # 단축키·지원 형식 한 창 (D126)
     i.addSeparator()
     about = _add(win, i, N_("CastPlayer 정보"))
 
     acts = MenuActions(open_file, rescan, add_ip, disconnect, quit_, auto, themes, languages,
-                       log, logs, cache, shortcuts, formats, about, list(_TEXTS))
+                       log, logs, cache, help_, about, list(_TEXTS))
     retranslate_menus(acts)
     return acts
 

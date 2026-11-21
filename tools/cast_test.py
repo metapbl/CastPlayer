@@ -35,7 +35,7 @@ from typing import Any, Callable, TextIO
 from PySide6.QtCore import QMimeData, QPoint, Qt, QUrl
 from PySide6.QtGui import QDragEnterEvent
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QLabel
 from pychromecast.controllers.media import MediaStatus
 from pychromecast.error import NotConnected, PyChromecastError
 from pychromecast.socket_client import (CONNECTION_STATUS_DISCONNECTED, CONNECTION_STATUS_LOST,
@@ -2212,6 +2212,19 @@ def _thumb_cases(check: Callable[[str, bool, str], None]) -> None:
         check("F9-15 윗칸 최소 높이는 글자 두 줄+여백, 높이면 글자 위·썸네일 아래 가득, 그림 없으면 글자만 (D124)",
               slot_min <= 80 and big and abs(tw - fw) <= 2 and th >= 250 and none_full,
               f"윗칸 최소 {slot_min}px, 위아래 {big}, 썸네일 {tw}×{th}, 파일 이름 너비 {fw}, 그림 없음 {none_full}")
+
+    from ui.dialogs import build_help
+    w, *_ = _gui()
+    keys = w.acts.help.shortcut().toString()
+    d = build_help(w, mw_mod.VIDEO_EXTS)
+    texts = [lb.text() for lb in d.findChildren(QLabel)]
+    chips = [lb.text() for lb in d.findChildren(QLabel) if lb.objectName() == "chip"]
+    d.deleteLater()
+    _close(w)
+    check("F9-20 정보 → 도움말(F1) 한 창에 단축키·지원 형식, 영상 칩은 여는 확장자 전부 (D126)",
+          keys == "F1" and "단축키" in texts and "지원 형식" in texts and "Ctrl" in texts
+          and all(e.lstrip(".") in chips for e in mw_mod.VIDEO_EXTS),
+          f"단축키 {keys}, 칩 {len(chips)}개")
 
 
 def _cancel_cases(check: Callable[[str, bool, str], None]) -> None:

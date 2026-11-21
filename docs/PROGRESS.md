@@ -1,7 +1,7 @@
 # PROGRESS — CastPlayer
 
 ## 상태
-- 단계: 7 계획 대기 (진행 중 계획 없음) · 마지막 계획 `docs/plans/2026-11-19-languages-readme.md` (화면 6개 언어·UI 정리·불러오기 개선·README·상태줄, D079~D122) 작업 1~23 모두 완료, 인수 통과 · PRD 승인(2026-11-21, 마지막 D120~D122) · 자가검사 138/138, 약 19.1초(기준 20초에 가까움) · 1.2.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.2.0, 태그 e3c8139)
+- 단계: 7 계획 대기 (진행 중 계획 없음) · 마지막 계획 `docs/plans/2026-11-21-thumb-layout-formats.md` (썸네일 자동 배치·도움말 창·README GIF, D123~D126) 작업 1~5 완료 · 1.2.0 공개 이후 변경은 아직 배포 안 함 · 자가검사 139/139, 약 18초(기준 20초) · 1.2.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.2.0)
 - 갱신: 2026-11-21
 - 히스토리를 새로 시작함(D041). 아래 완료 기록의 옛 커밋 해시는 저장소 밖 로컬 백업 `../CastPlayer-git-backup-2026-10-27`에만 있다
 

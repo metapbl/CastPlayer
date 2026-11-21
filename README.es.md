@@ -98,6 +98,7 @@ Cámbialo en **Opciones → Idioma**. El cambio se aplica al momento, sin reinic
 | S | Detener (cierra el reproductor del televisor) |
 | Ctrl+O | Abrir archivo |
 | F5 | Buscar dispositivos de nuevo |
+| F1 | Ayuda (atajos y formatos compatibles) |
 | Ctrl+Q | Salir |
 | Mayús+clic | Botones de sincronía de subtítulos en pasos de 0,1 s |
 

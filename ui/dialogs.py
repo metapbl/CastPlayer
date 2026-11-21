@@ -57,16 +57,25 @@ def show_shortcuts(parent: QWidget) -> None:
     QMessageBox.information(parent, tr("단축키 목록"), f"<table>{rows}</table>")
 
 
+FORMATS = (   # 송출 방식 이름은 재생 카드와 같은 말 (D123). 보여 줄 때 tr() (D085)
+    (N_("그대로 보냄"), N_("mp4 파일 (H.264·HEVC 영상, AAC·MP3 음성)"), N_("바로 재생, PC 부담 없음")),
+    (N_("HLS 변환"), N_("mkv·ts·mov·avi 등 다른 파일, 또는 다른 음성 트랙을 고를 때"),
+     N_("화질 그대로, PC 부담 적음")),
+    (N_("HLS 재인코딩"), N_("TV가 읽지 못하는 영상 (XviD, 10비트 H.264 등)"),
+     N_("PC 부담 큼, 화질이 조금 떨어질 수 있음")),
+)
+
+
 def show_formats(parent: QWidget) -> None:
-    QMessageBox.information(parent, tr("지원 형식"), tr(
-        "<b>DIRECT</b>: mp4 + H.264/HEVC(hvc1) + AAC/MP3, 기본 음성 트랙 → 파일 그대로<br>"
-        "<b>REMUX</b>: 영상은 지원되지만 컨테이너(mkv, ts, mov 등)·HEVC 태그·음성 코덱이 "
-        "맞지 않거나 기본 외 음성 선택 → HLS, 영상 복사<br>"
-        "<b>TRANSCODE</b>: 영상 미지원(XviD, H.264 10bit 등)이나 표시 시각 결함 → "
-        "HLS, H.264 재인코딩<br><br>"
-        "음성: AAC는 복사(HE-AAC·48kHz 초과·6채널 초과는 변환), 나머지는 AAC 2ch로 변환<br>"
-        "자막: srt, smi(클래스별), ass/ssa, vtt, 내장 텍스트 자막 → WebVTT<br>"
-        "이미지 자막(PGS, VobSub)은 지원 안 함"))
+    cell = "<td style='padding:4px 10px 4px 0'>"
+    head = "".join(f"{cell}<b>{tr(h)}</b></td>" for h in (N_("송출 방식"), N_("이런 파일"), N_("특징")))
+    rows = "".join(f"<tr>{cell}<b>{tr(m)}</b></td>{cell}{tr(f)}</td>{cell}{tr(n)}</td></tr>"
+                   for m, f, n in FORMATS)
+    QMessageBox.information(parent, tr("지원 형식"), (
+        f"<table><tr>{head}</tr>{rows}</table><br>"
+        + tr("<b>음성</b>: AAC는 대부분 그대로, Dolby·DTS 등 다른 음성은 AAC 스테레오로 바꿈") + "<br>"
+        + tr("<b>자막</b>: srt·smi·ass/ssa·vtt 파일과 영상 안의 글자 자막. "
+             "블루레이·DVD의 그림 자막(PGS, VobSub)은 안 됨")))
 
 
 def _ffmpeg_version() -> str:

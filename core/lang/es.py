@@ -153,8 +153,34 @@ STRINGS: dict[str, str] = {
         'Atajos de teclado',
     '지원 형식':
         'Formatos compatibles',
-    '<b>DIRECT</b>: mp4 + H.264/HEVC(hvc1) + AAC/MP3, 기본 음성 트랙 → 파일 그대로<br><b>REMUX</b>: 영상은 지원되지만 컨테이너(mkv, ts, mov 등)·HEVC 태그·음성 코덱이 맞지 않거나 기본 외 음성 선택 → HLS, 영상 복사<br><b>TRANSCODE</b>: 영상 미지원(XviD, H.264 10bit 등)이나 표시 시각 결함 → HLS, H.264 재인코딩<br><br>음성: AAC는 복사(HE-AAC·48kHz 초과·6채널 초과는 변환), 나머지는 AAC 2ch로 변환<br>자막: srt, smi(클래스별), ass/ssa, vtt, 내장 텍스트 자막 → WebVTT<br>이미지 자막(PGS, VobSub)은 지원 안 함':
-        '<b>DIRECT</b>: mp4 + H.264/HEVC(hvc1) + AAC/MP3, pista de audio predeterminada → el archivo tal cual<br><b>REMUX</b>: el vídeo es compatible, pero el contenedor (mkv, ts, mov, etc.), la etiqueta HEVC o el códec de audio no encajan, o se eligió una pista de audio no predeterminada → HLS, vídeo copiado<br><b>TRANSCODE</b>: vídeo no compatible (XviD, H.264 de 10 bits, etc.) o marcas de tiempo defectuosas → HLS, recodificado a H.264<br><br>Audio: AAC se copia (HE-AAC, más de 48 kHz o más de 6 canales se convierte); el resto se convierte a AAC 2ch<br>Subtítulos: srt, smi (por clase), ass/ssa, vtt, subtítulos de texto integrados → WebVTT<br>Los subtítulos de imagen (PGS, VobSub) no son compatibles',
+    '송출 방식':
+        'Método',
+    '이런 파일':
+        'Archivos',
+    '특징':
+        'Qué implica',
+    '그대로 보냄':
+        'Enviado directamente',
+    'mp4 파일 (H.264·HEVC 영상, AAC·MP3 음성)':
+        'Archivos mp4 (vídeo H.264/HEVC, audio AAC/MP3)',
+    '바로 재생, PC 부담 없음':
+        'Se reproduce enseguida, sin carga para el PC',
+    'HLS 변환':
+        'HLS',
+    'mkv·ts·mov·avi 등 다른 파일, 또는 다른 음성 트랙을 고를 때':
+        'mkv, ts, mov, avi y otros archivos, o al elegir otra pista de audio',
+    '화질 그대로, PC 부담 적음':
+        'Misma calidad de imagen, poca carga para el PC',
+    'HLS 재인코딩':
+        'HLS recodificado',
+    'TV가 읽지 못하는 영상 (XviD, 10비트 H.264 등)':
+        'Vídeo que la TV no puede leer (XviD, H.264 de 10 bits, etc.)',
+    'PC 부담 큼, 화질이 조금 떨어질 수 있음':
+        'Mucha carga para el PC, la calidad puede bajar un poco',
+    '<b>음성</b>: AAC는 대부분 그대로, Dolby·DTS 등 다른 음성은 AAC 스테레오로 바꿈':
+        '<b>Audio</b>: AAC normalmente se mantiene; Dolby, DTS y otros se convierten a AAC estéreo',
+    '<b>자막</b>: srt·smi·ass/ssa·vtt 파일과 영상 안의 글자 자막. 블루레이·DVD의 그림 자막(PGS, VobSub)은 안 됨':
+        '<b>Subtítulos</b>: archivos srt, smi, ass/ssa y vtt, y subtítulos de texto dentro del vídeo. No se admiten los subtítulos de imagen de Blu-ray/DVD (PGS, VobSub)',
     '{app} 정보':
         'Acerca de {app}',
     'IP로 기기 추가':

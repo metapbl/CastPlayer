@@ -97,23 +97,20 @@ STRINGS: dict[str, str] = {
     "자막 싱크 버튼을 0.1초 단위로": "Subtitle sync buttons in 0.1 s steps",
     "단축키 목록": "Keyboard shortcuts",
     "지원 형식": "Supported formats",
-    "<b>DIRECT</b>: mp4 + H.264/HEVC(hvc1) + AAC/MP3, 기본 음성 트랙 → 파일 그대로<br>"
-    "<b>REMUX</b>: 영상은 지원되지만 컨테이너(mkv, ts, mov 등)·HEVC 태그·음성 코덱이 "
-    "맞지 않거나 기본 외 음성 선택 → HLS, 영상 복사<br>"
-    "<b>TRANSCODE</b>: 영상 미지원(XviD, H.264 10bit 등)이나 표시 시각 결함 → "
-    "HLS, H.264 재인코딩<br><br>"
-    "음성: AAC는 복사(HE-AAC·48kHz 초과·6채널 초과는 변환), 나머지는 AAC 2ch로 변환<br>"
-    "자막: srt, smi(클래스별), ass/ssa, vtt, 내장 텍스트 자막 → WebVTT<br>"
-    "이미지 자막(PGS, VobSub)은 지원 안 함":
-        "<b>DIRECT</b>: mp4 + H.264/HEVC(hvc1) + AAC/MP3, default audio track → file as is<br>"
-        "<b>REMUX</b>: video is supported but the container (mkv, ts, mov, etc.), HEVC tag or "
-        "audio codec does not fit, or a non-default audio track is chosen → HLS, video copied<br>"
-        "<b>TRANSCODE</b>: unsupported video (XviD, H.264 10-bit, etc.) or broken timestamps → "
-        "HLS, re-encoded to H.264<br><br>"
-        "Audio: AAC is copied (HE-AAC, above 48 kHz or above 6 channels is converted), "
-        "everything else is converted to AAC 2ch<br>"
-        "Subtitles: srt, smi (per class), ass/ssa, vtt, embedded text subtitles → WebVTT<br>"
-        "Image subtitles (PGS, VobSub) are not supported",
+    "송출 방식": "Method",
+    "이런 파일": "Files",
+    "특징": "What it means",
+    "그대로 보냄": "Sent directly",
+    "mp4 파일 (H.264·HEVC 영상, AAC·MP3 음성)": "mp4 files (H.264/HEVC video, AAC/MP3 audio)",
+    "바로 재생, PC 부담 없음": "Plays right away, no load on the PC",
+    "HLS 변환": "HLS",
+    "mkv·ts·mov·avi 등 다른 파일, 또는 다른 음성 트랙을 고를 때": "mkv, ts, mov, avi and other files, or when you pick another audio track",
+    "화질 그대로, PC 부담 적음": "Same picture quality, light load on the PC",
+    "HLS 재인코딩": "HLS re-encoded",
+    "TV가 읽지 못하는 영상 (XviD, 10비트 H.264 등)": "Video the TV cannot read (XviD, 10-bit H.264, etc.)",
+    "PC 부담 큼, 화질이 조금 떨어질 수 있음": "Heavy load on the PC, picture quality may drop slightly",
+    "<b>음성</b>: AAC는 대부분 그대로, Dolby·DTS 등 다른 음성은 AAC 스테레오로 바꿈": "<b>Audio</b>: AAC is usually kept as is; Dolby, DTS and other audio is converted to AAC stereo",
+    "<b>자막</b>: srt·smi·ass/ssa·vtt 파일과 영상 안의 글자 자막. 블루레이·DVD의 그림 자막(PGS, VobSub)은 안 됨": "<b>Subtitles</b>: srt, smi, ass/ssa and vtt files, and text subtitles inside the video. Picture subtitles from Blu-ray/DVD (PGS, VobSub) are not supported",
     "{app} 정보": "About {app}",
     "IP로 기기 추가": "Add device by IP",
     "크롬캐스트 IP 주소:": "Chromecast IP address:",

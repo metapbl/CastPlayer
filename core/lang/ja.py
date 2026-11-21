@@ -153,8 +153,34 @@ STRINGS: dict[str, str] = {
         'キーボード ショートカット',
     '지원 형식':
         '対応形式',
-    '<b>DIRECT</b>: mp4 + H.264/HEVC(hvc1) + AAC/MP3, 기본 음성 트랙 → 파일 그대로<br><b>REMUX</b>: 영상은 지원되지만 컨테이너(mkv, ts, mov 등)·HEVC 태그·음성 코덱이 맞지 않거나 기본 외 음성 선택 → HLS, 영상 복사<br><b>TRANSCODE</b>: 영상 미지원(XviD, H.264 10bit 등)이나 표시 시각 결함 → HLS, H.264 재인코딩<br><br>음성: AAC는 복사(HE-AAC·48kHz 초과·6채널 초과는 변환), 나머지는 AAC 2ch로 변환<br>자막: srt, smi(클래스별), ass/ssa, vtt, 내장 텍스트 자막 → WebVTT<br>이미지 자막(PGS, VobSub)은 지원 안 함':
-        '<b>DIRECT</b>：mp4 + H.264/HEVC(hvc1) + AAC/MP3、既定の音声トラック → ファイルをそのまま送信<br><b>REMUX</b>：映像は対応しているが、コンテナ（mkv、ts、mov など）・HEVC タグ・音声コーデックが合わない、または既定以外の音声を選択 → HLS、映像はコピー<br><b>TRANSCODE</b>：非対応の映像（XviD、H.264 10bit など）やタイムスタンプの欠陥 → HLS、H.264 に再エンコード<br><br>音声：AAC はコピー（HE-AAC・48kHz 超・6ch 超は変換）、それ以外は AAC 2ch に変換<br>字幕：srt、smi（クラス別）、ass/ssa、vtt、内蔵テキスト字幕 → WebVTT<br>画像字幕（PGS、VobSub）は非対応',
+    '송출 방식':
+        '方式',
+    '이런 파일':
+        '対象ファイル',
+    '특징':
+        '特徴',
+    '그대로 보냄':
+        '直接送信',
+    'mp4 파일 (H.264·HEVC 영상, AAC·MP3 음성)':
+        'mp4 ファイル（H.264/HEVC 映像、AAC/MP3 音声）',
+    '바로 재생, PC 부담 없음':
+        'すぐ再生、PC の負荷なし',
+    'HLS 변환':
+        'HLS 変換',
+    'mkv·ts·mov·avi 등 다른 파일, 또는 다른 음성 트랙을 고를 때':
+        'mkv・ts・mov・avi など他のファイル、または別の音声トラックを選んだとき',
+    '화질 그대로, PC 부담 적음':
+        '画質そのまま、PC の負荷は軽い',
+    'HLS 재인코딩':
+        'HLS 再エンコード',
+    'TV가 읽지 못하는 영상 (XviD, 10비트 H.264 등)':
+        'テレビが読めない映像（XviD、10 ビット H.264 など）',
+    'PC 부담 큼, 화질이 조금 떨어질 수 있음':
+        'PC の負荷が大きく、画質が少し落ちることがある',
+    '<b>음성</b>: AAC는 대부분 그대로, Dolby·DTS 등 다른 음성은 AAC 스테레오로 바꿈':
+        '<b>音声</b>：AAC はほぼそのまま、Dolby・DTS など他の音声は AAC ステレオに変換',
+    '<b>자막</b>: srt·smi·ass/ssa·vtt 파일과 영상 안의 글자 자막. 블루레이·DVD의 그림 자막(PGS, VobSub)은 안 됨':
+        '<b>字幕</b>：srt・smi・ass/ssa・vtt ファイルと映像内の文字字幕。ブルーレイ・DVD の画像字幕（PGS、VobSub）は非対応',
     '{app} 정보':
         '{app} について',
     'IP로 기기 추가':

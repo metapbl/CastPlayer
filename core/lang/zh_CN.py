@@ -153,8 +153,34 @@ STRINGS: dict[str, str] = {
         '快捷键',
     '지원 형식':
         '支持的格式',
-    '<b>DIRECT</b>: mp4 + H.264/HEVC(hvc1) + AAC/MP3, 기본 음성 트랙 → 파일 그대로<br><b>REMUX</b>: 영상은 지원되지만 컨테이너(mkv, ts, mov 등)·HEVC 태그·음성 코덱이 맞지 않거나 기본 외 음성 선택 → HLS, 영상 복사<br><b>TRANSCODE</b>: 영상 미지원(XviD, H.264 10bit 등)이나 표시 시각 결함 → HLS, H.264 재인코딩<br><br>음성: AAC는 복사(HE-AAC·48kHz 초과·6채널 초과는 변환), 나머지는 AAC 2ch로 변환<br>자막: srt, smi(클래스별), ass/ssa, vtt, 내장 텍스트 자막 → WebVTT<br>이미지 자막(PGS, VobSub)은 지원 안 함':
-        '<b>DIRECT</b>：mp4 + H.264/HEVC(hvc1) + AAC/MP3，默认音轨 → 原文件直接发送<br><b>REMUX</b>：视频受支持，但容器（mkv、ts、mov 等）、HEVC 标签或音频编码不符，或选择了非默认音轨 → HLS，视频复制<br><b>TRANSCODE</b>：视频不受支持（XviD、H.264 10bit 等）或时间戳有缺陷 → HLS，重新编码为 H.264<br><br>音频：AAC 直接复制（HE-AAC、超过 48kHz 或超过 6 声道时转换），其他转换为 AAC 2ch<br>字幕：srt、smi（按类别）、ass/ssa、vtt、内嵌文本字幕 → WebVTT<br>不支持图像字幕（PGS、VobSub）',
+    '송출 방식':
+        '方式',
+    '이런 파일':
+        '适用文件',
+    '특징':
+        '特点',
+    '그대로 보냄':
+        '直接发送',
+    'mp4 파일 (H.264·HEVC 영상, AAC·MP3 음성)':
+        'mp4 文件（H.264/HEVC 视频，AAC/MP3 音频）',
+    '바로 재생, PC 부담 없음':
+        '立即播放，电脑无负担',
+    'HLS 변환':
+        'HLS 转换',
+    'mkv·ts·mov·avi 등 다른 파일, 또는 다른 음성 트랙을 고를 때':
+        'mkv、ts、mov、avi 等其他文件，或选择其他音轨时',
+    '화질 그대로, PC 부담 적음':
+        '画质不变，电脑负担小',
+    'HLS 재인코딩':
+        'HLS 重新编码',
+    'TV가 읽지 못하는 영상 (XviD, 10비트 H.264 등)':
+        '电视无法读取的视频（XviD、10 位 H.264 等）',
+    'PC 부담 큼, 화질이 조금 떨어질 수 있음':
+        '电脑负担大，画质可能略有下降',
+    '<b>음성</b>: AAC는 대부분 그대로, Dolby·DTS 등 다른 음성은 AAC 스테레오로 바꿈':
+        '<b>音频</b>：AAC 通常保持不变，Dolby、DTS 等其他音频转换为 AAC 立体声',
+    '<b>자막</b>: srt·smi·ass/ssa·vtt 파일과 영상 안의 글자 자막. 블루레이·DVD의 그림 자막(PGS, VobSub)은 안 됨':
+        '<b>字幕</b>：srt、smi、ass/ssa、vtt 文件以及视频内的文字字幕。不支持蓝光/DVD 的图像字幕（PGS、VobSub）',
     '{app} 정보':
         '关于 {app}',
     'IP로 기기 추가':

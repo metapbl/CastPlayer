@@ -37,7 +37,7 @@ from PySide6.QtGui import QDragEnterEvent, QFontDatabase
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QLabel
 from pychromecast.controllers.media import MediaStatus
-from pychromecast.error import NotConnected, PyChromecastError
+from pychromecast.error import NotConnected, PyChromecastError, RequestFailed
 from pychromecast.socket_client import (CONNECTION_STATUS_DISCONNECTED, CONNECTION_STATUS_LOST,
                                         ConnectionStatus, SocketClient)
 
@@ -1091,7 +1091,23 @@ def _manager_cases(check: Callable[[str, bool, str], None]) -> None:
         ok = other == 0 and once == 1 and len(got) == 1 and codes == [104]
         return ok, f"다른 주소 {other}회, 같은 주소 {once}회, 코드 있음 {codes}, 전체 {got}"
 
+    def undelivered_cmd():
+        """소켓 쓰기 오류 등으로 명령을 못 보내면 pychromecast는 RequestFailed → "재생 실패"가 아니라 복구 중 안내 (O106)."""
+        got: list[str] = []
+
+        def fail(*_a, **_kw):
+            raise RequestFailed("play")
+
+        cm._cast = SimpleNamespace(media_controller=SimpleNamespace(play=fail))
+        cm.cb.on_error = got.append
+        try:
+            cm._media_cmd("play")
+        finally:
+            cm._cast, cm.cb.on_error = cast, None
+        return (len(got) == 1 and got[0].startswith("연결 복구 중이라") and "실패" not in got[0]), f"{got}"
+
     try:
+        case("O106 명령을 보내지 못함(RequestFailed) → \"재생 실패\" 대신 연결 복구 중 안내", undelivered_cmd)
         case("세션 확인: 준비 전 오류 3회 뒤 응답 → 다시 시도해 받음", ask_retry)
         case("세션 확인: 준비 전 오류가 계속 → 기한 뒤 '채널 준비 안 됨'", ask_timeout)
         case("세션 확인: 그 밖의 오류 → 다시 시도 없이 실패", ask_error)

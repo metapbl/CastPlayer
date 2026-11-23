@@ -1,7 +1,7 @@
 # PROGRESS — CastPlayer
 
 ## 상태
-- 단계: 7 계획 대기 (진행 중 계획 없음) · 마지막 계획 `docs/plans/2026-11-21-thumb-layout-formats.md` (썸네일 자동 배치·도움말 창·README GIF·화면 글꼴, D123~D131) 완료 · 자가검사 141/141, 약 15초(기준 20초) · 1.3.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.3.0), 그 뒤 README·시험만 바뀜
+- 단계: 7 계획 대기 (진행 중 계획 없음) · 마지막 계획 `docs/plans/2026-11-21-thumb-layout-formats.md` (썸네일 자동 배치·도움말 창·README GIF·화면 글꼴, D123~D131) 완료 · 자가검사 142/142, 약 15초(기준 20초) · 1.3.0 공개 완료 (github.com/metapbl/CastPlayer, Releases v1.3.0), 그 뒤 README·시험만 바뀜
 - 갱신: 2026-11-21
 - 히스토리를 새로 시작함(D041). 아래 완료 기록의 옛 커밋 해시는 저장소 밖 로컬 백업 `../CastPlayer-git-backup-2026-10-27`에만 있다
 
@@ -13,7 +13,7 @@
 ## 미해결
 - 다시 불러온 뒤 첫 PLAYING 0.5초 사이 보낸 탐색을 TV가 APP_ERROR로 거절 1회 (알림 없음, 영향 없음, 2026-11-02) — 자주 보이면 재검토
 - 남은 세션 위 LOAD 시 master.m3u8 요청까지 22초, PLAYING 뒤 약 8초 정지 — 원인 미확정 (OPEN O103, R§4 T12)
-- 첫 재생 직후 SSL BAD_LENGTH로 끊겼다 붙고 잘못된 "재생 실패" 알림 1회 (OPEN O106)
+- 첫 재생 직후 SSL BAD_LENGTH로 끊겼다 붙음 (OPEN O106). 잘못된 "재생 실패" 알림은 D132로 해결, 쓰기 오류의 원인(읽기·쓰기 겹침 가설)은 `-v` 로그 재현 대기
 - 뒤에서 추출한 내장 자막을 붙일 때 다시 불러오기로 약 5초 끊김 — 수신기 제약으로 피할 수 없음 (REFERENCE T2, D112)
 - .ts 탐색 시 영상 첫 tfdt가 약 1.9초 늦음 — 체감 문제 없어 보류
 - 재시작한 ffmpeg의 init이 처음 것과 다름 — 처음 것 유지로 재생 정상, 기록만

@@ -39,6 +39,7 @@ from pychromecast.error import (
     NotConnected,
     PyChromecastError,
     PyChromecastStopped,
+    RequestFailed,
     UnsupportedNamespace,
 )
 from pychromecast.socket_client import (
@@ -472,7 +473,8 @@ class CastManager(MediaStatusListener, CastStatusListener):
     def _cmd_error(self, what: str, err: PyChromecastError, notify: bool = True) -> None:
         """명령 실패 처리. 준비 전 오류는 실패가 아니라 "연결 복구 중"으로 안내. what은 N_ 키.
         notify=False: 준비 전 오류면 로그만 (정지·종료 중처럼 안내가 필요 없을 때)."""
-        if isinstance(err, _NOT_READY):
+        # RequestFailed = 보내지 못함(소켓 쓰기 오류·다시 연결 중·종료 중). 명령이 TV에 안 갔을 뿐 재생 실패가 아님 (O106)
+        if isinstance(err, (*_NOT_READY, RequestFailed)):
             _LOGGER.info("%s: 연결 복구 중이라 보내지 않음 (%s)", what, type(err).__name__)
             if notify:
                 self._error(tr("연결 복구 중이라 {what} 명령을 보내지 못했습니다. "
